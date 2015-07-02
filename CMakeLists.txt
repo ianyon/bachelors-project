@@ -9,12 +9,13 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   roscpp
   sensor_msgs
+  dynamic_reconfigure
 )
+find_package( PCL REQUIRED )
 
-find_package(PCL 1.7 REQUIRED)
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
+generate_dynamic_reconfigure_options(
+  cfg/Parameters.cfg
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -100,7 +101,11 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
+
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 ## Declare a cpp library
 # add_library(my_pcl_tutorial
@@ -114,13 +119,15 @@ set(PROGRAMS example test_publisher)
 foreach(program ${PROGRAMS})
   add_executable(${program} src/${program}.cpp)
   if (TARGET ${program})
-  	target_link_libraries(${program} ${catkin_LIBRARIES})
+        target_link_libraries(${program} ${PCL_LIBRARIES} ${catkin_LIBRARIES})
   endif()  
 endforeach(program)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(my_pcl_tutorial_node my_pcl_tutorial_generate_messages_cpp)
+# make sure configure headers are built before any node using them
+add_dependencies(example ${${PROJECT_NAME}_EXPORTED_TARGETS}) #${PROJECT_NAME}_gencfg)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(my_pcl_tutorial_node
