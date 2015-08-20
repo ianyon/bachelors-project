@@ -54,8 +54,11 @@
 
 #include <pcl/search/kdtree.h>
 
+#include "include/utils.h"
+
 using namespace pcl;
 using namespace std;
+using namespace utility;
 
 class DataHandler
 {
@@ -72,11 +75,6 @@ public:
   //! Callback function for subscriber.
   void sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput);
 
-  //! Publish the message.
-  void publish(const ros::Publisher pub, const PointCloud<PointXYZ>::Ptr cloud);
-
-  double durationInMillis(clock_t begin);
-
   /* Use SACSegmentation to find the dominant plane in the scene
    * Inputs:
    *   input
@@ -88,7 +86,7 @@ public:
    *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
    */
   bool fitPlaneFromNormals (const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
-                       ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers);
+                            ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers);
 
   /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
    * Inputs:
@@ -121,14 +119,13 @@ public:
 
   void cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
 
-  bool update;
+  bool point_clouds_updated;
 
   ros::Publisher pubSmoothed, pubPlanar, pubObjects;
 
-  PCLPointCloud2 pointCloudMsg;
-  PointCloud<PointXYZ>::Ptr passThroughCloud(new PointCloud<PointXYZ>());
-  PointCloud<PointXYZ>::Ptr smoothed_cloud_(new PointCloud<PointXYZ>());
-  PointCloud<Normal>::Ptr cloud_normals_ (new PointCloud<Normal>);
+  PointCloud<PointXYZ>::Ptr passThroughCloud;
+  PointCloud<PointXYZ>::Ptr smoothed_cloud_;
+  PointCloud<Normal>::Ptr cloud_normals_;
 
   // Cropping
   int scale;
@@ -162,12 +159,6 @@ public:
 
   // Cloud Over The Table
   double minHeight, maxHeight;
-
-  // Visualizer
-  int vizNormalsCount;
-
-  // Reset all parameters
-  bool defaultParams;
 };
 
 #endif // DATAHANDLER

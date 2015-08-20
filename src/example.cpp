@@ -8,154 +8,124 @@
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/ModelCoefficients.h>
-
-//Common
-#include <pcl/common/gaussian.h>
-
-// Visualization
-#include <pcl/visualization/pcl_visualizer.h>
-
-// Filters
-#include <pcl/filters/filter.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/crop_box.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/project_inliers.h>
-#include <pcl/filters/convolution_3d.h>
-
-// Sample consensus
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/ransac.h>
-#include <pcl/sample_consensus/sac_model_normal_plane.h>
-
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/segmentation/extract_polygonal_prism_data.h>
-
-#include <pcl/surface/convex_hull.h>
-
-#include <pcl/features/integral_image_normal.h>
-#include <pcl/features/normal_3d.h>
-
-#include <pcl/io/pcd_io.h>
-
-//#include <pcl/kdtree/kdtree.h>
-//#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/search/kdtree.h>
 
 // Project includes
 #include <bachelors_final_project/ParametersConfig.h>
 #include "include/data_handler.h"
 #include "include/data_visualizer.h"
 
-void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t level)
+DataVisualizer *visualizer;
+DataHandler *data_handler;
+
+// Reset all parameters
+bool defaultParams;
+
+void resetToDefaults(bachelors_final_project::ParametersConfig &cfg)
 {
-
-  cfg.__getDefault__().scaleParam
-  ROS_INFO("Parameters modified");
-  if (cfg.defaultParams)
-  {
-    ROS_INFO("Reset parameters to default");
-    // Cropping
-    cfg.scaleParam = 2;
-    cfg.xTranslateParam = 0;
-    cfg.yTranslateParam = 10;
-
-    // Passthrough
-    cfg.yLimitParam = 0.18;
-    cfg.xLimitParam = 0.405;
-    cfg.zLimitParam = 1.575;
-
-    // Gaussian Smoothing
-    cfg.gaussianSigmaParam = 2.0;
-    cfg.gaussianSearchRadiusParam = 0.005;
-
-    // Compute normals efficiently
-    cfg.normalEstimationMethodParam = 4;
-    cfg.maxDepthChangeFactorParam = 0.02;
-    cfg.useDepthDependentSmoothingParam = false;
-    cfg.normalSmoothingSizeParam = 10.0;
-
-    // Fit Plane From Normals
-    cfg.normalDistanceWeightParam = 0.1;
-    cfg.minAngleParam = 0;
-    cfg.maxAngleParam = 2*M_PI;
-    cfg.originDistanceParam = 150.0;
-    cfg.maxIterationsParam = 500;
-    cfg.distanceThresholdParam = 0.3;
-    cfg.optimizeCoefficientsParam = true;
-    cfg.probabilityParam = 0.99;
-    cfg.sampleMaxDistanceParam = 200.0;
-    cfg.useSpecificPlaneParam = false;
-    cfg.planeXParam = 0.0;
-    cfg.planeYParam = 1.0;
-    cfg.planeZParam = 0.0;
-    cfg.epsAngleParam = 2*M_PI;
-
-    // Cloud Over The Table
-    cfg.minHeightParam = 0.0;
-    cfg.maxHeightParam = 0.2;
-
-    // Visualizer
-    cfg.vizNormalsCountParam = 50;
-
-    // Reset all parameters
-    cfg.defaultParams = false;
-  }
-
+  ROS_INFO("Reset parameters to default");
   // Cropping
-  scale = cfg.scaleParam;
-  xTranslate = cfg.xTranslateParam;
-  yTranslate = cfg.yTranslateParam;
+  cfg.scaleParam = cfg.__getDefault__().scaleParam;
+  cfg.xTranslateParam = cfg.__getDefault__().xTranslateParam;
+  cfg.yTranslateParam = cfg.__getDefault__().yTranslateParam;
 
   // Passthrough
-  yLimit = cfg.yLimitParam;
-  xLimit = cfg.xLimitParam;
-  zLimit = cfg.zLimitParam;
+  cfg.yLimitParam = cfg.__getDefault__().yLimitParam;
+  cfg.xLimitParam = cfg.__getDefault__().xLimitParam;
+  cfg.zLimitParam = cfg.__getDefault__().zLimitParam;
 
   // Gaussian Smoothing
-  gaussianSigma = cfg.gaussianSigmaParam;
-  gaussianSearchRadius = cfg.gaussianSearchRadiusParam;
+  cfg.gaussianSigmaParam = cfg.__getDefault__().gaussianSigmaParam;
+  cfg.gaussianSearchRadiusParam = cfg.__getDefault__().gaussianSearchRadiusParam;
 
   // Compute normals efficiently
-  normalEstimationMethod = cfg.normalEstimationMethodParam;
-  maxDepthChangeFactor = cfg.maxDepthChangeFactorParam;
-  useDepthDependentSmoothing = cfg.useDepthDependentSmoothingParam;
-  normalSmoothingSize = cfg.normalSmoothingSizeParam;
+  cfg.normalEstimationMethodParam = cfg.__getDefault__().normalEstimationMethodParam;
+  cfg.maxDepthChangeFactorParam = cfg.__getDefault__().maxDepthChangeFactorParam;
+  cfg.useDepthDependentSmoothingParam = cfg.__getDefault__().useDepthDependentSmoothingParam;
+  cfg.normalSmoothingSizeParam = cfg.__getDefault__().normalSmoothingSizeParam;
 
   // Fit Plane From Normals
-  normalDistanceWeight = cfg.normalDistanceWeightParam;
-  minAngle = cfg.minAngleParam;
-  maxAngle = cfg.maxAngleParam;
-  originDistance = cfg.originDistanceParam;
-  maxIterations = cfg.maxIterationsParam;
-  distanceThreshold = cfg.distanceThresholdParam;
-  optimizeCoefficients = cfg.optimizeCoefficientsParam;
-  probability = cfg.probabilityParam;
-  sampleMaxDistance = cfg.sampleMaxDistanceParam;
-  useSpecificPlane = cfg.useSpecificPlaneParam;
-  planeX = cfg.planeXParam;
-  planeY = cfg.planeYParam;
-  planeZ = cfg.planeZParam;
-  epsAngle = cfg.epsAngleParam;
+  cfg.normalDistanceWeightParam = cfg.__getDefault__().normalDistanceWeightParam;
+  cfg.minAngleParam = cfg.__getDefault__().minAngleParam;
+  cfg.maxAngleParam = cfg.__getDefault__().maxAngleParam;
+  cfg.originDistanceParam = cfg.__getDefault__().originDistanceParam;
+  cfg.maxIterationsParam = cfg.__getDefault__().maxIterationsParam;
+  cfg.distanceThresholdParam = cfg.__getDefault__().distanceThresholdParam;
+  cfg.optimizeCoefficientsParam = cfg.__getDefault__().optimizeCoefficientsParam;
+  cfg.probabilityParam = cfg.__getDefault__().probabilityParam;
+  cfg.sampleMaxDistanceParam = cfg.__getDefault__().sampleMaxDistanceParam;
+  cfg.useSpecificPlaneParam = cfg.__getDefault__().useSpecificPlaneParam;
+  cfg.planeXParam = cfg.__getDefault__().planeXParam;
+  cfg.planeYParam = cfg.__getDefault__().planeYParam;
+  cfg.planeZParam = cfg.__getDefault__().planeZParam;
+  cfg.epsAngleParam = cfg.__getDefault__().epsAngleParam;
 
   // Cloud Over The Table
-  minHeight = cfg.minHeightParam;
-  maxHeight = cfg.maxHeightParam;
+  cfg.minHeightParam = cfg.__getDefault__().minHeightParam;
+  cfg.maxHeightParam = cfg.__getDefault__().maxHeightParam;
 
   // Visualizer
-  vizNormalsCount = cfg.vizNormalsCountParam;
+  cfg.vizNormalsCountParam = cfg.__getDefault__().vizNormalsCountParam;
+
+  // Reset all parameters
+  cfg.defaultParams = cfg.__getDefault__().defaultParams;
+}
+
+void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t level)
+{
+  ROS_INFO("Parameters modified");
+  if (cfg.defaultParams)
+    resetToDefaults();
+
+  // Cropping
+  data_handler->scale = cfg.scaleParam;
+  data_handler->xTranslate = cfg.xTranslateParam;
+  data_handler->yTranslate = cfg.yTranslateParam;
+
+  // Passthrough
+  data_handler->yLimit = cfg.yLimitParam;
+  data_handler->xLimit = cfg.xLimitParam;
+  data_handler->zLimit = cfg.zLimitParam;
+
+  // Gaussian Smoothing
+  data_handler->gaussianSigma = cfg.gaussianSigmaParam;
+  data_handler->gaussianSearchRadius = cfg.gaussianSearchRadiusParam;
+
+  // Compute normals efficiently
+  data_handler->normalEstimationMethod = cfg.normalEstimationMethodParam;
+  data_handler->maxDepthChangeFactor = cfg.maxDepthChangeFactorParam;
+  data_handler->useDepthDependentSmoothing = cfg.useDepthDependentSmoothingParam;
+  data_handler->normalSmoothingSize = cfg.normalSmoothingSizeParam;
+
+  // Fit Plane From Normals
+  data_handler->normalDistanceWeight = cfg.normalDistanceWeightParam;
+  data_handler->minAngle = cfg.minAngleParam;
+  data_handler->maxAngle = cfg.maxAngleParam;
+  data_handler->originDistance = cfg.originDistanceParam;
+  data_handler->maxIterations = cfg.maxIterationsParam;
+  data_handler->distanceThreshold = cfg.distanceThresholdParam;
+  data_handler->optimizeCoefficients = cfg.optimizeCoefficientsParam;
+  data_handler->probability = cfg.probabilityParam;
+  data_handler->sampleMaxDistance = cfg.sampleMaxDistanceParam;
+  data_handler->useSpecificPlane = cfg.useSpecificPlaneParam;
+  data_handler->planeX = cfg.planeXParam;
+  data_handler->planeY = cfg.planeYParam;
+  data_handler->planeZ = cfg.planeZParam;
+  data_handler->epsAngle = cfg.epsAngleParam;
+
+  // Cloud Over The Table
+  data_handler->minHeight = cfg.minHeightParam;
+  data_handler->maxHeight = cfg.maxHeightParam;
+
+  // Visualizer
+  visualizer->viz_normals_count_ = cfg.vizNormalsCountParam;
 
   // Reset all parameters
   defaultParams = cfg.defaultParams;
 
-  ROS_INFO("Reconfigure Request");
+  ROS_INFO("Done Reconfigure Request");
 }
 
-int
-main (int argc, char** argv)
+int main (int argc, char** argv)
 {
   // Delete parameters to start in clean state
   ros::param::del("/bachelors_final_project");
@@ -171,7 +141,7 @@ main (int argc, char** argv)
   ros::NodeHandle nh;
 
   // Create a new NodeExample object.
-  DataHandler *data_handler = new DataHandler(nh);
+  data_handler = new DataHandler(nh);
 
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &DataHandler::sensorCallback, data_handler);
@@ -209,7 +179,7 @@ main (int argc, char** argv)
            defaultParams?"True":"False");
            */
 
-  DataVisualizer *visualizer = new DataVisualizer(data_handler);
+  visualizer = new DataVisualizer(data_handler);
 
   //Start visualizer thread
   boost::thread workerThread(&DataVisualizer::visualize, visualizer);

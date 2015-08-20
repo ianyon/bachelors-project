@@ -9,7 +9,7 @@ public:
   DataVisualizer(DataHandler &data_handler);
 
   //! Function called for visualization thread
-  void visualize(DataHandler &data_handler);
+  void visualize();
 
   DataHandler *data_handler_;
   int viz_normals_count_;

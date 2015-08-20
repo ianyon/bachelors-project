@@ -1,6 +1,7 @@
 #include "data_visualizer.h"
 
-DataVisualizer::DataVisualizer(DataHandler &data_handler): data_handler_(data_handler)
+DataVisualizer::DataVisualizer(DataHandler &data_handler):
+    data_handler_(&data_handler)
 {    
 }
 
@@ -17,17 +18,18 @@ void DataVisualizer::visualize()
     {
         viewer->spinOnce (100);
         // Check if cloud was updated (If not present program fails due to try to visualize zero size normals)
-        if(data_handler_.update)
+        if(data_handler_->point_clouds_updated)
         {
             // Visualize normals
             viewer->removePointCloud("Normals");
 
-            if(!viewer->updatePointCloud(data_handler_.smoothedCloud, "Cloud"))
-                viewer->addPointCloud<PointXYZ>(data_handler_.smoothedCloud, "Cloud");
+            if(!viewer->updatePointCloud(data_handler_->smoothedCloud, "Cloud"))
+                viewer->addPointCloud<PointXYZ>(data_handler_->smoothedCloud, "Cloud");
 
-            viewer->addPointCloudNormals<PointXYZ,Normal>(data_handler_.smoothed_cloud_,
-                                                          data_handler_.cloud_normals_, viz_normals_count_, 1.0, "Normals");
-            data_handler_.update = false;
+            viewer->addPointCloudNormals<PointXYZ,Normal>(data_handler_->smoothed_cloud_,
+                                                          data_handler_->cloud_normals_, viz_normals_count_,
+                                                          1.0, "Normals");
+            data_handler_->point_clouds_updated = false;
         }
     }
 }
