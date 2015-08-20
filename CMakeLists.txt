@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(bachelors_final_project)
 
+add_definitions(-Wno-deprecated)
+
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif(CCACHE_FOUND)
+set (CMAKE_CXX_FLAGS "-DPCL_ONLY_CORE_POINT_TYPES=ON -DNO_EXPLICIT_INSTANTIATIONS")
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -11,11 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   dynamic_reconfigure
 )
-find_package( PCL REQUIRED )
-
-generate_dynamic_reconfigure_options(
-  cfg/Parameters.cfg
-)
+#find_package( PCL 1.7 REQUIRED COMPONENTS common visualization)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -76,6 +81,10 @@ generate_dynamic_reconfigure_options(
 #   sensor_msgs
 # )
 
+generate_dynamic_reconfigure_options(
+  cfg/Parameters.cfg
+)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -101,11 +110,11 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
+ # ${PCL_INCLUDE_DIRS}
 )
 
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
+#link_directories(${PCL_LIBRARY_DIRS})
+#add_definitions(${PCL_DEFINITIONS})
 
 ## Declare a cpp library
 # add_library(my_pcl_tutorial
@@ -118,21 +127,26 @@ set(PROGRAMS example test_publisher)
 
 foreach(program ${PROGRAMS})
   add_executable(${program} src/${program}.cpp)
+
   if (TARGET ${program})
-        target_link_libraries(${program} ${PCL_LIBRARIES} ${catkin_LIBRARIES})
+        ## Add cmake target dependencies of the executable/library
+        ## as an example, message headers may need to be generated before nodes
+        # add_dependencies(my_pcl_tutorial_node my_pcl_tutorial_generate_messages_cpp)
+        # make sure configure headers are built before any node using them
+        add_dependencies(${program} ${PROJECT}_gencfg)
+        #add_dependencies(example ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+        ## Specify libraries to link a library or executable target against
+        # target_link_libraries(my_pcl_tutorial_node
+        #   ${catkin_LIBRARIES}
+        # )
+        target_link_libraries(${program}
+            ${PCL_LIBRARIES}
+            ${catkin_LIBRARIES}
+            libvtkCommon.so
+            libvtkFiltering.so )
   endif()  
 endforeach(program)
-
-## Add cmake target dependencies of the executable/library
-## as an example, message headers may need to be generated before nodes
-# add_dependencies(my_pcl_tutorial_node my_pcl_tutorial_generate_messages_cpp)
-# make sure configure headers are built before any node using them
-add_dependencies(example ${${PROJECT_NAME}_EXPORTED_TARGETS}) #${PROJECT_NAME}_gencfg)
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(my_pcl_tutorial_node
-#   ${catkin_LIBRARIES}
-# )
 
 #############
 ## Install ##
