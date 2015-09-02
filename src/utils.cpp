@@ -1,17 +1,13 @@
-#include "utility.hpp"
+#include "../include/utils.h"
 
-namespace utility
+void utility::publish(const ros::Publisher &pub, const PointCloud<PointXYZ>::Ptr &cloud)
 {
-
-void publish(const ros::Publisher pub, const PointCloud<PointXYZ>::Ptr cloud)
-{
+    PCLPointCloud2 pointCloudMsg;
     toPCLPointCloud2 (*cloud, pointCloudMsg);
     pub.publish(pointCloudMsg);
 }
 
-double durationInMillis(clock_t begin)
+double utility::durationInMillis(clock_t &begin)
 {
     return (double(clock() - begin) / CLOCKS_PER_SEC)*1000;
-}
-
 }

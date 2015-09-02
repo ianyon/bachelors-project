@@ -20,9 +20,6 @@
 //Common
 #include <pcl/common/gaussian.h>
 
-// Visualization
-#include <pcl/visualization/pcl_visualizer.h>
-
 // Filters
 #include <pcl/filters/filter.h>
 #include <pcl/filters/passthrough.h>
@@ -54,7 +51,7 @@
 
 #include <pcl/search/kdtree.h>
 
-#include "include/utils.h"
+#include "../include/utils.h"
 
 using namespace pcl;
 using namespace std;
@@ -63,19 +60,18 @@ using namespace utility;
 class DataHandler
 {
 public:
-  //! Constructor.
-  DataHandler();
+    //! Constructor.
+    DataHandler(ros::NodeHandle nh);
 
-  //! Destructor.
-  ~DataHandler();
+    //! Destructor.
+    ~DataHandler();
 
-  //! Callback function for dynamic reconfigure server.
-  void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t level);
+    void returnFromCallback(clock_t begin);
 
-  //! Callback function for subscriber.
-  void sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput);
+    //! Callback function for subscriber.
+    void sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput);
 
-  /* Use SACSegmentation to find the dominant plane in the scene
+    /* Use SACSegmentation to find the dominant plane in the scene
    * Inputs:
    *   input
    *     The input point cloud
@@ -85,10 +81,12 @@ public:
    * Return: A pointer to the ModelCoefficients (i.e., the 4 coefficients of the plane,
    *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
    */
-  bool fitPlaneFromNormals (const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
-                            ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers);
+    bool fitPlaneFromNormals (const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
+                              ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers);
 
-  /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
+    void extractPlaneCloud (const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers);
+
+    /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
    * Inputs:
    *   input
    *     The input point cloud
@@ -98,67 +96,71 @@ public:
    *     The minimum and maximum allowable cluster sizes
    * Return (by reference): a vector of PointIndices containing the points indices in each cluster
    */
-  bool clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable, float clusterTolerance,
-                  int minClusterSize, int maxClusterSize);
+    bool clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable, float clusterTolerance,
+                         int minClusterSize, int maxClusterSize);
 
-  void computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensorCloud,
-                            PointCloud<Normal>::Ptr &cloud_normals_);
+    void computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensorCloud,
+                                   PointCloud<Normal>::Ptr &cloud_normals_);
 
-  void projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud, const ModelCoefficients::Ptr &tableCoefficients,
-                 const PointIndices::Ptr &tableInliers, PointCloud<PointXYZ>::Ptr &projectedTableCloud);
+    void projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud, const ModelCoefficients::Ptr &tableCoefficients,
+                        const PointIndices::Ptr &tableInliers, PointCloud<PointXYZ>::Ptr &projectedTableCloud);
 
-  void computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud, PointCloud<PointXYZ>::Ptr& tableConvexHull);
+    void computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud,
+                                PointCloud<PointXYZ>::Ptr& tableConvexHull);
 
-  bool extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensorCloud,
-                           const PointCloud<PointXYZ>::Ptr& tableConvexHull,
-                           PointCloud<PointXYZ>::Ptr& cloudOverTheTable);
+    bool extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensorCloud,
+                                  const PointCloud<PointXYZ>::Ptr& tableConvexHull,
+                                  PointCloud<PointXYZ>::Ptr& cloudOverTheTable);
 
-  PointCloud<PointXYZ>::Ptr gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &smoothed_cloud_);
+    PointCloud<PointXYZ>::Ptr gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput,
+                                                PointCloud<PointXYZ>::Ptr &smoothed_cloud_);
 
-  void cropPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
+    void cropPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
 
-  void cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
+    void cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
 
-  bool point_clouds_updated;
+    bool point_clouds_updated_;
+    bool plane_updated_;
 
-  ros::Publisher pubSmoothed, pubPlanar, pubObjects;
+    ros::Publisher pubSmoothed, pubPlanar, pubObjects;
 
-  PointCloud<PointXYZ>::Ptr passThroughCloud;
-  PointCloud<PointXYZ>::Ptr smoothed_cloud_;
-  PointCloud<Normal>::Ptr cloud_normals_;
+    PointCloud<PointXYZ>::Ptr passThroughCloud;
+    PointCloud<PointXYZ>::Ptr smoothed_cloud_;
+    PointCloud<PointXYZ>::Ptr plane_cloud_;
+    PointCloud<Normal>::Ptr cloud_normals_;
 
-  // Cropping
-  int scale;
-  int xTranslate, yTranslate;
+    // Cropping
+    int scale;
+    int xTranslate, yTranslate;
 
-  // Passthrough
-  double yLimit, xLimit, zLimit;
+    // Passthrough
+    double yLimit, xLimit, zLimit;
 
-  // Gaussian Smoothing
-  double gaussianSigma;
-  double gaussianSearchRadius;
+    // Gaussian Smoothing
+    double gaussianSigma;
+    double gaussianSearchRadius;
 
-  // Compute normals efficiently
-  int normalEstimationMethod;
-  double maxDepthChangeFactor;
-  bool useDepthDependentSmoothing;
-  double normalSmoothingSize;
+    // Compute normals efficiently
+    int normalEstimationMethod;
+    double maxDepthChangeFactor;
+    bool useDepthDependentSmoothing;
+    double normalSmoothingSize;
 
-  // Fit Plane From Normals
-  double normalDistanceWeight;
-  double minAngle, maxAngle;
-  double originDistance;
-  double maxIterations;
-  double distanceThreshold;
-  bool optimizeCoefficients;
-  double probability;
-  double sampleMaxDistance;
-  bool useSpecificPlane;
-  double planeX, planeY, planeZ;
-  double epsAngle;
+    // Fit Plane From Normals
+    double normalDistanceWeight;
+    double minAngle, maxAngle;
+    double originDistance;
+    double maxIterations;
+    double distanceThreshold;
+    bool optimizeCoefficients;
+    double probability;
+    double sampleMaxDistance;
+    bool useSpecificPlane;
+    double planeX, planeY, planeZ;
+    double epsAngle;
 
-  // Cloud Over The Table
-  double minHeight, maxHeight;
+    // Cloud Over The Table
+    double minHeight, maxHeight;
 };
 
 #endif // DATAHANDLER

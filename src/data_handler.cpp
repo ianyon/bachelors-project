@@ -1,4 +1,4 @@
-#include "data_handler.h"
+#include "../include/data_handler.h"
 
 /*
  * Constructor
@@ -11,22 +11,29 @@ DataHandler::DataHandler(ros::NodeHandle nh)
     pubObjects = nh.advertise<PCLPointCloud2> ("objects", 1);
 
     // Initialize pointers to point clouds
+    passThroughCloud.reset(new PointCloud<PointXYZ>);
+    smoothed_cloud_.reset(new PointCloud<PointXYZ>);
+    cloud_normals_.reset(new PointCloud<Normal>);
+
+    /*
     passThroughCloud.reset(new PointCloud<PointXYZ>());
     smoothed_cloud_.reset(new PointCloud<PointXYZ>());;
-    cloud_normals_.reset(new PointCloud<PointXYZ>());;
+    cloud_normals_.reset(new PointCloud<Normal>());;
+    */
 }  // end DataHandler()
 
 
 /*
  * Destructor
  */
-DataHandler::~NodeExample()
+DataHandler::~DataHandler()
 {
 } // end ~DataHandler()
 
-void DataHandler::returnFromCallback(clock_t begin){
+void DataHandler::returnFromCallback(clock_t begin)
+{
     //ros::Duration duration = ros::Time::now() - start;
-    ROS_INFO("Callback took %gms", durationInMillis(begin));
+    ROS_INFO("Callback took %gms\n\n", durationInMillis(begin));
 }
 
 /* Use SACSegmentation to find the dominant plane in the scene
@@ -87,12 +94,13 @@ bool DataHandler::fitPlaneFromNormals (const PointCloud<PointXYZ>::Ptr &input, P
 
     if (inliers->indices.size () == 0) return false;
 
-    ROS_DEBUG_STREAM("PLANE FOUND. Model coefficients: " << coefficients->values[0] << " "
+    ROS_INFO_STREAM("PLANE FOUND. Model coefficients: " << coefficients->values[0] << " "
                                                                                     << coefficients->values[1] << " "
                                                                                     << coefficients->values[2] << " "
                                                                                     << coefficients->values[3]);
 
-    ROS_DEBUG_STREAM("Model inliers: " << inliers->indices.size ());
+    ROS_INFO_STREAM("Model inliers: " << inliers->indices.size ());
+    /*
     for (size_t i = 0; i < inliers->indices.size (); ++i)
     {
         ROS_DEBUG_STREAM(inliers->indices[i] << "    "
@@ -100,8 +108,21 @@ bool DataHandler::fitPlaneFromNormals (const PointCloud<PointXYZ>::Ptr &input, P
                                                                  << input->points[inliers->indices[i]].y << " "
                                                                  << input->points[inliers->indices[i]].z);
     }
+    */
+    ROS_INFO("Plane segmentation took %gms", durationInMillis(begin));
+}
 
-    ROS_DEBUG("Plane segmentation took %gms", durationInMillis(begin));
+void DataHandler::extractPlaneCloud (const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers)
+{
+  // Create the filtering object
+  ExtractIndices<PointXYZ> extract;
+
+  // Extract the inliers
+  extract.setInputCloud (input);
+  extract.setIndices (inliers);
+  extract.setNegative (false);
+  extract.filter (*plane_cloud_);
+  ROS_DEBUG("Extracted PointCloud representing the planar component");
 }
 
 /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
@@ -191,11 +212,13 @@ void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sen
     ne.compute(*cloud_normals_);
 
     //removeNaNNormalsFromPointCloud(cloudin,cloudout,indexes);
-    ROS_DEBUG("Integral image normals took %gms", durationInMillis(begin));
+    ROS_INFO("Integral image normals took %gms", durationInMillis(begin));
 }
 
-void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud, const ModelCoefficients::Ptr &tableCoefficients,
-                                 const PointIndices::Ptr &tableInliers, PointCloud<PointXYZ>::Ptr &projectedTableCloud)
+void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud,
+                                 const ModelCoefficients::Ptr &tableCoefficients,
+                                 const PointIndices::Ptr &tableInliers,
+                                 PointCloud<PointXYZ>::Ptr &projectedTableCloud)
 {
     clock_t begin = clock();
     ProjectInliers<PointXYZ> proj;
@@ -204,17 +227,19 @@ void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud, c
     proj.setInputCloud (sensorCloud);
     proj.setModelCoefficients (tableCoefficients);
     proj.filter (*projectedTableCloud);
-    ROS_DEBUG("Project on plane took %gms", durationInMillis(begin));
+    ROS_INFO("Project on plane took %gms", durationInMillis(begin));
 }
 
-void DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud, PointCloud<PointXYZ>::Ptr& tableConvexHull)
+void DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud,
+                                         PointCloud<PointXYZ>::Ptr& tableConvexHull)
 {
     clock_t begin = clock();
     ConvexHull<PointXYZ> chull;
     chull.setInputCloud (projectedTableCloud);
-    chull.reconstruct (*tableConvexHull);
-    ROS_DEBUG("Convex hull took %gms", durationInMillis(begin));
-    ROS_DEBUG("Convex hull has: %u data points.", tableConvexHull->points.size ());
+    chull.reconstruct (*tableConvexHull);    
+    tableConvexHull->push_back(tableConvexHull->at(0));
+    ROS_INFO("Convex hull took %gms", durationInMillis(begin));
+    ROS_DEBUG("Convex hull has: %lu data points.", tableConvexHull->points.size ());
 }
 
 bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensorCloud,
@@ -233,7 +258,7 @@ bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sens
 
     if(indicesOverTheTable->indices.size () == 0)
     {
-        ROS_DEBUG("Convex hull took %gms", durationInMillis(begin));
+        ROS_INFO("Extract cloud over the table took %gms", durationInMillis(begin));
         ROS_WARN("No points over the table");
         return false;
     }
@@ -243,7 +268,7 @@ bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sens
     extractIndices.setInputCloud(sensorCloud);
     extractIndices.setIndices(indicesOverTheTable);
     extractIndices.filter(*cloudOverTheTable);
-    ROS_DEBUG("Convex hull took %gms", durationInMillis(begin));
+    ROS_INFO("Extract cloud over the table took %gms", durationInMillis(begin));
     return true;
 }
 
@@ -268,7 +293,7 @@ PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointX
     convolution.setRadiusSearch(gaussianSearchRadius);
     convolution.convolve(*smoothed_cloud_);
 
-    ROS_DEBUG("Gaussian Smoothing took %gms", durationInMillis(begin));
+    ROS_INFO("Gaussian Smoothing took %gms", durationInMillis(begin));
 
     return smoothed_cloud_;
 }
@@ -320,7 +345,8 @@ void DataHandler::cropPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, Po
   pass.filter (*passThroughCloud);*/
 }
 
-void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud)
+void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput,
+                                          PointCloud<PointXYZ>::Ptr &croppedCloud)
 {
     clock_t begin = clock();
     // Kinect is 640/480
@@ -348,8 +374,8 @@ void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloud
         }
     }
 
-    ROS_DEBUG("PointCloud cropping took %gms", durationInMillis(begin));
-    ROS_DEBUG("Cropped from %u to %u", cloudInput->points.size(), croppedCloud->points.size());
+    ROS_INFO("PointCloud cropping took %gms", durationInMillis(begin));
+    ROS_DEBUG("Cropped from %lu to %lu", cloudInput->points.size(), croppedCloud->points.size());
 }
 
 void DataHandler::sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput)
@@ -377,7 +403,7 @@ void DataHandler::sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput)
 
     // Compute integral image normals
     computeNormalsEfficiently(smoothed_cloud_, cloud_normals_);
-    update = true;
+    point_clouds_updated_ = true;
 
     // Segment plane using normals
     ModelCoefficients::Ptr tableCoefficients (new ModelCoefficients ());
@@ -385,6 +411,9 @@ void DataHandler::sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput)
     // Only continue if we find a plane
     if (!fitPlaneFromNormals(smoothed_cloud_, cloud_normals_, tableCoefficients, tableInliers))
         return returnFromCallback(beginCallback);
+
+    extractPlaneCloud(smoothed_cloud_, tableInliers);
+    plane_updated_ = true;
 
     // Project plane points (inliers) in model plane
     PointCloud<PointXYZ>::Ptr projectedTableCloud (new PointCloud<PointXYZ>);
@@ -399,7 +428,9 @@ void DataHandler::sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput)
     PointCloud<PointXYZ>::Ptr cloudOverTheTable(new PointCloud<PointXYZ>);
     // Only continue if there are points over the table
     if(!extractCloudOverTheTable(smoothed_cloud_, tableConvexHull, cloudOverTheTable))
+    {        
         return returnFromCallback(beginCallback);
+    }
     publish(pubObjects, cloudOverTheTable);
 
     // Clustering objects over the table

@@ -11,8 +11,8 @@
 
 // Project includes
 #include <bachelors_final_project/ParametersConfig.h>
-#include "include/data_handler.h"
-#include "include/data_visualizer.h"
+#include "../include/data_handler.h"
+#include "../include/data_visualizer.h"
 
 DataVisualizer *visualizer;
 DataHandler *data_handler;
@@ -65,6 +65,7 @@ void resetToDefaults(bachelors_final_project::ParametersConfig &cfg)
 
   // Visualizer
   cfg.vizNormalsCountParam = cfg.__getDefault__().vizNormalsCountParam;
+  cfg.normalsSizeParam = cfg.__getDefault__().normalsSizeParam;
 
   // Reset all parameters
   cfg.defaultParams = cfg.__getDefault__().defaultParams;
@@ -72,9 +73,8 @@ void resetToDefaults(bachelors_final_project::ParametersConfig &cfg)
 
 void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t level)
 {
-  ROS_INFO("Parameters modified");
   if (cfg.defaultParams)
-    resetToDefaults();
+    resetToDefaults(cfg);
 
   // Cropping
   data_handler->scale = cfg.scaleParam;
@@ -118,11 +118,12 @@ void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t 
 
   // Visualizer
   visualizer->viz_normals_count_ = cfg.vizNormalsCountParam;
+  visualizer->normals_size_ = cfg.normalsSizeParam;
 
   // Reset all parameters
   defaultParams = cfg.defaultParams;
 
-  ROS_INFO("Done Reconfigure Request");
+  ROS_WARN("Done Reconfigure Request");
 }
 
 int main (int argc, char** argv)
@@ -140,8 +141,8 @@ int main (int argc, char** argv)
   ros::init (argc, argv, "bachelors_final_project");
   ros::NodeHandle nh;
 
-  // Create a new NodeExample object.
   data_handler = new DataHandler(nh);
+  visualizer = new DataVisualizer(*data_handler);
 
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &DataHandler::sensorCallback, data_handler);
@@ -151,7 +152,7 @@ int main (int argc, char** argv)
   dynamic_reconfigure::Server<bachelors_final_project::ParametersConfig>::CallbackType f;
 
   // Bind callback function to update values
-  f = boost::bind(&DataHandler::parameterCallback, data_handler, _1, _2);
+  f = boost::bind(&parameterCallback, _1, _2);
   server.setCallback(f);
 
   /*
@@ -179,11 +180,12 @@ int main (int argc, char** argv)
            defaultParams?"True":"False");
            */
 
-  visualizer = new DataVisualizer(data_handler);
-
   //Start visualizer thread
   boost::thread workerThread(&DataVisualizer::visualize, visualizer);
   workerThread.detach();
+
+  data_handler->plane_updated_ = false;
+  data_handler->point_clouds_updated_ = false;
 
   ROS_INFO("Escuchando");
 
