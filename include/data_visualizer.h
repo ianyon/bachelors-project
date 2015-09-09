@@ -18,7 +18,7 @@ public:
 
   DataHandler *data_handler_;
   int viz_normals_count_;
-  int normals_size_;
+  float normals_size_;
 };
 
 #endif // DATAVISUALIZER_H

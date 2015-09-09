@@ -123,17 +123,17 @@ include_directories(
 
 ## Declare a cpp executable
 # add_executable(my_pcl_tutorial_node src/my_pcl_tutorial_node.cpp)
-set(PROGRAMS example test_publisher)
+set(PROGRAMS example)
 
 
 set (SRC ${SRC} src/data_handler.cpp src/data_visualizer.cpp src/utils.cpp)
 
-add_executable(plane_segmentation src/plane_segmentation.cpp)
-target_link_libraries(plane_segmentation
-            ${PCL_LIBRARIES}
-            ${catkin_LIBRARIES}
-            libvtkCommon.so
-            libvtkFiltering.so )
+#add_executable(plane_segmentation src/plane_segmentation.cpp)
+#target_link_libraries(plane_segmentation
+#            ${PCL_LIBRARIES}
+#            ${catkin_LIBRARIES}
+#            libvtkCommon.so
+#            libvtkFiltering.so )
 
 foreach(program ${PROGRAMS})
   add_executable(${program} src/${program}.cpp ${SRC})

@@ -99,16 +99,16 @@ public:
     bool clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable, float clusterTolerance,
                          int minClusterSize, int maxClusterSize);
 
-    void computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensorCloud,
+    void computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
                                    PointCloud<Normal>::Ptr &cloud_normals_);
 
-    void projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud, const ModelCoefficients::Ptr &tableCoefficients,
+    void projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud, const ModelCoefficients::Ptr &tableCoefficients,
                         const PointIndices::Ptr &tableInliers, PointCloud<PointXYZ>::Ptr &projectedTableCloud);
 
     void computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud,
                                 PointCloud<PointXYZ>::Ptr& tableConvexHull);
 
-    bool extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensorCloud,
+    bool extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensor_cloud,
                                   const PointCloud<PointXYZ>::Ptr& tableConvexHull,
                                   PointCloud<PointXYZ>::Ptr& cloudOverTheTable);
 
@@ -118,13 +118,15 @@ public:
     void cropPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
 
     void cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
+    void cropOrganizedPointCloud(const PointCloud<Normal>::Ptr &cloudInput, PointCloud<Normal>::Ptr &croppedCloud);
 
     bool point_clouds_updated_;
-    bool plane_updated_;
+    bool plane_updated_;    
+    boost::mutex updateNormalsMutex;
 
     ros::Publisher pubSmoothed, pubPlanar, pubObjects;
 
-    PointCloud<PointXYZ>::Ptr passThroughCloud;
+    PointCloud<PointXYZ>::Ptr pass_through_cloud_;
     PointCloud<PointXYZ>::Ptr smoothed_cloud_;
     PointCloud<PointXYZ>::Ptr plane_cloud_;
     PointCloud<Normal>::Ptr cloud_normals_;

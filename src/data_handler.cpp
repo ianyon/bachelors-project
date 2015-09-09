@@ -11,15 +11,10 @@ DataHandler::DataHandler(ros::NodeHandle nh)
     pubObjects = nh.advertise<PCLPointCloud2> ("objects", 1);
 
     // Initialize pointers to point clouds
-    passThroughCloud.reset(new PointCloud<PointXYZ>);
+    pass_through_cloud_.reset(new PointCloud<PointXYZ>);
     smoothed_cloud_.reset(new PointCloud<PointXYZ>);
+    plane_cloud_.reset(new PointCloud<PointXYZ>);
     cloud_normals_.reset(new PointCloud<Normal>);
-
-    /*
-    passThroughCloud.reset(new PointCloud<PointXYZ>());
-    smoothed_cloud_.reset(new PointCloud<PointXYZ>());;
-    cloud_normals_.reset(new PointCloud<Normal>());;
-    */
 }  // end DataHandler()
 
 
@@ -34,6 +29,118 @@ void DataHandler::returnFromCallback(clock_t begin)
 {
     //ros::Duration duration = ros::Time::now() - start;
     ROS_INFO("Callback took %gms\n\n", durationInMillis(begin));
+}
+
+void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput,
+                                          PointCloud<PointXYZ>::Ptr &croppedCloud)
+{
+    clock_t begin = clock();
+    // Kinect is 640/480
+    int width = 64*scale,
+        height = 48*scale;
+    int init_col = fmax(cloudInput->width/2 - width/2 + xTranslate, 0),
+        init_row = fmax(cloudInput->height/2 - height/2 + yTranslate, 0);
+    //int end_col = fmin(xInit + width, cloudInput->width),
+   //     end_row = fmin(yInit + height, cloudInput->height);
+
+    // Reserve space in the points vector to store the cloud
+    //croppedCloud->reserve(xRealSize*yRealSize);
+    // Make que dimensions of the cloud be according the size of the vector
+    croppedCloud->width = width;
+    croppedCloud->height = height;
+    // Change the size of the pointcloud
+    croppedCloud->points.resize (width * height);
+    croppedCloud->sensor_origin_ = cloudInput->sensor_origin_;
+    croppedCloud->sensor_orientation_ = cloudInput->sensor_orientation_;
+
+    for (unsigned int u = 0; u < width; u++)
+    {
+      for (unsigned int v = 0; v < height; v++)
+      {
+        // We can't use croppedCloud->push_back because it breaks the organization
+        croppedCloud->at (u, v) = cloudInput->at (init_col + u, init_row + v);
+      }
+    }
+
+    croppedCloud->is_dense = cloudInput->is_dense;
+
+    ROS_INFO("PointCloud cropping took %gms", durationInMillis(begin));
+    ROS_DEBUG("Cropped from %lu to %lu", cloudInput->points.size(), croppedCloud->points.size());
+}
+
+PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &smoothed_cloud_)
+{
+    clock_t begin = clock();
+    //Set up the Gaussian Kernel
+    filters::GaussianKernel<PointXYZ, PointXYZ>::Ptr kernel(new filters::GaussianKernel<PointXYZ, PointXYZ>());
+    kernel->setSigma(gaussianSigma);
+    kernel->setThresholdRelativeToSigma(3);
+
+    //Set up the KDTree
+    search::KdTree<PointXYZ>::Ptr kdTree(new search::KdTree<PointXYZ>);
+    kdTree->setInputCloud(cloudInput);
+
+    //Set up the Convolution Filter
+    filters::Convolution3D<PointXYZ, PointXYZ, filters::GaussianKernel<PointXYZ, PointXYZ> > convolution;
+    convolution.setKernel(*kernel);
+    convolution.setInputCloud(cloudInput);
+    convolution.setSearchMethod(kdTree);
+    convolution.setRadiusSearch(gaussianSearchRadius);
+    convolution.convolve(*smoothed_cloud_);
+
+    ROS_INFO("Gaussian Smoothing took %gms", durationInMillis(begin));
+
+    return smoothed_cloud_;
+}
+
+
+void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
+                                            PointCloud<Normal>::Ptr &cloud_normals_)
+{
+    clock_t begin = clock();
+    IntegralImageNormalEstimation<PointXYZ, Normal> ne;
+
+    switch (normalEstimationMethod)
+    {
+        case 1:
+            ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
+            break;
+        case 2:
+            ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
+            break;
+        case 3:
+            ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
+            break;
+        case 4:
+            ne.setNormalEstimationMethod (ne.SIMPLE_3D_GRADIENT);
+            break;
+        default:
+            ROS_ERROR("Wrong Normal estimation method. Parameter error");
+            ros::shutdown();
+            return;
+    }
+
+    /*
+ // fill the cloud somehow...
+    points3dToPointsPcl(points, nPoints, cloud);
+    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::PointNormal> ne;
+    ne.setInputCloud (cloud);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ> ());
+    ne.setSearchMethod (tree);
+    ne.setNumberOfThreads(8);
+    ne.setRadiusSearch (0.15);
+    ne.compute (*cloud_normals);
+*/
+
+    ne.setMaxDepthChangeFactor(maxDepthChangeFactor);
+    ne.setDepthDependentSmoothing(useDepthDependentSmoothing);
+    ne.setNormalSmoothingSize(normalSmoothingSize);
+    ne.setInputCloud(sensor_cloud);
+    //ne.setKSearch(0);
+    ne.compute(*cloud_normals_);
+
+    //removeNaNNormalsFromPointCloud(cloudin,cloudout,indexes);
+    ROS_INFO("Integral image normals took %gms", durationInMillis(begin));
 }
 
 /* Use SACSegmentation to find the dominant plane in the scene
@@ -94,22 +201,13 @@ bool DataHandler::fitPlaneFromNormals (const PointCloud<PointXYZ>::Ptr &input, P
 
     if (inliers->indices.size () == 0) return false;
 
-    ROS_INFO_STREAM("PLANE FOUND. Model coefficients: " << coefficients->values[0] << " "
-                                                                                    << coefficients->values[1] << " "
-                                                                                    << coefficients->values[2] << " "
-                                                                                    << coefficients->values[3]);
+    ROS_DEBUG_STREAM("PLANE FOUND. Model coefficients: " << coefficients->values[0]
+        << " " << coefficients->values[1] << " " << coefficients->values[2] << " " << coefficients->values[3]);
 
-    ROS_INFO_STREAM("Model inliers: " << inliers->indices.size ());
-    /*
-    for (size_t i = 0; i < inliers->indices.size (); ++i)
-    {
-        ROS_DEBUG_STREAM(inliers->indices[i] << "    "
-                         << input->points[inliers->indices[i]].x << " "
-                                                                 << input->points[inliers->indices[i]].y << " "
-                                                                 << input->points[inliers->indices[i]].z);
-    }
-    */
+    ROS_DEBUG_STREAM("Model inliers: " << inliers->indices.size ());
+
     ROS_INFO("Plane segmentation took %gms", durationInMillis(begin));
+    return true;
 }
 
 void DataHandler::extractPlaneCloud (const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers)
@@ -124,6 +222,64 @@ void DataHandler::extractPlaneCloud (const PointCloud<PointXYZ>::Ptr &input, Poi
   extract.filter (*plane_cloud_);
   ROS_DEBUG("Extracted PointCloud representing the planar component");
 }
+
+void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
+                                 const ModelCoefficients::Ptr &tableCoefficients,
+                                 const PointIndices::Ptr &tableInliers,
+                                 PointCloud<PointXYZ>::Ptr &projectedTableCloud)
+{
+    clock_t begin = clock();
+    ProjectInliers<PointXYZ> proj;
+    proj.setModelType (SACMODEL_PLANE);
+    proj.setIndices (tableInliers);
+    proj.setInputCloud (sensor_cloud);
+    proj.setModelCoefficients (tableCoefficients);
+    proj.filter (*projectedTableCloud);
+    ROS_INFO("Project on plane took %gms", durationInMillis(begin));
+}
+
+void DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud,
+                                         PointCloud<PointXYZ>::Ptr& tableConvexHull)
+{
+    clock_t begin = clock();
+    ConvexHull<PointXYZ> chull;
+    chull.setInputCloud (projectedTableCloud);
+    chull.reconstruct (*tableConvexHull);    
+    tableConvexHull->push_back(tableConvexHull->at(0));
+    ROS_INFO("Convex hull took %gms", durationInMillis(begin));
+    ROS_DEBUG("Convex hull has: %lu data points.", tableConvexHull->points.size ());
+}
+
+bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensor_cloud,
+                                           const PointCloud<PointXYZ>::Ptr& tableConvexHull,
+                                           PointCloud<PointXYZ>::Ptr& cloudOverTheTable)
+{
+    clock_t begin = clock();
+    // Segment those points that are in the polygonal prism
+    ExtractPolygonalPrismData<PointXYZ> prism;
+    // Objects must lie between minHeight and maxHeight m over the plane
+    prism.setHeightLimits (minHeight, maxHeight);
+    prism.setInputCloud (sensor_cloud);
+    prism.setInputPlanarHull (tableConvexHull);
+    PointIndices::Ptr indicesOverTheTable (new PointIndices ());
+    prism.segment (*indicesOverTheTable);
+
+    if(indicesOverTheTable->indices.size () == 0)
+    {
+        ROS_INFO("Extract cloud over the table took %gms", durationInMillis(begin));
+        ROS_WARN("No points over the table");
+        return false;
+    }
+
+    // Extraxt indices over the table
+    ExtractIndices<PointXYZ> extractIndices;
+    extractIndices.setInputCloud(sensor_cloud);
+    extractIndices.setIndices(indicesOverTheTable);
+    extractIndices.filter(*cloudOverTheTable);
+    ROS_INFO("Extract cloud over the table took %gms", durationInMillis(begin));
+    return true;
+}
+
 
 /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
  * Inputs:
@@ -179,204 +335,6 @@ bool DataHandler::clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverThe
     }
 }
 
-void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensorCloud,
-                                            PointCloud<Normal>::Ptr &cloud_normals_)
-{
-    clock_t begin = clock();
-    IntegralImageNormalEstimation<PointXYZ, Normal> ne;
-
-    switch (normalEstimationMethod)
-    {
-        case 1:
-            ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
-            break;
-        case 2:
-            ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
-            break;
-        case 3:
-            ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
-            break;
-        case 4:
-            ne.setNormalEstimationMethod (ne.SIMPLE_3D_GRADIENT);
-            break;
-        default:
-            ROS_ERROR("Wrong Normal estimation method. Parameter error");
-            ros::shutdown();
-            return;
-    }
-
-    ne.setMaxDepthChangeFactor(maxDepthChangeFactor);
-    ne.setDepthDependentSmoothing(useDepthDependentSmoothing);
-    ne.setNormalSmoothingSize(normalSmoothingSize);
-    ne.setInputCloud(sensorCloud);
-    ne.compute(*cloud_normals_);
-
-    //removeNaNNormalsFromPointCloud(cloudin,cloudout,indexes);
-    ROS_INFO("Integral image normals took %gms", durationInMillis(begin));
-}
-
-void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensorCloud,
-                                 const ModelCoefficients::Ptr &tableCoefficients,
-                                 const PointIndices::Ptr &tableInliers,
-                                 PointCloud<PointXYZ>::Ptr &projectedTableCloud)
-{
-    clock_t begin = clock();
-    ProjectInliers<PointXYZ> proj;
-    proj.setModelType (SACMODEL_PLANE);
-    proj.setIndices (tableInliers);
-    proj.setInputCloud (sensorCloud);
-    proj.setModelCoefficients (tableCoefficients);
-    proj.filter (*projectedTableCloud);
-    ROS_INFO("Project on plane took %gms", durationInMillis(begin));
-}
-
-void DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr& projectedTableCloud,
-                                         PointCloud<PointXYZ>::Ptr& tableConvexHull)
-{
-    clock_t begin = clock();
-    ConvexHull<PointXYZ> chull;
-    chull.setInputCloud (projectedTableCloud);
-    chull.reconstruct (*tableConvexHull);    
-    tableConvexHull->push_back(tableConvexHull->at(0));
-    ROS_INFO("Convex hull took %gms", durationInMillis(begin));
-    ROS_DEBUG("Convex hull has: %lu data points.", tableConvexHull->points.size ());
-}
-
-bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr& sensorCloud,
-                                           const PointCloud<PointXYZ>::Ptr& tableConvexHull,
-                                           PointCloud<PointXYZ>::Ptr& cloudOverTheTable)
-{
-    clock_t begin = clock();
-    // Segment those points that are in the polygonal prism
-    ExtractPolygonalPrismData<PointXYZ> prism;
-    // Objects must lie between minHeight and maxHeight m over the plane
-    prism.setHeightLimits (minHeight, maxHeight);
-    prism.setInputCloud (sensorCloud);
-    prism.setInputPlanarHull (tableConvexHull);
-    PointIndices::Ptr indicesOverTheTable (new PointIndices ());
-    prism.segment (*indicesOverTheTable);
-
-    if(indicesOverTheTable->indices.size () == 0)
-    {
-        ROS_INFO("Extract cloud over the table took %gms", durationInMillis(begin));
-        ROS_WARN("No points over the table");
-        return false;
-    }
-
-    // Extraxt indices over the table
-    ExtractIndices<PointXYZ> extractIndices;
-    extractIndices.setInputCloud(sensorCloud);
-    extractIndices.setIndices(indicesOverTheTable);
-    extractIndices.filter(*cloudOverTheTable);
-    ROS_INFO("Extract cloud over the table took %gms", durationInMillis(begin));
-    return true;
-}
-
-
-PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &smoothed_cloud_)
-{
-    clock_t begin = clock();
-    //Set up the Gaussian Kernel
-    filters::GaussianKernel<PointXYZ, PointXYZ>::Ptr kernel(new filters::GaussianKernel<PointXYZ, PointXYZ>());
-    kernel->setSigma(gaussianSigma);
-    kernel->setThresholdRelativeToSigma(3);
-
-    //Set up the KDTree
-    search::KdTree<PointXYZ>::Ptr kdTree(new search::KdTree<PointXYZ>);
-    kdTree->setInputCloud(cloudInput);
-
-    //Set up the Convolution Filter
-    filters::Convolution3D<PointXYZ, PointXYZ, filters::GaussianKernel<PointXYZ, PointXYZ> > convolution;
-    convolution.setKernel(*kernel);
-    convolution.setInputCloud(cloudInput);
-    convolution.setSearchMethod(kdTree);
-    convolution.setRadiusSearch(gaussianSearchRadius);
-    convolution.convolve(*smoothed_cloud_);
-
-    ROS_INFO("Gaussian Smoothing took %gms", durationInMillis(begin));
-
-    return smoothed_cloud_;
-}
-
-void DataHandler::cropPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud)
-{
-    // Kinect is 320/240
-    Eigen::Vector4f minPoint;
-    minPoint[0]=0;  // define minimum point x
-    minPoint[1]=0;  // define minimum point y
-    minPoint[2]=0;  // define minimum point z
-    Eigen::Vector4f maxPoint;
-    minPoint[0]=5;  // define max point x
-    minPoint[1]=6;  // define max point y
-    minPoint[2]=7;  // define max point z
-
-    // Define translation and rotation ( this is optional)
-
-    Eigen::Vector3f boxTranslatation;
-    boxTranslatation[0]=1;
-    boxTranslatation[1]=2;
-    boxTranslatation[2]=3;
-    // this moves your cube from (0,0,0)//minPoint to (1,2,3)  // maxPoint is now(6,8,10)
-
-    CropBox<PointXYZ> cropFilter;
-    cropFilter.setInputCloud (cloudInput);
-    cropFilter.setMin(minPoint);
-    cropFilter.setMax(maxPoint);
-    cropFilter.setTranslation(boxTranslatation);
-
-    cropFilter.filter (*croppedCloud);
-
-
-    /*PassThrough<PointXYZ> pass;
-  pass.setKeepOrganized(true);
-  pass.setInputCloud (sensorCloud);
-  pass.setFilterFieldName ("y");
-  pass.setFilterLimits (-yLimit, yLimit);
-  pass.filter (*passThroughCloud);
-
-  pass.setInputCloud (passThroughCloud);
-  pass.setFilterFieldName ("x");
-  pass.setFilterLimits (-xLimit, xLimit);
-  pass.filter (*passThroughCloud);
-
-  pass.setInputCloud (passThroughCloud);
-  pass.setFilterFieldName ("z");
-  pass.setFilterLimits (-zLimit, zLimit);
-  pass.filter (*passThroughCloud);*/
-}
-
-void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput,
-                                          PointCloud<PointXYZ>::Ptr &croppedCloud)
-{
-    clock_t begin = clock();
-    // Kinect is 640/480
-    int xRealSize = 64*scale,
-            yRealSize = 48*scale;
-    int xInit = fmax(cloudInput->width/2 - xRealSize/2 + xTranslate, 0),
-            yInit = fmax(cloudInput->height/2 - yRealSize/2 + yTranslate, 0);
-    int xEnd = fmin(xInit + xRealSize, cloudInput->width),
-            yEnd = fmin(yInit + yRealSize, cloudInput->height);
-
-    // Reserve space in the points vector to store the cloud
-    croppedCloud->reserve(xRealSize*yRealSize);
-    // Make que dimensions of the cloud be according the size of the vector
-    croppedCloud->width = xRealSize;
-    croppedCloud->height = yRealSize;
-    croppedCloud->sensor_origin_ = cloudInput->sensor_origin_;
-    croppedCloud->sensor_orientation_ = cloudInput->sensor_orientation_;
-
-    for (size_t i=xInit; i < xEnd; ++i)
-    {
-        for (size_t j=yInit ; j < yEnd; ++j)
-        {
-            // We can't use croppedCloud->push_back because it breaks the organization
-            croppedCloud->points.push_back(cloudInput->at(i, j));
-        }
-    }
-
-    ROS_INFO("PointCloud cropping took %gms", durationInMillis(begin));
-    ROS_DEBUG("Cropped from %lu to %lu", cloudInput->points.size(), croppedCloud->points.size());
-}
 
 void DataHandler::sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput)
 {
@@ -385,25 +343,31 @@ void DataHandler::sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput)
     //ros::Time start = ros::Time::now();
     clock_t beginCallback = clock();
 
-    PointCloud<PointXYZ>::Ptr sensorCloud(new PointCloud<PointXYZ>);
-    fromPCLPointCloud2 (*sensorInput,*sensorCloud);
+    PointCloud<PointXYZ>::Ptr sensor_cloud(new PointCloud<PointXYZ>);
+    fromPCLPointCloud2 (*sensorInput,*sensor_cloud);
 
-    if(sensorCloud->size()==0) return;
+    if(sensor_cloud->size()==0) return;
 
-    passThroughCloud->clear();
+    boost::mutex::scoped_lock updateLock(updateNormalsMutex); // Init smoothed_cloud_ and cloud_normals_ mutex
+
+    pass_through_cloud_->clear();
     smoothed_cloud_->clear();
     cloud_normals_->clear();
 
+    point_clouds_updated_ = true;
+
     // PointCloud cropping
-    cropOrganizedPointCloud(sensorCloud, passThroughCloud);
+    cropOrganizedPointCloud(sensor_cloud, smoothed_cloud_);
 
     // Gaussian smoothing
-    gaussianSmoothing(passThroughCloud, smoothed_cloud_);
-    publish(pubSmoothed, smoothed_cloud_);
+    //gaussianSmoothing(pass_through_cloud_, smoothed_cloud_);
+    //publish(pubSmoothed, smoothed_cloud_);
 
     // Compute integral image normals
+    PointCloud<Normal>::Ptr normals(new PointCloud<Normal>);
     computeNormalsEfficiently(smoothed_cloud_, cloud_normals_);
-    point_clouds_updated_ = true;
+
+    updateLock.unlock(); // End smoothed_cloud_ and cloud_normals_ mutex
 
     // Segment plane using normals
     ModelCoefficients::Ptr tableCoefficients (new ModelCoefficients ());
