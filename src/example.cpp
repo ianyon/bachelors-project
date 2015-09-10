@@ -23,15 +23,12 @@ bool defaultParams;
 void resetToDefaults(bachelors_final_project::ParametersConfig &cfg)
 {
   ROS_INFO("Reset parameters to default");
+  cfg = cfg.__getDefault__();
+  /*
   // Cropping
   cfg.scaleParam = cfg.__getDefault__().scaleParam;
   cfg.xTranslateParam = cfg.__getDefault__().xTranslateParam;
   cfg.yTranslateParam = cfg.__getDefault__().yTranslateParam;
-
-  // Passthrough
-  cfg.yLimitParam = cfg.__getDefault__().yLimitParam;
-  cfg.xLimitParam = cfg.__getDefault__().xLimitParam;
-  cfg.zLimitParam = cfg.__getDefault__().zLimitParam;
 
   // Gaussian Smoothing
   cfg.gaussianSigmaParam = cfg.__getDefault__().gaussianSigmaParam;
@@ -45,8 +42,6 @@ void resetToDefaults(bachelors_final_project::ParametersConfig &cfg)
 
   // Fit Plane From Normals
   cfg.normalDistanceWeightParam = cfg.__getDefault__().normalDistanceWeightParam;
-  cfg.minAngleParam = cfg.__getDefault__().minAngleParam;
-  cfg.maxAngleParam = cfg.__getDefault__().maxAngleParam;
   cfg.originDistanceParam = cfg.__getDefault__().originDistanceParam;
   cfg.maxIterationsParam = cfg.__getDefault__().maxIterationsParam;
   cfg.distanceThresholdParam = cfg.__getDefault__().distanceThresholdParam;
@@ -63,12 +58,18 @@ void resetToDefaults(bachelors_final_project::ParametersConfig &cfg)
   cfg.minHeightParam = cfg.__getDefault__().minHeightParam;
   cfg.maxHeightParam = cfg.__getDefault__().maxHeightParam;
 
+  // Euclidean Cluster
+  cfg.clusterTolerance = cfg.clusterTolerance;
+  cfg.minClusterSize = cfg.minClusterSize;
+  cfg.maxClusterSize = cfg.maxClusterSize;
+
   // Visualizer
-  cfg.vizNormalsCountParam = cfg.__getDefault__().vizNormalsCountParam;
+  cfg.normalsCountParam = cfg.__getDefault__().normalsCountParam;
   cfg.normalsSizeParam = cfg.__getDefault__().normalsSizeParam;
 
   // Reset all parameters
   cfg.defaultParams = cfg.__getDefault__().defaultParams;
+  */
 }
 
 void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t level)
@@ -80,11 +81,6 @@ void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t 
   data_handler->scale = cfg.scaleParam;
   data_handler->xTranslate = cfg.xTranslateParam;
   data_handler->yTranslate = cfg.yTranslateParam;
-
-  // Passthrough
-  data_handler->yLimit = cfg.yLimitParam;
-  data_handler->xLimit = cfg.xLimitParam;
-  data_handler->zLimit = cfg.zLimitParam;
 
   // Gaussian Smoothing
   data_handler->gaussianSigma = cfg.gaussianSigmaParam;
@@ -98,8 +94,6 @@ void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t 
 
   // Fit Plane From Normals
   data_handler->normalDistanceWeight = cfg.normalDistanceWeightParam;
-  data_handler->minAngle = cfg.minAngleParam;
-  data_handler->maxAngle = cfg.maxAngleParam;
   data_handler->originDistance = cfg.originDistanceParam;
   data_handler->maxIterations = cfg.maxIterationsParam;
   data_handler->distanceThreshold = cfg.distanceThresholdParam;
@@ -116,8 +110,13 @@ void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t 
   data_handler->minHeight = cfg.minHeightParam;
   data_handler->maxHeight = cfg.maxHeightParam;
 
+  // Euclidean Cluster
+  data_handler->cluster_tolerance_ = cfg.clusterTolerance;
+  data_handler->min_cluster_size_ = cfg.minClusterSize;
+  data_handler->max_cluster_size_ = cfg.maxClusterSize;
+
   // Visualizer
-  visualizer->viz_normals_count_ = cfg.vizNormalsCountParam;
+  visualizer->normals_count_ = cfg.normalsCountParam;
   visualizer->normals_size_ = cfg.normalsSizeParam;
 
   // Reset all parameters
@@ -129,7 +128,7 @@ void parameterCallback(bachelors_final_project::ParametersConfig &cfg, uint32_t 
 int main (int argc, char** argv)
 {
   // Delete parameters to start in clean state
-  ros::param::del("/bachelors_final_project");
+  //ros::param::del("/bachelors_final_project");
 
   if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug)) {
     ros::console::notifyLoggerLevelsChanged();
@@ -155,31 +154,6 @@ int main (int argc, char** argv)
   f = boost::bind(&parameterCallback, _1, _2);
   server.setCallback(f);
 
-  /*
-  ROS_INFO("Init Params= gaussianSigma:%g "
-           "gaussianSearchRadius:%g "
-           "normalEstimationMethod:%i"
-           "normalDistanceWeight:%g "
-           "distanceThreshold:%g "
-           "maxDepthChangeFactor:%g "
-           "normalSmoothingSize:%g "
-           "minHeight:%g "
-           "maxHeight:%g "
-           "useDepthDependentSmoothing:%s "
-           "defaultParams:%s",
-           gaussianSigma,
-           gaussianSearchRadius,
-           normalEstimationMethod,
-           normalDistanceWeight,
-           distanceThreshold,
-           maxDepthChangeFactor,
-           normalSmoothingSize,
-           minHeight,
-           maxHeight,
-           useDepthDependentSmoothing?"True":"False",
-           defaultParams?"True":"False");
-           */
-
   //Start visualizer thread
   boost::thread workerThread(&DataVisualizer::visualize, visualizer);
   workerThread.detach();
@@ -193,5 +167,5 @@ int main (int argc, char** argv)
   ros::spin();        // Handle ROS events
 
   // Delete parameters to start in clean state
-  ros::param::del("/bachelors_final_project");
+  //ros::param::del("/bachelors_final_project");
 }

@@ -19,6 +19,7 @@
 
 //Common
 #include <pcl/common/gaussian.h>
+#include <pcl/common/io.h>
 
 // Filters
 #include <pcl/filters/filter.h>
@@ -86,19 +87,6 @@ public:
 
     void extractPlaneCloud (const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers);
 
-    /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
-   * Inputs:
-   *   input
-   *     The input point cloud
-   *   cluster_tolerance
-   *     The maximum distance between neighboring points in a cluster [cm]
-   *   min/max_cluster_size
-   *     The minimum and maximum allowable cluster sizes
-   * Return (by reference): a vector of PointIndices containing the points indices in each cluster
-   */
-    bool clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable, float clusterTolerance,
-                         int minClusterSize, int maxClusterSize);
-
     void computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
                                    PointCloud<Normal>::Ptr &cloud_normals_);
 
@@ -115,28 +103,40 @@ public:
     PointCloud<PointXYZ>::Ptr gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput,
                                                 PointCloud<PointXYZ>::Ptr &smoothed_cloud_);
 
-    void cropPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
-
     void cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
-    void cropOrganizedPointCloud(const PointCloud<Normal>::Ptr &cloudInput, PointCloud<Normal>::Ptr &croppedCloud);
+
+    /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
+   * Inputs:
+   *   input
+   *     The input point cloud
+   *   cluster_tolerance
+   *     The maximum distance between neighboring points in a cluster [cm]
+   *   min/max_cluster_size
+   *     The minimum and maximum allowable cluster sizes
+   * Return (by reference): a vector of PointIndices containing the points indices in each cluster
+   */
+    bool clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable);
 
     bool point_clouds_updated_;
     bool plane_updated_;    
-    boost::mutex updateNormalsMutex;
+    bool cloud_over_table_updated_;
+    bool clusters_updated_;
+    boost::mutex update_normals_mutex_;
 
-    ros::Publisher pubSmoothed, pubPlanar, pubObjects;
+    ros::Publisher pub_smoothed_, pub_planar_, pub_objects_;
 
-    PointCloud<PointXYZ>::Ptr pass_through_cloud_;
     PointCloud<PointXYZ>::Ptr smoothed_cloud_;
     PointCloud<PointXYZ>::Ptr plane_cloud_;
     PointCloud<Normal>::Ptr cloud_normals_;
+    PointCloud<PointXYZ>::Ptr cloud_over_table_;
+
+    vector<PointCloud<PointXYZ>::Ptr > cloud_cluster_vector_;
+
+    ModelCoefficients::Ptr table_coefficients_;
 
     // Cropping
-    int scale;
+    double scale;
     int xTranslate, yTranslate;
-
-    // Passthrough
-    double yLimit, xLimit, zLimit;
 
     // Gaussian Smoothing
     double gaussianSigma;
@@ -150,9 +150,8 @@ public:
 
     // Fit Plane From Normals
     double normalDistanceWeight;
-    double minAngle, maxAngle;
     double originDistance;
-    double maxIterations;
+    int maxIterations;
     double distanceThreshold;
     bool optimizeCoefficients;
     double probability;
@@ -163,6 +162,11 @@ public:
 
     // Cloud Over The Table
     double minHeight, maxHeight;
+
+    // Euclidean Cluster
+    double cluster_tolerance_;
+    int min_cluster_size_;
+    int max_cluster_size_;
 };
 
 #endif // DATAHANDLER
