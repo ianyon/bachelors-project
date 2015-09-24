@@ -20,6 +20,7 @@
 //Common
 #include <pcl/common/gaussian.h>
 #include <pcl/common/io.h>
+#include <pcl/common/eigen.h>
 
 // Filters
 #include <pcl/filters/filter.h>
@@ -50,13 +51,11 @@
 //#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/search/kdtree.h>
 
-#include <pcl/search/kdtree.h>
-
 #include "../include/utils.h"
 
 using namespace pcl;
 using namespace std;
-using namespace utility;
+using namespace utils;
 
 class DataHandler
 {
@@ -67,10 +66,13 @@ public:
     //! Destructor.
     ~DataHandler();
 
-    void returnFromCallback(clock_t begin);
+    void measureCallback(clock_t begin);
 
     //! Callback function for subscriber.
     void sensorCallback (const PCLPointCloud2::ConstPtr& sensorInput);
+
+    bool doProcessing(const PointCloud<PointXYZ>::Ptr &input);
+    void execute();
 
     /* Use SACSegmentation to find the dominant plane in the scene
    * Inputs:
@@ -115,16 +117,17 @@ public:
    *     The minimum and maximum allowable cluster sizes
    * Return (by reference): a vector of PointIndices containing the points indices in each cluster
    */
-    bool clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable);
+    void clusterObjects (const PointCloud<PointXYZ>::Ptr & cloudOverTheTable);
 
     bool point_clouds_updated_;
     bool plane_updated_;    
     bool cloud_over_table_updated_;
     bool clusters_updated_;
-    boost::mutex update_normals_mutex_;
+  boost::mutex update_normals_mutex_;
 
     ros::Publisher pub_smoothed_, pub_planar_, pub_objects_;
 
+    PointCloud<PointXYZ>::Ptr sensor_cloud_;
     PointCloud<PointXYZ>::Ptr smoothed_cloud_;
     PointCloud<PointXYZ>::Ptr plane_cloud_;
     PointCloud<Normal>::Ptr cloud_normals_;
@@ -167,6 +170,9 @@ public:
     double cluster_tolerance_;
     int min_cluster_size_;
     int max_cluster_size_;
+
+
+  uint32_t last_seen_seq_;
 };
 
 #endif // DATAHANDLER

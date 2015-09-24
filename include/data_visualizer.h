@@ -4,6 +4,8 @@
 // Visualization
 #include <pcl/visualization/pcl_visualizer.h>
 
+#include <ros/console.h>
+
 #include "data_handler.h"
 
 using namespace pcl;

@@ -13,7 +13,7 @@
 
 using namespace pcl;
 
-namespace utility
+namespace utils
 {
 
 //! Publish the message.

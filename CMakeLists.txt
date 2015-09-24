@@ -1,18 +1,42 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(bachelors_final_project)
 
+## Supress warnings if using CMake 3 or higher
+if(POLICY CMP0054)
+    cmake_policy(SET CMP0054 OLD)
+endif()
+if(POLICY CMP0045)
+    cmake_policy(SET CMP0045 OLD)
+endif()
+##############################################
+
+set(CATKIN_DEVEL_PREFIX "/home/ian/catkin_ws/devel")
+set(CMAKE_INSTALL_PREFIX "/home/ian/catkin_ws/install")
+
 add_definitions(-Wno-deprecated)
 
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-endif(CCACHE_FOUND)
-set (CMAKE_CXX_FLAGS "-DPCL_ONLY_CORE_POINT_TYPES=ON -DNO_EXPLICIT_INSTANTIATIONS")
+#find_program(CCACHE_FOUND ccache)
+#if(NOT CCACHE_FOUND)
+#    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "/usr/bin/ccache clang -Qunused-arguments -fcolor-diagnostics")
+#    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "/usr/bin/ccache clang -Qunused-arguments -fcolor-diagnostics")
+#endif(NOT CCACHE_FOUND)
+## To speed up PCL compilation
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPCL_ONLY_CORE_POINT_TYPES=ON -DNO_EXPLICIT_INSTANTIATIONS")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ -v -std=gnu++98 -O0") #-Wall -O0 -v
+set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -v")
+set (CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -v")
+set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -v")
+set (CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -v")
+#set (CMAKE_CXX_COMPILER "${DCMAKE_STATIC_LINKER_FLAGS} -v")
+#/usr/bin/g++-4.9
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
+
+## Find system dependencies
+#find_package(Boost REQUIRED COMPONENTS thread)
+#find_package(Eigen REQUIRED)
+#find_package(PCL REQUIRED)
+
+## Find catkin packages
 find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
@@ -20,178 +44,69 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   dynamic_reconfigure
 )
-#find_package( PCL 1.7 REQUIRED COMPONENTS common visualization)
 
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
-
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
-
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## To declare and build messages, services or actions from within this
-## package, follow these steps:
-## * Let MSG_DEP_SET be the set of packages whose message types you use in
-##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
-## * In the file package.xml:
-##   * add a build_depend and a run_depend tag for each package in MSG_DEP_SET
-##   * If MSG_DEP_SET isn't empty the following dependencies might have been
-##     pulled in transitively but can be declared for certainty nonetheless:
-##     * add a build_depend tag for "message_generation"
-##     * add a run_depend tag for "message_runtime"
-## * In this file (CMakeLists.txt):
-##   * add "message_generation" and every package in MSG_DEP_SET to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * add "message_runtime" and every package in MSG_DEP_SET to
-##     catkin_package(CATKIN_DEPENDS ...)
-##   * uncomment the add_*_files sections below as needed
-##     and list every .msg/.srv/.action file to be processed
-##   * uncomment the generate_messages entry below
-##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
-
-## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
-
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
-
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
-
-## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   sensor_msgs
-# )
-
-generate_dynamic_reconfigure_options(
-  cfg/Parameters.cfg
-)
-
-###################################
-## catkin specific configuration ##
-###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if you package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES my_pcl_tutorial
-#  CATKIN_DEPENDS pcl_conversions pcl_ros roscpp sensor_msgs
-#  DEPENDS system_lib
-)
-
-###########
-## Build ##
-###########
-
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-# include_directories(include)
+## Add include directories
 include_directories(
-  ${catkin_INCLUDE_DIRS}
- # ${PCL_INCLUDE_DIRS}
+        #include
+        #${Boost_INCLUDE_DIRS}
+        ${catkin_INCLUDE_DIRS}
+        #${Eigen_INCLUDE_DIRS}
+        #${PCL_INCLUDE_DIRS}
+)
+
+## Add link directories
+link_directories(
+        #${Boost_LIBRARY_DIRS}
+        #${Eigen_LIBRARY_DIRS}
+        #${PCL_LIBRARY_DIRS}
+)
+
+## Generate dynamic_reconfigure
+generate_dynamic_reconfigure_options(
+        cfg/Parameters.cfg
+)
+
+## Declare the catkin package
+catkin_package(
+        #INCLUDE_DIRS
+            #include
+        #LIBRARIES
+            #pcl_ros_filters
+        CATKIN_DEPENDS
+            pcl_conversions
+            pcl_ros
+            roscpp
+            sensor_msgs
+            dynamic_reconfigure
+        #DEPENDS
+            #Boost
+            #Eigen
+            #PCL
 )
 
 #link_directories(${PCL_LIBRARY_DIRS})
 #add_definitions(${PCL_DEFINITIONS})
+#  /usr/local/bin/clang++
+#-D CMAKE_CXX_COMPILER=/usr/bin/ccache clang -Qunused-arguments -fcolor-diagnostics
+#if(Boost_FOUND)
+#    message(STATUS "Boost found Success!")
+#endif()
+message(STATUS ${CMAKE_CXX_COMPILER})
+message("cmake source dir" ${CMAKE_SOURCE_DIR})
 
-## Declare a cpp library
-# add_library(my_pcl_tutorial
-#   src/${PROJECT_NAME}/my_pcl_tutorial.cpp
-# )
+FILE (GLOB_RECURSE clion_all_headers ${CMAKE_SOURCE_DIR}/include/*.h)
+ADD_CUSTOM_TARGET(all_clion
+        SOURCES ${clion_all_headers}
+)
 
-## Declare a cpp executable
-# add_executable(my_pcl_tutorial_node src/my_pcl_tutorial_node.cpp)
-set(PROGRAMS example)
-
-
-set (SRC ${SRC} src/data_handler.cpp src/data_visualizer.cpp src/utils.cpp)
-
-#add_executable(plane_segmentation src/plane_segmentation.cpp)
-#target_link_libraries(plane_segmentation
-#            ${PCL_LIBRARIES}
-#            ${catkin_LIBRARIES}
-#            libvtkCommon.so
-#            libvtkFiltering.so )
-
-foreach(program ${PROGRAMS})
-  add_executable(${program} src/${program}.cpp ${SRC})
-
-  if (TARGET ${program})
-        ## Add cmake target dependencies of the executable/library
-        ## as an example, message headers may need to be generated before nodes
-        # add_dependencies(my_pcl_tutorial_node my_pcl_tutorial_generate_messages_cpp)
-        # make sure configure headers are built before any node using them
-        add_dependencies(${program} ${PROJECT}_gencfg)
-        #add_dependencies(example ${${PROJECT_NAME}_EXPORTED_TARGETS})
-
-        ## Specify libraries to link a library or executable target against
-        # target_link_libraries(my_pcl_tutorial_node
-        #   ${catkin_LIBRARIES}
-        # )
-        target_link_libraries(${program}
-            ${PCL_LIBRARIES}
-            ${catkin_LIBRARIES}
-            libvtkCommon.so
-            libvtkFiltering.so )
-  endif()  
-endforeach(program)
-
-#############
-## Install ##
-#############
-
-# all install targets should use catkin DESTINATION variables
-# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
-
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark executables and/or libraries for installation
-# install(TARGETS my_pcl_tutorial my_pcl_tutorial_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
+add_executable(example src/example.cpp src/data_handler.cpp src/data_visualizer.cpp src/utils.cpp)
+add_dependencies(example ${PROJECT_NAME}_gencfg)
+target_link_libraries(example
+        #${Boost_LIBRARIES}
+        ${catkin_LIBRARIES}
+        #${PCL_LIBRARIES}
+        libvtkCommon.so
+        libvtkFiltering.so )
 
 #############
 ## Testing ##
