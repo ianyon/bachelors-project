@@ -6,7 +6,7 @@
 DataHandler::DataHandler(ros::NodeHandle nh)
 {
   // Create a ROS publisher
-  pub_smoothed_ = nh.advertise<PCLPointCloud2>("downsampled", 1);
+  nh.advertise<PCLPointCloud2>("downsampled", 1);
   pub_planar_ = nh.advertise<PCLPointCloud2>("planar", 1);
   pub_objects_ = nh.advertise<PCLPointCloud2>("objects", 1);
 
@@ -34,6 +34,11 @@ DataHandler::~DataHandler()
 {
 } // end ~DataHandler()
 
+void DataHandler::updateConfig(bachelors_final_project::ParametersConfig &config)
+{
+  cfg = config;
+}
+
 void DataHandler::measureCallback(clock_t begin)
 {
   ROS_INFO("Callback took %gms\n\n", durationInMillis(begin));
@@ -44,10 +49,10 @@ void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloud
 {
   clock_t begin = clock();
   // Kinect is 640/480
-  int width = (int) floor(64 * scale),
-      height = (int) floor(48 * scale);
-  int init_col = (int) floor(fmax(cloudInput->width / 2 - width / 2 + xTranslate, 0)),
-      init_row = (int) floor(fmax(cloudInput->height / 2 - height / 2 + yTranslate, 0));
+  int width = (int) floor(64 * cfg.scaleParam),
+      height = (int) floor(48 * cfg.scaleParam);
+  int init_col = (int) floor(fmax(cloudInput->width / 2 - width / 2 + cfg.xTranslateParam, 0)),
+      init_row = (int) floor(fmax(cloudInput->height / 2 - height / 2 + cfg.yTranslateParam, 0));
 
   // Make que dimensions of the cloud be according the size of the vector
   croppedCloud->width = (uint32_t) width;
@@ -78,7 +83,7 @@ PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointX
   clock_t begin = clock();
   //Set up the Gaussian Kernel
   filters::GaussianKernel<PointXYZ, PointXYZ>::Ptr kernel(new filters::GaussianKernel<PointXYZ, PointXYZ>());
-  kernel->setSigma((float) gaussianSigma);
+  kernel->setSigma((float) cfg.gaussianSigmaParam);
   kernel->setThresholdRelativeToSigma(3);
 
   //Set up the KDTree
@@ -90,7 +95,7 @@ PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointX
   convolution.setKernel(*kernel);
   convolution.setInputCloud(cloudInput);
   convolution.setSearchMethod(kdTree);
-  convolution.setRadiusSearch(gaussianSearchRadius);
+  convolution.setRadiusSearch(cfg.gaussianSearchRadiusParam);
   convolution.convolve(*smoothed_cloud_);
 
   ROS_DEBUG("Gaussian Smoothing took %gms", durationInMillis(begin));
@@ -105,7 +110,7 @@ void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sen
   clock_t begin = clock();
   IntegralImageNormalEstimation<PointXYZ, Normal> ne;
 
-  switch (normalEstimationMethod)
+  switch (cfg.normalEstimationMethodParam)
   {
     case 1:
       ne.setNormalEstimationMethod(ne.COVARIANCE_MATRIX);
@@ -125,25 +130,13 @@ void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sen
       return;
   }
 
-  /*
- // fill the cloud somehow...
-    points3dToPointsPcl(points, nPoints, cloud);
-    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::PointNormal> ne;
-    ne.setInputCloud (cloud);
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ> ());
-    ne.setSearchMethod (tree);
-    ne.setNumberOfThreads(8);
-    ne.setRadiusSearch (0.15);
-    ne.compute (*cloud_normals);
-*/
-
-  ne.setMaxDepthChangeFactor(maxDepthChangeFactor);
-  ne.setDepthDependentSmoothing(useDepthDependentSmoothing);
-  ne.setNormalSmoothingSize((float) normalSmoothingSize);
+ // TODO: Analyze use multithreading OMP Classes
+  ne.setMaxDepthChangeFactor((float) cfg.maxDepthChangeFactorParam);
+  ne.setDepthDependentSmoothing(cfg.useDepthDependentSmoothingParam);
+  ne.setNormalSmoothingSize((float) cfg.normalSmoothingSizeParam);
   ne.setInputCloud(sensor_cloud);
   //ne.setKSearch(0);
   ne.compute(*cloud_normals);
-
   ROS_DEBUG("Integral image normals took %gms", durationInMillis(begin));
 
   // Remove NaN from pointcloud and normals
@@ -179,18 +172,18 @@ bool DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, Po
   /************** SACSegmentationFromNormals **************/
   // Set the relative weight (between 0 and 1) to give to the angular distance
   // (0 to pi/2) between point normals and the plane normal.
-  seg.setNormalDistanceWeight(normalDistanceWeight);
+  seg.setNormalDistanceWeight(cfg.normalDistanceWeightParam);
 
   // Set the distance we expect a plane model to be from the origin. I hadn't found implementation details.
-  seg.setDistanceFromOrigin(originDistance);
+  seg.setDistanceFromOrigin(cfg.originDistanceParam);
 
   /******************* SACSegmentation ********************/
-  seg.setDistanceThreshold(distanceThreshold);
-  seg.setMaxIterations(maxIterations);
-  seg.setOptimizeCoefficients(optimizeCoefficients);
+  seg.setDistanceThreshold(cfg.distanceThresholdParam);
+  seg.setMaxIterations(cfg.maxIterationsParam);
+  seg.setOptimizeCoefficients(cfg.optimizeCoefficientsParam);
 
   // Set the probability of choosing at least one sample free from outliers.
-  seg.setProbability(probability);
+  seg.setProbability(cfg.probabilityParam);
 
   // Set the maximum distance allowed when drawing random samples.
   PointCloud<PointXYZ>::Ptr temp_cloud(new PointCloud<PointXYZ>);
@@ -199,18 +192,18 @@ bool DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, Po
   //SACSegmentation<Normal>::SearchPtr search(new search::KdTree<Normal>);
   SACSegmentation<PointXYZ>::SearchPtr search(new search::KdTree<PointXYZ>);
   search->setInputCloud(temp_cloud);
-  seg.setSamplesMaxDist(sampleMaxDistance, search);
+  seg.setSamplesMaxDist(cfg.sampleMaxDistanceParam, search);
 
-  if (useSpecificPlane)
+  if (cfg.useSpecificPlaneParam)
   {
-    Eigen::Vector3f axis = Eigen::Vector3f(planeX, planeY, planeZ);
+    Eigen::Vector3f axis = Eigen::Vector3f(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
     // Set the axis along which we need to search for a model perpendicular to.
     seg.setAxis(axis);
   }
 
   // Set the angle epsilon (delta) threshold. The maximum allowed difference between the model
   // normal and the given axis in radians. Specify the angle of the normals of the above plane
-  seg.setEpsAngle(epsAngle);
+  seg.setEpsAngle(cfg.epsAngleParam);
 
   seg.setInputCloud(input);
   seg.setInputNormals(normals);
@@ -275,7 +268,7 @@ bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sens
   // Segment those points that are in the polygonal prism
   ExtractPolygonalPrismData<PointXYZ> prism;
   // Objects must lie between minHeight and maxHeight m over the plane
-  prism.setHeightLimits(minHeight, maxHeight);
+  prism.setHeightLimits(cfg.minHeightParam, cfg.maxHeightParam);
   prism.setInputCloud(sensor_cloud);
   prism.setInputPlanarHull(tableConvexHull);
   PointIndices::Ptr indicesOverTheTable(new PointIndices());
@@ -316,9 +309,9 @@ void DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &cloud_over_tab
   tree->setInputCloud(cloud_over_table);
 
   EuclideanClusterExtraction<PointXYZ> ec;
-  ec.setClusterTolerance(cluster_tolerance_);
-  ec.setMinClusterSize(min_cluster_size_);
-  ec.setMaxClusterSize(max_cluster_size_);
+  ec.setClusterTolerance(cfg.clusterTolerance);
+  ec.setMinClusterSize(cfg.minClusterSize);
+  ec.setMaxClusterSize(cfg.maxClusterSize);
 
   ec.setSearchMethod(tree);
   ec.setInputCloud(cloud_over_table);
@@ -382,8 +375,6 @@ void DataHandler::execute()
 bool DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &input)
 {
   boost::mutex::scoped_lock updateLock(update_normals_mutex_);   // Init smoothed_cloud_ and cloud_normals_ mutex
-  //smoothed_cloud_->clear();
-  //cloud_normals_->clear();
 
   // PointCloud cropping
   cropOrganizedPointCloud(input, smoothed_cloud_);
@@ -441,4 +432,3 @@ bool DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &input)
   clusters_updated_ = true;
   return true;
 }
-

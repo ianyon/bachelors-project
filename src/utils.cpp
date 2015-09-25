@@ -1,9 +1,11 @@
 #include "../include/utils.h"
 
-void utils::publish(const ros::Publisher &pub, const PointCloud<PointXYZ>::Ptr &cloud)
+#include <pcl_conversions/pcl_conversions.h>
+
+void utils::publish(const ros::Publisher &pub, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud)
 {
-  PCLPointCloud2 pointCloudMsg;
-  toPCLPointCloud2(*cloud, pointCloudMsg);
+  pcl::PCLPointCloud2 pointCloudMsg;
+  pcl::toPCLPointCloud2(*cloud, pointCloudMsg);
   pub.publish(pointCloudMsg);
 }
 
