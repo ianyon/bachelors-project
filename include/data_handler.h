@@ -3,59 +3,30 @@
 
 // ROS includes
 #include <ros/ros.h>
-#include <ros/console.h>
-#include <pcl_conversions/pcl_conversions.h>
 
-// Dynamic reconfigure
-#include <dynamic_reconfigure/server.h>
+// PCL specific includes
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/PointIndices.h>
+#include <pcl/ModelCoefficients.h>
+
+// Boost
+#include <boost/thread/pthread/mutex.hpp>
+
 // Auto-generated from cfg/ directory.
 #include <bachelors_final_project/ParametersConfig.h>
 
-// PCL specific includes
-#include <pcl/PCLPointCloud2.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/ModelCoefficients.h>
+namespace
+{
+class NodeHandle;
+class Publisher;
+}
 
-//Common
-#include <pcl/common/gaussian.h>
-#include <pcl/common/io.h>
-#include <pcl/common/eigen.h>
-
-// Filters
-#include <pcl/filters/filter.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/crop_box.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/project_inliers.h>
-#include <pcl/filters/convolution_3d.h>
-
-// Sample consensus
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/ransac.h>
-#include <pcl/sample_consensus/sac_model_normal_plane.h>
-
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/segmentation/extract_polygonal_prism_data.h>
-
-#include <pcl/surface/convex_hull.h>
-
-#include <pcl/features/integral_image_normal.h>
-#include <pcl/features/normal_3d.h>
-
-#include <pcl/io/pcd_io.h>
-
-//#include <pcl/kdtree/kdtree.h>
-//#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/search/kdtree.h>
-
-#include "../include/utils.h"
-
-using namespace pcl;
-using namespace std;
-using namespace utils;
+namespace bachelors_final_project
+{
+namespace segmentation
+{
 
 class DataHandler
 {
@@ -69,9 +40,9 @@ public:
   void measureCallback(clock_t begin);
 
   //! Callback function for subscriber.
-  void sensorCallback(const PCLPointCloud2::ConstPtr &sensorInput);
+  void sensorCallback(const pcl::PCLPointCloud2::ConstPtr &sensorInput);
 
-  bool doProcessing(const PointCloud<PointXYZ>::Ptr &input);
+  bool doProcessing(const pcl::PointCloud<pcl::PointXYZ>::Ptr &input);
 
   void execute();
 
@@ -85,28 +56,31 @@ public:
  * Return: A pointer to the ModelCoefficients (i.e., the 4 coefficients of the plane,
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
-  bool fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
-                           ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers);
+  bool fitPlaneFromNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr &input, pcl::PointCloud<pcl::Normal>::Ptr &normals,
+                           pcl::ModelCoefficients::Ptr &coefficients, pcl::PointIndices::Ptr &inliers);
 
-  void extractPlaneCloud(const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers);
+  void extractPlaneCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &input, pcl::PointIndices::Ptr &inliers);
 
-  void computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
-                                 PointCloud<Normal>::Ptr &cloud_normals_);
+  void computeNormalsEfficiently(const pcl::PointCloud<pcl::PointXYZ>::Ptr &sensor_cloud,
+                                 pcl::PointCloud<pcl::Normal>::Ptr &cloud_normals_);
 
-  void projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud, const ModelCoefficients::Ptr &tableCoefficients,
-                      const PointIndices::Ptr &tableInliers, PointCloud<PointXYZ>::Ptr &projectedTableCloud);
+  void projectOnPlane(const pcl::PointCloud<pcl::PointXYZ>::Ptr &sensor_cloud,
+                      const pcl::ModelCoefficients::Ptr &tableCoefficients,
+                      const pcl::PointIndices::Ptr &tableInliers,
+                      pcl::PointCloud<pcl::PointXYZ>::Ptr &projectedTableCloud);
 
-  void computeTableConvexHull(const PointCloud<PointXYZ>::Ptr &projectedTableCloud,
-                              PointCloud<PointXYZ>::Ptr &tableConvexHull);
+  void computeTableConvexHull(const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectedTableCloud,
+                              pcl::PointCloud<pcl::PointXYZ>::Ptr &tableConvexHull);
 
-  bool extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
-                                const PointCloud<PointXYZ>::Ptr &tableConvexHull,
-                                PointCloud<PointXYZ>::Ptr &cloudOverTheTable);
+  bool extractCloudOverTheTable(const pcl::PointCloud<pcl::PointXYZ>::Ptr &sensor_cloud,
+                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &tableConvexHull,
+                                pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudOverTheTable);
 
-  PointCloud<PointXYZ>::Ptr gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput,
-                                              PointCloud<PointXYZ>::Ptr &smoothed_cloud_);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr gaussianSmoothing(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudInput,
+                                                        pcl::PointCloud<pcl::PointXYZ>::Ptr &smoothed_cloud_);
 
-  void cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput, PointCloud<PointXYZ>::Ptr &croppedCloud);
+  void cropOrganizedPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudInput,
+                               pcl::PointCloud<pcl::PointXYZ>::Ptr &croppedCloud);
 
   /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
  * Inputs:
@@ -118,7 +92,7 @@ public:
  *     The minimum and maximum allowable cluster sizes
  * Return (by reference): a vector of PointIndices containing the points indices in each cluster
  */
-  void clusterObjects(const PointCloud<PointXYZ>::Ptr &cloudOverTheTable);
+  void clusterObjects(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloudOverTheTable);
 
   bool point_clouds_updated_;
   bool plane_updated_;
@@ -128,15 +102,15 @@ public:
 
   ros::Publisher pub_planar_, pub_objects_;
 
-  PointCloud<PointXYZ>::Ptr sensor_cloud_;
-  PointCloud<PointXYZ>::Ptr smoothed_cloud_;
-  PointCloud<PointXYZ>::Ptr plane_cloud_;
-  PointCloud<Normal>::Ptr cloud_normals_;
-  PointCloud<PointXYZ>::Ptr cloud_over_table_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr sensor_cloud_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr smoothed_cloud_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud_;
+  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_over_table_;
 
-  vector<PointCloud<PointXYZ>::Ptr> cloud_cluster_vector_;
+  std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_cluster_vector_;
 
-  ModelCoefficients::Ptr table_coefficients_;
+  pcl::ModelCoefficients::Ptr table_coefficients_;
 
   bachelors_final_project::ParametersConfig cfg;
 
@@ -144,6 +118,9 @@ public:
 
   void updateConfig(bachelors_final_project::ParametersConfig &config);
 };
+
+} // namespace segmentation
+} // namespace bachelors_final_project
 
 #endif // DATAHANDLER
 

@@ -1,28 +1,32 @@
 #ifndef DATAVISUALIZER_H
 #define DATAVISUALIZER_H
 
-// Visualization
-#include <pcl/visualization/pcl_visualizer.h>
+#include <string>
 
 #include <ros/console.h>
 
-#include "data_handler.h"
+#include <pcl/visualization/pcl_visualizer.h>
 
-using namespace pcl;
+namespace bachelors_final_project
+{
+namespace segmentation
+{
+
+class DataHandler;
 
 class DataVisualizer
 {
 public:
-  DataVisualizer(DataHandler &data_handler);
+  DataVisualizer(DataHandler&);
 
   //! Function called for visualization thread
   void visualize();
 
-  void visualizeNormalsCloud(visualization::PCLVisualizer::Ptr viewer, int viewport);
-  void visualizePlaneCloud(visualization::PCLVisualizer::Ptr viewer, int viewport);
-  void visualizeOverTableCloud(visualization::PCLVisualizer::Ptr viewer, int viewport);
-  void visualizeClusters(visualization::PCLVisualizer::Ptr viewer, int viewport);
-  string generateName(size_t i);
+  void visualizeNormalsCloud(pcl::visualization::PCLVisualizer::Ptr, int);
+  void visualizePlaneCloud(pcl::visualization::PCLVisualizer::Ptr, int);
+  void visualizeOverTableCloud(pcl::visualization::PCLVisualizer::Ptr, int);
+  void visualizeClusters(pcl::visualization::PCLVisualizer::Ptr, int);
+  std::string generateName(size_t i);
 
   DataHandler *data_handler_;
   int normals_count_;
@@ -33,5 +37,8 @@ public:
 
 // Needed to initialize bidimensional array without C++11
 typedef struct{ int a[30]; } array_t;
+
+} // namespace segmentation
+} // namespace bachelors_final_project
 
 #endif // DATAVISUALIZER_H

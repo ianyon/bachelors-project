@@ -1,9 +1,29 @@
-#include "../include/data_handler.h"
+#include "data_handler.h"
+
+#include <pcl/filters/filter.h>
+#include <pcl/filters/convolution_3d.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/project_inliers.h>
+
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_polygonal_prism_data.h>
+#include <pcl/segmentation/extract_clusters.h>
+
+#include <pcl/features/integral_image_normal.h>
+
+#include <pcl/surface/convex_hull.h>
+
+#include <utils.h>
+
+using namespace pcl;
+
+namespace bachelors_final_project
+{
 
 /*
  * Constructor
  */
-DataHandler::DataHandler(ros::NodeHandle nh)
+segmentation::DataHandler::DataHandler(ros::NodeHandle nh)
 {
   // Create a ROS publisher
   nh.advertise<PCLPointCloud2>("downsampled", 1);
@@ -30,21 +50,27 @@ DataHandler::DataHandler(ros::NodeHandle nh)
 /*
  * Destructor
  */
-DataHandler::~DataHandler()
+segmentation::DataHandler::~DataHandler()
 {
 } // end ~DataHandler()
 
-void DataHandler::updateConfig(bachelors_final_project::ParametersConfig &config)
+void segmentation::DataHandler::updateConfig(bachelors_final_project::ParametersConfig &config)
 {
   cfg = config;
 }
 
-void DataHandler::measureCallback(clock_t begin)
+void segmentation::DataHandler::measureCallback(clock_t begin)
 {
-  ROS_INFO("Callback took %gms\n\n", durationInMillis(begin));
+  ROS_INFO("Callback took %gms\n\n", durationMillis(begin));
 }
 
-void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput,
+void segmentation::DataHandler::sensorCallback(const PCLPointCloud2::ConstPtr &sensorInput)
+{
+  ROS_INFO_ONCE("Callback Called");
+  fromPCLPointCloud2(*sensorInput, *sensor_cloud_);
+}
+
+void segmentation::DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput,
                                           PointCloud<PointXYZ>::Ptr &croppedCloud)
 {
   clock_t begin = clock();
@@ -73,11 +99,11 @@ void DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloud
 
   croppedCloud->is_dense = cloudInput->is_dense;
 
-  ROS_DEBUG("PointCloud cropping took %gms", durationInMillis(begin));
+  ROS_DEBUG("PointCloud cropping took %gms", durationMillis(begin));
   ROS_DEBUG("Cropped from %lu to %lu", cloudInput->points.size(), croppedCloud->points.size());
 }
 
-PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput,
+PointCloud<PointXYZ>::Ptr segmentation::DataHandler::gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput,
                                                          PointCloud<PointXYZ>::Ptr &smoothed_cloud_)
 {
   clock_t begin = clock();
@@ -98,13 +124,13 @@ PointCloud<PointXYZ>::Ptr DataHandler::gaussianSmoothing(const PointCloud<PointX
   convolution.setRadiusSearch(cfg.gaussianSearchRadiusParam);
   convolution.convolve(*smoothed_cloud_);
 
-  ROS_DEBUG("Gaussian Smoothing took %gms", durationInMillis(begin));
+  ROS_DEBUG("Gaussian Smoothing took %gms", durationMillis(begin));
 
   return smoothed_cloud_;
 }
 
 
-void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
+void segmentation::DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
                                             PointCloud<Normal>::Ptr &cloud_normals)
 {
   clock_t begin = clock();
@@ -137,7 +163,7 @@ void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sen
   ne.setInputCloud(sensor_cloud);
   //ne.setKSearch(0);
   ne.compute(*cloud_normals);
-  ROS_DEBUG("Integral image normals took %gms", durationInMillis(begin));
+  ROS_DEBUG("Integral image normals took %gms", durationMillis(begin));
 
   // Remove NaN from pointcloud and normals
   PointIndices::Ptr indices(new PointIndices());
@@ -160,7 +186,7 @@ void DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sen
  * Return: A pointer to the ModelCoefficients (i.e., the 4 coefficients of the plane,
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
-bool DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
+bool segmentation::DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
                                       ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers)
 {
   clock_t begin = clock();
@@ -217,11 +243,11 @@ bool DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, Po
 
   ROS_DEBUG_STREAM("Model inliers: " << inliers->indices.size());
 
-  ROS_DEBUG("Plane segmentation took %gms", durationInMillis(begin));
+  ROS_DEBUG("Plane segmentation took %gms", durationMillis(begin));
   return true;
 }
 
-void DataHandler::extractPlaneCloud(const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers)
+void segmentation::DataHandler::extractPlaneCloud(const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers)
 {
   // Create the filtering object
   ExtractIndices<PointXYZ> extract;
@@ -233,7 +259,7 @@ void DataHandler::extractPlaneCloud(const PointCloud<PointXYZ>::Ptr &input, Poin
   ROS_DEBUG("Extracted PointCloud representing the planar component");
 }
 
-void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
+void segmentation::DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
                                  const ModelCoefficients::Ptr &table_coefficients,
                                  const PointIndices::Ptr &tableInliers,
                                  PointCloud<PointXYZ>::Ptr &projectedTableCloud)
@@ -245,10 +271,10 @@ void DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
   proj.setInputCloud(sensor_cloud);
   proj.setModelCoefficients(table_coefficients);
   proj.filter(*projectedTableCloud);
-  ROS_DEBUG("Project on plane took %gms", durationInMillis(begin));
+  ROS_DEBUG("Project on plane took %gms", durationMillis(begin));
 }
 
-void DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr &projectedTableCloud,
+void segmentation::DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr &projectedTableCloud,
                                          PointCloud<PointXYZ>::Ptr &tableConvexHull)
 {
   clock_t begin = clock();
@@ -256,11 +282,11 @@ void DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr &projec
   chull.setInputCloud(projectedTableCloud);
   chull.reconstruct(*tableConvexHull);
   tableConvexHull->push_back(tableConvexHull->at(0));
-  ROS_DEBUG("Convex hull took %gms", durationInMillis(begin));
+  ROS_DEBUG("Convex hull took %gms", durationMillis(begin));
   ROS_DEBUG("Convex hull has: %lu data points.", tableConvexHull->points.size());
 }
 
-bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
+bool segmentation::DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
                                            const PointCloud<PointXYZ>::Ptr &tableConvexHull,
                                            PointCloud<PointXYZ>::Ptr &cloudOverTheTable)
 {
@@ -276,7 +302,7 @@ bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sens
 
   if (indicesOverTheTable->indices.size() == 0)
   {
-    ROS_DEBUG("Extract cloud over the table took %gms", durationInMillis(begin));
+    ROS_DEBUG("Extract cloud over the table took %gms", durationMillis(begin));
     ROS_WARN("No points over the table");
     return false;
   }
@@ -286,7 +312,7 @@ bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sens
   extractIndices.setInputCloud(sensor_cloud);
   extractIndices.setIndices(indicesOverTheTable);
   extractIndices.filter(*cloudOverTheTable);
-  ROS_DEBUG("Extract cloud over the table took %gms", durationInMillis(begin));
+  ROS_DEBUG("Extract cloud over the table took %gms", durationMillis(begin));
   return true;
 }
 
@@ -301,7 +327,7 @@ bool DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sens
  *     The minimum and maximum allowable cluster sizes
  * Return (by reference): a vector of PointIndices containing the points indices in each cluster
  */
-void DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &cloud_over_table)
+void segmentation::DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &cloud_over_table)
 {
   clock_t begin = clock();
   // Creating the KdTree object for the search method of the extraction
@@ -316,12 +342,12 @@ void DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &cloud_over_tab
   ec.setSearchMethod(tree);
   ec.setInputCloud(cloud_over_table);
 
-  vector<PointIndices> cluster_indices;
+  std::vector<PointIndices> cluster_indices;
   ec.extract(cluster_indices);
 
   cloud_cluster_vector_.resize(cluster_indices.size());
 
-  stringstream ss;
+  std::stringstream ss;
   for (size_t i = 0; i < cluster_indices.size(); ++i)
   {
     PointCloud<PointXYZ>::Ptr cloudCluster(new PointCloud<PointXYZ>);
@@ -341,17 +367,12 @@ void DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &cloud_over_tab
     ss << cloudCluster->points.size() << ", ";
   }
   ROS_DEBUG_STREAM("Found " << cluster_indices.size() << " clusters: [" << ss << "]");
-  ROS_DEBUG("Cluster extraction took %gms", durationInMillis(begin));
+  ROS_DEBUG("Cluster extraction took %gms", durationMillis(begin));
 }
 
 
-void DataHandler::sensorCallback(const PCLPointCloud2::ConstPtr &sensorInput)
-{
-  ROS_INFO_ONCE("Callback Called");
-  fromPCLPointCloud2(*sensorInput, *sensor_cloud_);
-}
 
-void DataHandler::execute()
+void segmentation::DataHandler::execute()
 {
   clock_t beginCallback = clock();
 
@@ -372,7 +393,7 @@ void DataHandler::execute()
     measureCallback(beginCallback);
 }
 
-bool DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &input)
+bool segmentation::DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &input)
 {
   boost::mutex::scoped_lock updateLock(update_normals_mutex_);   // Init smoothed_cloud_ and cloud_normals_ mutex
 
@@ -432,3 +453,5 @@ bool DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &input)
   clusters_updated_ = true;
   return true;
 }
+
+} // namespace bachelors_final_project

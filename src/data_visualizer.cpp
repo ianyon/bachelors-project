@@ -1,17 +1,24 @@
-#include "../include/data_visualizer.h"
+#include "data_visualizer.h"
 
-DataVisualizer::DataVisualizer(DataHandler &data_handler):
+#include "data_handler.h"
+
+using namespace pcl;
+
+namespace bachelors_final_project
+{
+
+segmentation::DataVisualizer::DataVisualizer(DataHandler &data_handler):
   data_handler_(&data_handler)
 {
-  int colors[10][3] = { {170,57,57}, {170,96,57}, {37,112,89}, {45,136,45}, {128, 43, 102}, {170, 155, 57}, {69, 47, 116},
-                  {132, 161, 54}, {137, 162, 54}, {170, 123, 57} };
+  int colors[10][3] = { {170,57,57}, {170,96,57}, {37,112,89}, {45,136,45}, {128, 43, 102}, {170, 155, 57},
+                        {69, 47, 116}, {132, 161, 54}, {137, 162, 54}, {170, 123, 57} };
 
  *(array_t*)colors_ = *(array_t*)colors;
 
   last_max_clusters_ = 0;
 }
 
-void DataVisualizer::visualize()
+void segmentation::DataVisualizer::visualize()
 {
   visualization::PCLVisualizer::Ptr viewer;
   viewer = visualization::PCLVisualizer::Ptr(new visualization::PCLVisualizer ("PCL Viewer"));
@@ -44,15 +51,15 @@ void DataVisualizer::visualize()
   }
 }
 
-void DataVisualizer::visualizeNormalsCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
+void segmentation::DataVisualizer::visualizeNormalsCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
 {
   clock_t begin = clock();
   boost::mutex::scoped_lock updateLock(data_handler_->update_normals_mutex_);
   // Check if cloud was updated (If not present program fails due to try to visualize zero size normals)
   if(data_handler_->point_clouds_updated_)
   {
-    PointCloud<pcl::PointXYZ>::Ptr smoothed_cloud = data_handler_->smoothed_cloud_->makeShared();
-    PointCloud<pcl::Normal>::Ptr cloud_normals = data_handler_->cloud_normals_->makeShared();
+    PointCloud<PointXYZ>::Ptr smoothed_cloud = data_handler_->smoothed_cloud_->makeShared();
+    PointCloud<Normal>::Ptr cloud_normals = data_handler_->cloud_normals_->makeShared();
     data_handler_->point_clouds_updated_ = false;
     updateLock.unlock();
 
@@ -74,7 +81,7 @@ void DataVisualizer::visualizeNormalsCloud(visualization::PCLVisualizer::Ptr vie
   ROS_INFO("VISUALIZATION took %gms\n\n", (double(clock() - begin) / CLOCKS_PER_SEC) * 1000);
 }
 
-void DataVisualizer::visualizePlaneCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
+void segmentation::DataVisualizer::visualizePlaneCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
 {
   if(data_handler_->plane_updated_)
   {
@@ -92,7 +99,7 @@ void DataVisualizer::visualizePlaneCloud(visualization::PCLVisualizer::Ptr viewe
   }
 }
 
-void DataVisualizer::visualizeOverTableCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
+void segmentation::DataVisualizer::visualizeOverTableCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
 {
   if(data_handler_->cloud_over_table_updated_)
   {
@@ -105,7 +112,7 @@ void DataVisualizer::visualizeOverTableCloud(visualization::PCLVisualizer::Ptr v
   }
 }
 
-void DataVisualizer::visualizeClusters(visualization::PCLVisualizer::Ptr viewer, int viewport)
+void segmentation::DataVisualizer::visualizeClusters(visualization::PCLVisualizer::Ptr viewer, int viewport)
 {
   // Check if cloud was updated
   if(data_handler_->clusters_updated_)
@@ -124,7 +131,7 @@ void DataVisualizer::visualizeClusters(visualization::PCLVisualizer::Ptr viewer,
     for(size_t i = 0; i < size;i++)
     {
       PointCloud<PointXYZ>::Ptr cluster = data_handler_->cloud_cluster_vector_[i];
-      string name = generateName(i);
+      std::string name = generateName(i);
 
       int j = i%10;
       visualization::PointCloudColorHandlerCustom<PointXYZ> rgb_color(
@@ -137,11 +144,13 @@ void DataVisualizer::visualizeClusters(visualization::PCLVisualizer::Ptr viewer,
   }
 }
 
-string DataVisualizer::generateName(size_t i)
+std::string segmentation::DataVisualizer::generateName(size_t i)
 {
-  stringstream ss;
+  std::stringstream ss;
   ss << "cluster " << i;
-  string name = ss.str();
+  std::string name = ss.str();
 
   return name;
 }
+
+} // namespace bachelors_final_project

@@ -8,15 +8,19 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 
-namespace utils
+namespace bachelors_final_project
+{
+namespace segmentation
 {
 
 //! Publish the message.
-void publish(const ros::Publisher &pub, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud);
+void publish(const ros::Publisher &, const pcl::PointCloud<pcl::PointXYZ>::Ptr &);
 
 //! Compute the time since "begin"
-double durationInMillis(clock_t &begin);
-}
+double durationMillis(clock_t &);
+
+} // namespace segmentation
+} // namespace bachelors_final_project
 
 #endif // UTILS
 

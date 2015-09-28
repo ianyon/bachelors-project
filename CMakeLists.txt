@@ -48,6 +48,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Add include directories
 include_directories(
+        include
         ${catkin_INCLUDE_DIRS}
 )
 
