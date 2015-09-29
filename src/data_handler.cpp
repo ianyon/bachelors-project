@@ -395,12 +395,12 @@ bool segmentation::DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &in
   // Compute integral image normals
   computeNormalsEfficiently(smoothed_cloud_, cloud_normals_);
 
-  bool normals = cloud_normals_->size() != 0;
+  bool new_normals = cloud_normals_->size() != 0;
   // Update visualization if there are normals
-  point_clouds_updated_ = normals;
+  point_clouds_updated_ = new_normals;
   updateLock.unlock();                                        // End smoothed_cloud_ and cloud_normals_ mutex
 
-  if (!normals)
+  if (!new_normals)
   {
     ROS_WARN("No normals from cloud");
     return false;

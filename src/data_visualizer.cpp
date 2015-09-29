@@ -51,32 +51,25 @@ void segmentation::DataVisualizer::visualize()
 
 void segmentation::DataVisualizer::visualizeNormalsCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
 {
-  clock_t begin = clock();
   boost::mutex::scoped_lock updateLock(data_handler_->update_normals_mutex_);
   // Check if cloud was updated (If not present program fails due to try to visualize zero size normals)
   if(data_handler_->point_clouds_updated_)
   {
-    PointCloud<PointXYZ>::Ptr smoothed_cloud = data_handler_->smoothed_cloud_->makeShared();
-    PointCloud<Normal>::Ptr cloud_normals = data_handler_->cloud_normals_->makeShared();
-    data_handler_->point_clouds_updated_ = false;
-    updateLock.unlock();
-
     // Visualize normals
     viewer->removePointCloud("Normals");
 
-    // Visualize plane
-    visualization::PointCloudColorHandlerCustom<PointXYZ> red_color(smoothed_cloud, 255, 0, 0);
-    if (!viewer->updatePointCloud(smoothed_cloud, red_color, "Cloud"))
-      viewer->addPointCloud<PointXYZ>(smoothed_cloud, red_color, "Cloud", viewport);
+    // Visualize plane (The add functions copy the data)
+    visualization::PointCloudColorHandlerCustom<PointXYZ> red_color(data_handler_->smoothed_cloud_, 255, 0, 0);
+    if (!viewer->updatePointCloud(data_handler_->smoothed_cloud_, red_color, "Cloud"))
+      viewer->addPointCloud<PointXYZ>(data_handler_->smoothed_cloud_, red_color, "Cloud", viewport);
 
     viewer->addPointCloudNormals<PointXYZ, Normal>(
-        smoothed_cloud, cloud_normals, normals_count_, normals_size_, "Normals", viewport);
+        data_handler_->smoothed_cloud_, data_handler_->cloud_normals_,
+        normals_count_, normals_size_, "Normals", viewport);
+
+    data_handler_->point_clouds_updated_ = false;
   }
-  else
-  {
     updateLock.unlock();
-  }
-  ROS_INFO("VISUALIZATION took %gms\n\n", (double(clock() - begin) / CLOCKS_PER_SEC) * 1000);
 }
 
 void segmentation::DataVisualizer::visualizePlaneCloud(visualization::PCLVisualizer::Ptr viewer, int viewport)
