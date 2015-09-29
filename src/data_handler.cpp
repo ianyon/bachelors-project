@@ -26,7 +26,6 @@ namespace bachelors_final_project
 segmentation::DataHandler::DataHandler(ros::NodeHandle nh)
 {
   // Create a ROS publisher
-  nh.advertise<PCLPointCloud2>("downsampled", 1);
   pub_planar_ = nh.advertise<PCLPointCloud2>("planar", 1);
   pub_objects_ = nh.advertise<PCLPointCloud2>("objects", 1);
 
@@ -41,20 +40,14 @@ segmentation::DataHandler::DataHandler(ros::NodeHandle nh)
   // Initialize flags
   plane_updated_ = false;
   point_clouds_updated_ = false;
+  cloud_over_table_updated_ = false;
+  clusters_updated_ = false;
 
   last_seen_seq_ = 0;
 
 }  // end DataHandler()
 
-
-/*
- * Destructor
- */
-segmentation::DataHandler::~DataHandler()
-{
-} // end ~DataHandler()
-
-void segmentation::DataHandler::updateConfig(bachelors_final_project::ParametersConfig &config)
+void segmentation::DataHandler::updateConfig(ParametersConfig &config)
 {
   cfg = config;
 }
@@ -222,7 +215,7 @@ bool segmentation::DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::
 
   if (cfg.useSpecificPlaneParam)
   {
-    Eigen::Vector3f axis = Eigen::Vector3f(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
+    Eigen::Vector3f axis(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
     // Set the axis along which we need to search for a model perpendicular to.
     seg.setAxis(axis);
   }

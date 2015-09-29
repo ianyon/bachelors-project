@@ -1,27 +1,22 @@
 #ifndef DATAHANDLER
 #define DATAHANDLER
 
-// ROS includes
 #include <ros/ros.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 // PCL specific includes
-#include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/PointIndices.h>
 #include <pcl/ModelCoefficients.h>
 
 // Boost
 #include <boost/thread/pthread/mutex.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
 
 // Auto-generated from cfg/ directory.
 #include <bachelors_final_project/ParametersConfig.h>
-
-namespace
-{
-class NodeHandle;
-class Publisher;
-}
 
 namespace bachelors_final_project
 {
@@ -33,9 +28,6 @@ class DataHandler
 public:
   //! Constructor.
   DataHandler(ros::NodeHandle nh);
-
-  //! Destructor.
-  ~DataHandler();
 
   void measureCallback(clock_t begin);
 

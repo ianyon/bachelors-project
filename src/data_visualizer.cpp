@@ -10,9 +10,8 @@ namespace bachelors_final_project
 segmentation::DataVisualizer::DataVisualizer(DataHandler &data_handler):
   data_handler_(&data_handler)
 {
-  int colors[10][3] = { {170,57,57}, {170,96,57}, {37,112,89}, {45,136,45}, {128, 43, 102}, {170, 155, 57},
+  const int colors[10][3] = { {170,57,57}, {170,96,57}, {37,112,89}, {45,136,45}, {128, 43, 102}, {170, 155, 57},
                         {69, 47, 116}, {132, 161, 54}, {137, 162, 54}, {170, 123, 57} };
-
  *(array_t*)colors_ = *(array_t*)colors;
 
   last_max_clusters_ = 0;
@@ -20,8 +19,7 @@ segmentation::DataVisualizer::DataVisualizer(DataHandler &data_handler):
 
 void segmentation::DataVisualizer::visualize()
 {
-  visualization::PCLVisualizer::Ptr viewer;
-  viewer = visualization::PCLVisualizer::Ptr(new visualization::PCLVisualizer ("PCL Viewer"));
+  visualization::PCLVisualizer::Ptr viewer(new visualization::PCLVisualizer ("PCL Viewer"));
 
   int v1(0), v2(0);
   viewer->createViewPort (0.0, 0.0, 0.5, 1.0, v1);
@@ -133,7 +131,7 @@ void segmentation::DataVisualizer::visualizeClusters(visualization::PCLVisualize
       PointCloud<PointXYZ>::Ptr cluster = data_handler_->cloud_cluster_vector_[i];
       std::string name = generateName(i);
 
-      int j = i%10;
+      size_t j = i%10;
       visualization::PointCloudColorHandlerCustom<PointXYZ> rgb_color(
             cluster, colors_[j][0], colors_[j][1], colors_[j][2]);
       // Visualize cluster i

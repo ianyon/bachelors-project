@@ -32,7 +32,7 @@ public:
   int normals_count_;
   float normals_size_;
   int colors_[10][3];
-  int last_max_clusters_;
+  size_t last_max_clusters_;
 };
 
 // Needed to initialize bidimensional array without C++11

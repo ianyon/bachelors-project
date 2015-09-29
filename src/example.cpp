@@ -1,13 +1,16 @@
+#include <dynamic_reconfigure/server.h>
+
+
+#include <bachelors_final_project/ParametersConfig.h>
+
 #include "data_handler.h"
 #include "data_visualizer.h"
-
-#include <dynamic_reconfigure/server.h>
 
 namespace bachelors_final_project
 {
 
-void parameterCallback(segmentation::DataHandler *data_handler, segmentation::DataVisualizer *visualizer,
-                       ParametersConfig &cfg, uint32_t level)
+void parameterCallback(ParametersConfig &cfg, uint32_t level,
+                       segmentation::DataHandler *data_handler, segmentation::DataVisualizer *visualizer)
 {
   if (cfg.defaultParams)
   {
@@ -28,7 +31,8 @@ void parameterCallback(segmentation::DataHandler *data_handler, segmentation::Da
 
 int main (int argc, char** argv)
 {
-  namespace bfps = bachelors_final_project::segmentation;
+  using namespace bachelors_final_project::segmentation;
+  using namespace bachelors_final_project;
   // Delete parameters to start in clean state
   //ros::param::del("/bachelors_final_project");
 
@@ -42,21 +46,22 @@ int main (int argc, char** argv)
   ros::init (argc, argv, "bachelors_final_project");
   ros::NodeHandle nh;
 
-  bfps::DataHandler data_handler = new bfps::DataHandler(nh);
-  bfps::DataVisualizer visualizer = new bfps::DataVisualizer(data_handler);
+  // DataHandler needs to be a pointer because mutex cannot be copied
+  DataHandler *data_handler = new DataHandler(nh);
+  DataVisualizer visualizer(*data_handler);
 
   // Create a ROS subscriber for the input point cloud
-  ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &bfps::DataHandler::sensorCallback, data_handler);
+  ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &DataHandler::sensorCallback, data_handler);
 
   // Create Dynamic reconfigure server
-  dynamic_reconfigure::Server<bachelors_final_project::ParametersConfig> server;
+  dynamic_reconfigure::Server<ParametersConfig> server;
   // Bind callback function to update values
-  dynamic_reconfigure::Server<bachelors_final_project::ParametersConfig>::CallbackType f;
-  f = boost::bind(&bachelors_final_project::parameterCallback, data_handler, visualizer, _1, _2);
+  dynamic_reconfigure::Server<ParametersConfig>::CallbackType f = boost::bind(
+      &parameterCallback, _1, _2, data_handler, &visualizer);
   server.setCallback(f);
 
   //Start visualizer thread
-  boost::thread visualizationThread(&bfps::DataVisualizer::visualize, visualizer);
+  boost::thread visualizationThread(&DataVisualizer::visualize, visualizer);
   visualizationThread.detach();
 
   ROS_INFO("Escuchando");
