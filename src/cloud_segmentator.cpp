@@ -1,4 +1,4 @@
-#include "data_handler.h"
+#include "cloud_segmentator.h"
 
 #include <pcl/filters/filter.h>
 #include <pcl/filters/convolution_3d.h>
@@ -13,7 +13,7 @@
 
 #include <pcl/surface/convex_hull.h>
 
-#include <utils.h>
+#include "utils.h"
 
 using namespace pcl;
 
@@ -23,19 +23,19 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-segmentation::DataHandler::DataHandler(ros::NodeHandle nh)
+segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh)
 {
   // Create a ROS publisher
-  pub_planar_ = nh.advertise<PCLPointCloud2>("planar", 1);
-  pub_objects_ = nh.advertise<PCLPointCloud2>("objects", 1);
+  pub_planar_ = nh.advertise<PointCloudT>("planar", 1);
+  pub_objects_ = nh.advertise<PointCloudT>("objects", 1);
 
   // Initialize pointers to point clouds
-  sensor_cloud_.reset(new PointCloud<PointXYZ>);
-  smoothed_cloud_.reset(new PointCloud<PointXYZ>);
-  plane_cloud_.reset(new PointCloud<PointXYZ>);
+  sensor_cloud_.reset(new PointCloudT);
+  smoothed_cloud_.reset(new PointCloudT);
+  plane_cloud_.reset(new PointCloudT);
   cloud_normals_.reset(new PointCloud<Normal>);
   table_coefficients_.reset(new ModelCoefficients());
-  cloud_over_table_.reset(new PointCloud<PointXYZ>);
+  cloud_over_table_.reset(new PointCloudT);
 
   // Initialize flags
   plane_updated_ = false;
@@ -45,26 +45,21 @@ segmentation::DataHandler::DataHandler(ros::NodeHandle nh)
 
   last_seen_seq_ = 0;
 
-}  // end DataHandler()
+}  // end CloudSegmentator()
 
-void segmentation::DataHandler::updateConfig(ParametersConfig &config)
+void segmentation::CloudSegmentator::updateConfig(ParametersConfig &config)
 {
   cfg = config;
 }
 
-void segmentation::DataHandler::measureCallback(clock_t begin)
-{
-  ROS_INFO("Callback took %gms\n\n", durationMillis(begin));
-}
-
-void segmentation::DataHandler::sensorCallback(const PCLPointCloud2::ConstPtr &sensorInput)
+void segmentation::CloudSegmentator::sensorCallback(const PointCloudTConstPtr &sensorInput)
 {
   ROS_INFO_ONCE("Callback Called");
-  fromPCLPointCloud2(*sensorInput, *sensor_cloud_);
+  sensor_cloud_ = sensorInput->makeShared();
 }
 
-void segmentation::DataHandler::cropOrganizedPointCloud(const PointCloud<PointXYZ>::Ptr &cloudInput,
-                                          PointCloud<PointXYZ>::Ptr &croppedCloud)
+void segmentation::CloudSegmentator::cropOrganizedPointCloud(const PointCloudTPtr &cloudInput,
+                                          PointCloudTPtr &croppedCloud)
 {
   clock_t begin = clock();
   // Kinect is 640/480
@@ -96,8 +91,8 @@ void segmentation::DataHandler::cropOrganizedPointCloud(const PointCloud<PointXY
   ROS_DEBUG("Cropped from %lu to %lu", cloudInput->points.size(), croppedCloud->points.size());
 }
 
-PointCloud<PointXYZ>::Ptr segmentation::DataHandler::gaussianSmoothing(const PointCloud<PointXYZ>::Ptr &cloudInput,
-                                                         PointCloud<PointXYZ>::Ptr &smoothed_cloud_)
+PointCloudTPtr segmentation::CloudSegmentator::gaussianSmoothing(const PointCloudTPtr &cloudInput,
+                                                         PointCloudTPtr &smoothed_cloud_)
 {
   clock_t begin = clock();
   //Set up the Gaussian Kernel
@@ -123,8 +118,8 @@ PointCloud<PointXYZ>::Ptr segmentation::DataHandler::gaussianSmoothing(const Poi
 }
 
 
-void segmentation::DataHandler::computeNormalsEfficiently(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
-                                            PointCloud<Normal>::Ptr &cloud_normals)
+void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudTPtr &sensor_cloud,
+                                            PointCloudNormalPtr &cloud_normals)
 {
   clock_t begin = clock();
   IntegralImageNormalEstimation<PointXYZ, Normal> ne;
@@ -179,7 +174,7 @@ void segmentation::DataHandler::computeNormalsEfficiently(const PointCloud<Point
  * Return: A pointer to the ModelCoefficients (i.e., the 4 coefficients of the plane,
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
-bool segmentation::DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::Ptr &input, PointCloud<Normal>::Ptr &normals,
+bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudTPtr &input, PointCloudNormalPtr &normals,
                                       ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers)
 {
   clock_t begin = clock();
@@ -205,7 +200,7 @@ bool segmentation::DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::
   seg.setProbability(cfg.probabilityParam);
 
   // Set the maximum distance allowed when drawing random samples.
-  PointCloud<PointXYZ>::Ptr temp_cloud(new PointCloud<PointXYZ>);
+  PointCloudTPtr temp_cloud(new PointCloudT);
   copyPointCloud(*input, *temp_cloud);
 
   //SACSegmentation<Normal>::SearchPtr search(new search::KdTree<Normal>);
@@ -240,7 +235,7 @@ bool segmentation::DataHandler::fitPlaneFromNormals(const PointCloud<PointXYZ>::
   return true;
 }
 
-void segmentation::DataHandler::extractPlaneCloud(const PointCloud<PointXYZ>::Ptr &input, PointIndices::Ptr &inliers)
+void segmentation::CloudSegmentator::extractPlaneCloud(const PointCloudTPtr &input, PointIndices::Ptr &inliers)
 {
   // Create the filtering object
   ExtractIndices<PointXYZ> extract;
@@ -252,10 +247,10 @@ void segmentation::DataHandler::extractPlaneCloud(const PointCloud<PointXYZ>::Pt
   ROS_DEBUG("Extracted PointCloud representing the planar component");
 }
 
-void segmentation::DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
+void segmentation::CloudSegmentator::projectOnPlane(const PointCloudTPtr &sensor_cloud,
                                  const ModelCoefficients::Ptr &table_coefficients,
                                  const PointIndices::Ptr &tableInliers,
-                                 PointCloud<PointXYZ>::Ptr &projectedTableCloud)
+                                 PointCloudTPtr &projectedTableCloud)
 {
   clock_t begin = clock();
   ProjectInliers<PointXYZ> proj;
@@ -267,8 +262,8 @@ void segmentation::DataHandler::projectOnPlane(const PointCloud<PointXYZ>::Ptr &
   ROS_DEBUG("Project on plane took %gms", durationMillis(begin));
 }
 
-void segmentation::DataHandler::computeTableConvexHull(const PointCloud<PointXYZ>::Ptr &projectedTableCloud,
-                                         PointCloud<PointXYZ>::Ptr &tableConvexHull)
+void segmentation::CloudSegmentator::computeTableConvexHull(const PointCloudTPtr &projectedTableCloud,
+                                         PointCloudTPtr &tableConvexHull)
 {
   clock_t begin = clock();
   ConvexHull<PointXYZ> chull;
@@ -279,9 +274,9 @@ void segmentation::DataHandler::computeTableConvexHull(const PointCloud<PointXYZ
   ROS_DEBUG("Convex hull has: %lu data points.", tableConvexHull->points.size());
 }
 
-bool segmentation::DataHandler::extractCloudOverTheTable(const PointCloud<PointXYZ>::Ptr &sensor_cloud,
-                                           const PointCloud<PointXYZ>::Ptr &tableConvexHull,
-                                           PointCloud<PointXYZ>::Ptr &cloudOverTheTable)
+bool segmentation::CloudSegmentator::extractCloudOverTheTable(const PointCloudTPtr &sensor_cloud,
+                                           const PointCloudTPtr &tableConvexHull,
+                                           PointCloudTPtr &cloudOverTheTable)
 {
   clock_t begin = clock();
   // Segment those points that are in the polygonal prism
@@ -320,7 +315,7 @@ bool segmentation::DataHandler::extractCloudOverTheTable(const PointCloud<PointX
  *     The minimum and maximum allowable cluster sizes
  * Return (by reference): a vector of PointIndices containing the points indices in each cluster
  */
-void segmentation::DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &cloud_over_table)
+void segmentation::CloudSegmentator::clusterObjects(const PointCloudTPtr &cloud_over_table)
 {
   clock_t begin = clock();
   // Creating the KdTree object for the search method of the extraction
@@ -343,7 +338,7 @@ void segmentation::DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &
   std::stringstream ss;
   for (size_t i = 0; i < cluster_indices.size(); ++i)
   {
-    PointCloud<PointXYZ>::Ptr cloudCluster(new PointCloud<PointXYZ>);
+    PointCloudTPtr cloudCluster(new PointCloudT);
     PointIndices::Ptr cluster(new PointIndices(cluster_indices[i]));
 
     // Create the filtering object
@@ -363,9 +358,7 @@ void segmentation::DataHandler::clusterObjects(const PointCloud<PointXYZ>::Ptr &
   ROS_DEBUG("Cluster extraction took %gms", durationMillis(begin));
 }
 
-
-
-void segmentation::DataHandler::execute()
+void segmentation::CloudSegmentator::execute()
 {
   clock_t beginCallback = clock();
 
@@ -383,10 +376,10 @@ void segmentation::DataHandler::execute()
 
   // Check if computation succeded
   if (doProcessing(sensor_cloud))
-    measureCallback(beginCallback);
+    ROS_INFO("Callback took %gms\n\n", durationMillis(beginCallback));
 }
 
-bool segmentation::DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &input)
+bool segmentation::CloudSegmentator::doProcessing(const PointCloudTPtr &input)
 {
   boost::mutex::scoped_lock updateLock(update_normals_mutex_);   // Init smoothed_cloud_ and cloud_normals_ mutex
 
@@ -424,12 +417,12 @@ bool segmentation::DataHandler::doProcessing(const PointCloud<PointXYZ>::Ptr &in
   plane_updated_ = true;
 
   // Project plane points (inliers) in model plane
-  PointCloud<PointXYZ>::Ptr projectedTableCloud(new PointCloud<PointXYZ>);
+  PointCloudTPtr projectedTableCloud(new PointCloudT);
   projectOnPlane(smoothed_cloud_, table_coefficients_, tableInliers, projectedTableCloud);
   publish(pub_planar_, projectedTableCloud);
 
   // Create a Convex Hull representation of the projected inliers
-  PointCloud<PointXYZ>::Ptr tableConvexHull(new PointCloud<PointXYZ>);
+  PointCloudTPtr tableConvexHull(new PointCloudT);
   computeTableConvexHull(projectedTableCloud, tableConvexHull);
 
   // Extract points over the table's convex hull

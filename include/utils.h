@@ -1,25 +1,18 @@
 #ifndef UTILS
 #define UTILS
 
-// ROS includes
-#include <ros/ros.h>
+#include "definitions.h"
 
-// PCL specific includes
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
+#include <ros/ros.h>
 
 namespace bachelors_final_project
 {
-namespace segmentation
-{
-
 //! Publish the message.
-void publish(const ros::Publisher &, const pcl::PointCloud<pcl::PointXYZ>::Ptr &);
+void publish(const ros::Publisher &, const PointCloudTPtr&);
 
 //! Compute the time since "begin"
 double durationMillis(clock_t &);
 
-} // namespace segmentation
 } // namespace bachelors_final_project
 
 #endif // UTILS

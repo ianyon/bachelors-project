@@ -1,16 +1,23 @@
+#if defined(__clang__)
+#pragma message "\n\n\nCLANG\n\n\n"
+#else
+#pragma message "\n\n\nNOT CLANG\n\n\n"
+#endif
+
 #include <dynamic_reconfigure/server.h>
 
-
 #include <bachelors_final_project/ParametersConfig.h>
-
-#include "data_handler.h"
-#include "data_visualizer.h"
+#include <base_visualizer.h>
+#include <viewer_spawner.h>
+#include "segmentation_visualizer.h"
+#include "cloud_segmentator.h"
+#include "grasp_point_detector.h"
 
 namespace bachelors_final_project
 {
 
 void parameterCallback(ParametersConfig &cfg, uint32_t level,
-                       segmentation::DataHandler *data_handler, segmentation::DataVisualizer *visualizer)
+                       segmentation::CloudSegmentator *data_handler, visualization::ViewerSpawner *visualizer)
 {
   if (cfg.defaultParams)
   {
@@ -21,8 +28,7 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
   data_handler->updateConfig(cfg);
 
   // Visualizer
-  visualizer->normals_count_ = cfg.normalsCountParam;
-  visualizer->normals_size_ = (float) cfg.normalsSizeParam;
+  visualizer->setParams(cfg.normalsCountParam, (float) cfg.normalsSizeParam);
 
   ROS_WARN("Done Reconfigure Request");
 }
@@ -31,8 +37,11 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
 
 int main (int argc, char** argv)
 {
-  using namespace bachelors_final_project::segmentation;
   using namespace bachelors_final_project;
+  using namespace bachelors_final_project::segmentation;
+  namespace gpd = bachelors_final_project::detection;
+  namespace viz = bachelors_final_project::visualization;
+
   // Delete parameters to start in clean state
   //ros::param::del("/bachelors_final_project");
 
@@ -46,30 +55,52 @@ int main (int argc, char** argv)
   ros::init (argc, argv, "bachelors_final_project");
   ros::NodeHandle nh;
 
-  // DataHandler needs to be a pointer because mutex cannot be copied
-  DataHandler *data_handler = new DataHandler(nh);
-  DataVisualizer visualizer(*data_handler);
+  // CloudSegmentator needs to be a pointer because mutex cannot be copied
+  CloudSegmentator *segmentator = new CloudSegmentator(nh);
+  gpd::GraspPointDetector detector;
+  viz::ViewerSpawner spawner(segmentator, &detector);
+
 
   // Create a ROS subscriber for the input point cloud
-  ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &DataHandler::sensorCallback, data_handler);
+  ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &CloudSegmentator::sensorCallback, segmentator);
 
   // Create Dynamic reconfigure server
   dynamic_reconfigure::Server<ParametersConfig> server;
   // Bind callback function to update values
   dynamic_reconfigure::Server<ParametersConfig>::CallbackType f = boost::bind(
-      &parameterCallback, _1, _2, data_handler, &visualizer);
+      &parameterCallback, _1, _2, segmentator, &spawner);
   server.setCallback(f);
 
-  //Start visualizer thread
-  boost::thread visualizationThread(&DataVisualizer::visualize, visualizer);
-  visualizationThread.detach();
+  //Start visualization
+  spawner.spawn();
 
   ROS_INFO("Escuchando");
 
   // Spin
   while(ros::ok())
   {
-    data_handler->execute();        // Do Heavy processing
     ros::spinOnce();                // Handle ROS events
+
+    segmentator->execute();        // Do Heavy processing
+
+    if (segmentator->cloud_cluster_vector_.size() == 0)
+    {
+      //ROS_INFO("No clusters, continue searching");
+      continue;
+    }
+
+    size_t selected_cluster_index;
+    size_t max_size = 0;
+
+    for (size_t i = 0; i< segmentator->cloud_cluster_vector_.size();i++)
+    {
+      if(segmentator->cloud_cluster_vector_[i]->size() > max_size )
+        selected_cluster_index = i;
+    }
+
+    int cluster_size = segmentator->cloud_cluster_vector_[selected_cluster_index]->size();
+    ROS_INFO("Using cluster with %d points", cluster_size);
+
+    detector.detect(segmentator->cloud_cluster_vector_[selected_cluster_index], segmentator->table_coefficients_);
   }
 }

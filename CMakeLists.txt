@@ -23,19 +23,19 @@ set(CMAKE_INSTALL_PREFIX "/home/ian/catkin_ws/install")
 add_definitions(-Wno-deprecated)
 
 # ccache doesnt support --gsplit-dwarf (DEBUG FISSION)
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "ccache clang")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "ccache")
-endif(CCACHE_FOUND)
+#find_program(CCACHE_FOUND ccache)
+#if(CCACHE_FOUND)
+#    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "ccache clang -stdlib=libstdc++")
+#    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "ccache")
+#endif(CCACHE_FOUND)
 
 ## Compiler options
-#set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
-#set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
+set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
+set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") #-Wall -O0
 
-set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
-set (CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS}")
+#set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+#set (CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS}")
 
 ## Find catkin packages
 find_package(catkin REQUIRED COMPONENTS
@@ -69,9 +69,16 @@ catkin_package(
 
 FILE (GLOB_RECURSE all_headers ${CMAKE_SOURCE_DIR}/include/*.h)
 FILE (GLOB_RECURSE all_cfgs ${CMAKE_SOURCE_DIR}/cfg/*.cfg)
+set(sources src/example.cpp
+        src/cloud_segmentator.cpp
+        src/grasp_point_detector.cpp
+        src/viewer_spawner.cpp
+        src/base_visualizer.cpp
+        src/segmentation_visualizer.cpp
+        src/detection_visualizer.cpp
+        src/utils.cpp)
 
-add_executable(example
-        src/example.cpp src/data_handler.cpp src/data_visualizer.cpp src/utils.cpp ${all_headers} ${all_cfgs})
+add_executable(example ${sources} ${all_headers} ${all_cfgs})
 
 #Ensures that configuration files are generated before main target
 add_dependencies(example ${PROJECT_NAME}_gencfg)
@@ -81,6 +88,17 @@ target_link_libraries(example
         libvtkCommon.so
         libvtkFiltering.so )
 cotire(example)
+#add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
+
+get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
+get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
+get_target_property(_precompiledHeader example COTIRE_CXX_PRECOMPILED_HEADER)
+get_target_property(_unityTargetName example COTIRE_UNITY_TARGET_NAME)
+
+message(STATUS "${_unitySource}")
+message(STATUS "${_prefixHeader}")
+message(STATUS "${_precompiledHeader}")
+message(STATUS "${_unityTargetName}")
 
 #############
 ## Testing ##
