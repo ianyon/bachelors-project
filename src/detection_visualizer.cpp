@@ -43,11 +43,11 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
 
     // Draw the box
     viewer.removeShape("bounding box");
-    viewer.addCube(detector_->bounding_box_parameters_.t_final,
-                    detector_->bounding_box_parameters_.q_final,
-                    detector_->bounding_box_parameters_.max_pt.x - detector_->bounding_box_parameters_.min_pt.x,
-                    detector_->bounding_box_parameters_.max_pt.y - detector_->bounding_box_parameters_.min_pt.y,
-                    detector_->bounding_box_parameters_.max_pt.z - detector_->bounding_box_parameters_.min_pt.z,
+    viewer.addCube(detector_->bounding_box_.translation,
+                    detector_->bounding_box_.rotation,
+                    detector_->bounding_box_.max_pt.x - detector_->bounding_box_.min_pt.x,
+                    detector_->bounding_box_.max_pt.y - detector_->bounding_box_.min_pt.y,
+                    detector_->bounding_box_.max_pt.z - detector_->bounding_box_.min_pt.z,
                     "bounding box");
 
     detector_->draw_bounding_box_ = false;

@@ -56,88 +56,64 @@ bool detection::GraspPointDetector::doProcessing()
 {
   ROS_INFO_ONCE("'Do Processing' called!");
 
-  ProjectInliers<PointXYZ> proj;
+  /*ProjectInliers<PointXYZ> proj;
   proj.setModelType(SACMODEL_PLANE);
   proj.setInputCloud(object_cloud_);
   proj.setModelCoefficients(table_plane_);
-  proj.filter(*projected_object_);
+  proj.filter(*projected_object_);*/
 
-  boundingBox(projected_object_);
-  /*Eigen::Vector4f centroid;
-  Eigen::Matrix3f evecs;
-  Eigen::Vector3f evals;
+  // TODO: check if we need planar object or 3D one
+  boundingBox(object_cloud_, &bounding_box_);
 
-// Table is the pointcloud of the table only.
-  pcl::compute3DCentroid(object_cloud_, centroid);
-  computePrincipalAxis(object_cloud_, centroid, evecs, evals);
-
-  Eigen::Vector3f vec;
-
-  vec << evecs.col(0);
-  createArrowMarker(vec, 1, evals[0]);
-
-  vec << evecs.col(1);
-  createArrowMarker(vec, 2, evals[1]);
-
-  vec << evecs.col(2);
-  createArrowMarker(vec, 3, evals[2]);*/
+  // Find all the samples poses
+  sampleGraspingPoses(bounding_box_, &sampled_grasps_);
 
   return true;
 }
 
 /**
  * 1) compute the centroid (c0, c1, c2) and the normalized covariance
-2) compute the eigenvectors e0, e1, e2. The reference system will be (e0, e1, e0 X e1) --- note: e0 X e1 = +/- e2
-3) move the points in that RF
- - note: the transformation given by the rotation matrix (e0, e1, e0 X e1) & (c0, c1, c2) must be inverted
-4) compute the max, the min and the center of the diagonal
-5) given a box centered at the origin with size (max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z)
- the transformation you have to apply is
- Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
+ * 2) compute the eigenvectors e0, e1, e2. The reference system will be (e0, e1, e0 X e1) --- note: e0 X e1 = +/- e2
+ * 3) move the points in that RF
+   - note: the transformation given by the rotation matrix (e0, e1, e0 X e1) & (c0, c1, c2) must be inverted
+ * 4) compute the max, the min and the center of the diagonal
+ * 5) given a box centered at the origin with size (max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z)
+   the transformation you have to apply is
+   Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
-void detection::GraspPointDetector::boundingBox(PointCloudTPtr &cloud)
+void detection::GraspPointDetector::boundingBox(PointCloudTPtr &cloud, BoundingBox *bounding_box)
 {
   // Compute principal direction
   Eigen::Vector4f centroid;
   pcl::compute3DCentroid(*cloud, centroid);
   Eigen::Matrix3f covariance;
   computeCovarianceMatrixNormalized(*cloud, centroid, covariance);
-  // Eigen::ComputeEigenvectors is the default
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
+
+  // Compute eigen vectors
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance);
   Eigen::Matrix3f eigen_vectors = eigen_solver.eigenvectors();
+  // Third component is orthogonal to principal axes
   eigen_vectors.col(2) = eigen_vectors.col(0).cross(eigen_vectors.col(1));
 
   // Move the points to the that reference frame
-  Eigen::Matrix4f p2w2;
-
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "CannotResolve"
-#pragma ide diagnostic ignored "Annotator"
-
-  Eigen::Matrix4f p2w(Eigen::Matrix4f::Identity());
-  p2w.block<3, 3>(0, 0) = eigen_vectors.transpose();
-  p2w.block<3, 1>(0, 3) = -1.f * (p2w.block<3, 3>(0, 0) * centroid.head<3>());
-
-#pragma ide diagnostic ignored "IncompatibleTypes"
-
-  pcl::transformPointCloud(*cloud, *transformed_cloud_, p2w);
+  Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+  Eigen::Matrix3f rotation_matrix(eigen_vectors.transpose());
+  transform.translation(-1.f * (rotation_matrix * centroid.head<3>()) );
+  transform.rotate(rotation_matrix);
+  pcl::transformPointCloud(*cloud, *transformed_cloud_, transform);
 
   PointT min_pt, max_pt;
   getMinMax3D(*transformed_cloud_, min_pt, max_pt);
   const Eigen::Vector3f mean_diag = 0.5f * (max_pt.getVector3fMap() + min_pt.getVector3fMap());
 
-#pragma clang diagnostic pop
-
   // final transform
-  const Eigen::Quaternionf qfinal(eigen_vectors);
-  const Eigen::Vector3f tfinal = eigen_vectors * mean_diag + centroid.head<3>();
+  const Eigen::Quaternionf rotation(eigen_vectors);
+  const Eigen::Vector3f translation = eigen_vectors * mean_diag + centroid.head<3>();
 
-  bounding_box_parameters_.max_pt = max_pt;
-  bounding_box_parameters_.min_pt = min_pt;
-  bounding_box_parameters_.q_final = qfinal;
-  bounding_box_parameters_.t_final = tfinal;
+  bounding_box->initialize(min_pt, max_pt, rotation, translation, centroid, eigen_vectors, mean_diag);
 
   draw_bounding_box_ = true;
 }
+
 
 } // namespace bachelors_final_project
