@@ -1,7 +1,5 @@
 #include "grasp_point_detector.h"
 
-#include <boost/shared_ptr.hpp>
-
 #include <pcl/common/centroid.h>
 #include <pcl/common/eigen.h>
 #include <pcl/common/transforms.h>
@@ -28,6 +26,7 @@ detection::GraspPointDetector::GraspPointDetector()
   projected_object_.reset(new PointCloudT);
 
   draw_bounding_box_ = false;
+  draw_sampled_grasps_ = false;
 
 }  // end GraspPointDetector()
 
@@ -66,7 +65,12 @@ bool detection::GraspPointDetector::doProcessing()
   boundingBox(object_cloud_, &bounding_box_);
 
   // Find all the samples poses
-  sampleGraspingPoses(bounding_box_, &sampled_grasps_);
+  sampler.sampleGraspingPoses(bounding_box_);
+  draw_sampled_grasps_= true;
+
+  // TODO: implement grasp filter
+  // Remove infeasible ones
+  //grasp_filter.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
 
   return true;
 }
@@ -98,7 +102,7 @@ void detection::GraspPointDetector::boundingBox(PointCloudTPtr &cloud, BoundingB
   // Move the points to the that reference frame
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
   Eigen::Matrix3f rotation_matrix(eigen_vectors.transpose());
-  transform.translation(-1.f * (rotation_matrix * centroid.head<3>()) );
+  transform.translate(-1.f * (rotation_matrix * centroid.head<3>()));
   transform.rotate(rotation_matrix);
   pcl::transformPointCloud(*cloud, *transformed_cloud_, transform);
 
