@@ -16,7 +16,7 @@ class GraspPointDetector
 {
 public:
   //! Constructor.
-  GraspPointDetector = );
+  GraspPointDetector();
   void updateConfig(bachelors_final_project::ParametersConfig &config);
 
   bool doProcessing();
@@ -24,8 +24,6 @@ public:
   void detect(const PointCloudTPtr &, const pcl::ModelCoefficientsPtr &);
 
   void boundingBox(PointCloudTPtr &cloud, BoundingBox*);
-
-  void sampleGraspingPoses(BoundingBox);
 
   bool draw_bounding_box_;
 
@@ -58,12 +56,12 @@ public:
 
   struct GraspTypesContainer
   {
-  	vector<Eigen::Vector3f> side_grasps, top_grasps;
+  	std::vector<PointT> side_grasps, top_grasps;
   };
 
   struct RankedGrasps
   {
-  	vector<Eigen::Vector3f> side_grasps, top_grasps;
+  	std::vector<PointT> side_grasps, top_grasps;
   };
 
   GraspTypesContainer sampled_grasps_;

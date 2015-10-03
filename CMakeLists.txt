@@ -72,6 +72,7 @@ FILE (GLOB_RECURSE all_cfgs ${CMAKE_SOURCE_DIR}/cfg/*.cfg)
 set(sources src/example.cpp
         src/cloud_segmentator.cpp
         src/grasp_point_detector.cpp
+        src/grasp_sampler.cpp
         src/viewer_spawner.cpp
         src/base_visualizer.cpp
         src/segmentation_visualizer.cpp

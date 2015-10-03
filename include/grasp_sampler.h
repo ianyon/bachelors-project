@@ -1,4 +1,6 @@
 #include <vector>
+#include <Eigen/Core>
+#include "grasp_point_detector.h"
 
 namespace bachelors_final_project
 {
@@ -9,15 +11,16 @@ class GraspSampler
 {
 	GraspSampler();
 
-	void sampleGraspingPoses(BoundingBox&, GraspTypesContainer*)
+	void sampleGraspingPoses(GraspPointDetector::BoundingBox&, GraspPointDetector::GraspTypesContainer*);
 
-	void sampleSideGrasps(BoundingBox&, vector<Eigen::Vector3f>*);
+	void sampleSideGrasps(GraspPointDetector::BoundingBox &, std::vector<PointT> *);
 
-	void sampleTopGrasps(BoundingBox&, vector<Eigen::Vector3f>*);
+	void sampleTopGrasps(GraspPointDetector::BoundingBox&, std::vector<PointT>*);
 
-	vector<Eigen::Vector3f> side_grasps, top_grasps;
+	std::vector<PointT> side_grasps, top_grasps;
 	float grasp_heigth;
 	float ellipse_angular_step;
+  std::vector<float> theta_array;
 };
 
 } // namespace detection
