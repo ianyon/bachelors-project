@@ -2,7 +2,6 @@
 #define BACHELORS_FINAL_PROJECT_GRASP_SAMPLER_H
 
 #include <vector>
-#include <Eigen/Core>
 
 #include "definitions.h"
 #include "containers.h"
@@ -19,25 +18,25 @@ public:
 
   void sampleGraspingPoses(BoundingBox &);
 
-  void sampleSideGrasps(BoundingBox &, std::vector<PointT> *);
+  void sampleSideGrasps(BoundingBox &, PointCloudTPtr &);
 
-  void sampleTopGrasps(BoundingBox &, std::vector<PointT> *);
+  void sampleTopGrasps(BoundingBox &, PointCloudTPtr &);
 
-  const std::vector<PointT> &getSideGrasps() const
+  const PointCloudTPtr getSideGrasps() const
   {
     return side_grasps_;
   }
 
-  const std::vector<PointT> &getTopGrasps() const
+  const PointCloudTPtr getTopGrasps() const
   {
     return top_grasps_;
   }
 
 private:
-  std::vector<PointT> side_grasps_, top_grasps_;
-  float grasp_heigth_;
-  float ellipse_angular_step_;
-  std::vector<float> theta_array_;
+  PointCloudTPtr side_grasps_, top_grasps_;
+  double grasp_heigth_;
+  double ellipse_angular_step_;
+  std::vector<double> theta_array_;
 };
 
 } // namespace detection

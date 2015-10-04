@@ -32,7 +32,7 @@ add_definitions(-Wno-deprecated)
 ## Compiler options
 set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
 set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") #-Wall -O0
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++") #-Wall -O0
 
 #set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 #set (CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS}")

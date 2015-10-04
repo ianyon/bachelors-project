@@ -45,6 +45,9 @@ public:
   pcl::ModelCoefficientsPtr table_plane_;
   PointCloudTPtr projected_object_;
   bool draw_sampled_grasps_;
+
+  PointCloudTPtr getSampledSideGrasps();
+  PointCloudTPtr getSampledTopGrasps();
 };
 
 } // namespace detection

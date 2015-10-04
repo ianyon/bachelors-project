@@ -1,9 +1,9 @@
 #include "grasp_point_detector.h"
 
+#include <pcl/common/common.h>
 #include <pcl/common/centroid.h>
 #include <pcl/common/eigen.h>
 #include <pcl/common/transforms.h>
-#include <pcl/common/common.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/project_inliers.h>
@@ -119,5 +119,15 @@ void detection::GraspPointDetector::boundingBox(PointCloudTPtr &cloud, BoundingB
   draw_bounding_box_ = true;
 }
 
+
+PointCloudTPtr detection::GraspPointDetector::getSampledSideGrasps()
+{
+  return sampler.getSideGrasps();
+}
+
+PointCloudTPtr detection::GraspPointDetector::getSampledTopGrasps()
+{
+  return sampler.getTopGrasps();
+}
 
 } // namespace bachelors_final_project

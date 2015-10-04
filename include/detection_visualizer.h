@@ -36,6 +36,11 @@ public:
   void visualizeBoundingBox(pcl::visualization::PCLVisualizer&);
 
   detection::GraspPointDetector *detector_;
+
+  void visualizeSampledGrasps(pcl::visualization::PCLVisualizer viewer);
+
+  void visualizePoint(pcl::PointXYZ point, int red, int green, int blue, std::string name,
+                      pcl::visualization::PCLVisualizer viewer);
 };
 
 } // namespace visualization

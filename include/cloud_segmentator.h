@@ -44,13 +44,13 @@ public:
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
   bool fitPlaneFromNormals(const PointCloudTPtr &input, PointCloudNormalPtr &normals,
-                           pcl::ModelCoefficients::Ptr &coefficients, pcl::PointIndices::Ptr &inliers);
+                           pcl::ModelCoefficientsPtr &coefficients, pcl::PointIndices::Ptr &inliers);
 
   void extractPlaneCloud(const PointCloudTPtr &input, pcl::PointIndices::Ptr &inliers);
 
   void computeNormalsEfficiently(const PointCloudTPtr &sensor_cloud, PointCloudNormalPtr &cloud_normals_);
 
-  void projectOnPlane(const PointCloudTPtr &sensor_cloud, const pcl::ModelCoefficients::Ptr &tableCoefficients,
+  void projectOnPlane(const PointCloudTPtr &sensor_cloud, const pcl::ModelCoefficientsPtr &tableCoefficients,
                       const pcl::PointIndices::Ptr &tableInliers, PointCloudTPtr &projectedTableCloud);
 
   void computeTableConvexHull(const PointCloudTPtr &projectedTableCloud, PointCloudTPtr &tableConvexHull);
@@ -91,7 +91,7 @@ public:
 
   std::vector<PointCloudTPtr> cloud_cluster_vector_;
 
-  pcl::ModelCoefficients::Ptr table_coefficients_;
+  pcl::ModelCoefficientsPtr table_coefficients_;
 
   ParametersConfig cfg;
 
