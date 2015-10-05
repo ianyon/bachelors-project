@@ -9,7 +9,6 @@
 #include <bachelors_final_project/ParametersConfig.h>
 #include <base_visualizer.h>
 #include <viewer_spawner.h>
-#include "segmentation_visualizer.h"
 #include "cloud_segmentator.h"
 #include "grasp_point_detector.h"
 

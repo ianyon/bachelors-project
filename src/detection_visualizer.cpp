@@ -32,9 +32,12 @@ void visualization::DetectionVisualizer::visualize()
 
   while (!viewer.wasStopped())
   {
-    viewer.spinOnce(100);
+    viewer.spinOnce();
+
+    boost::mutex::scoped_lock bounding_box_lock(detector_->update_bounding_box_mutex_);
     visualizeBoundingBox(viewer);
     visualizeSampledGrasps(viewer);
+    bounding_box_lock.unlock();
   }
 }
 
@@ -43,8 +46,12 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
   if (detector_->draw_bounding_box_)
   {
     PointCloudColorHandlerCustom<PointT> white_color(detector_->object_cloud_, 180, 180, 180);
-    if (!viewer.updatePointCloud(detector_->object_cloud_, white_color, "new cloud"))
-      viewer.addPointCloud<PointT>(detector_->object_cloud_, white_color, "new cloud");
+    if (!viewer.updatePointCloud(detector_->object_cloud_, white_color, "object"))
+      viewer.addPointCloud<PointT>(detector_->object_cloud_, white_color, "object");
+
+    PointCloudColorHandlerCustom<PointT> grey_color(detector_->transformed_cloud_, 120, 120, 120);
+    if (!viewer.updatePointCloud(detector_->transformed_cloud_, grey_color, "transformed_object"))
+      viewer.addPointCloud<PointT>(detector_->transformed_cloud_, grey_color, "transformed_object");
 
     // Draw the box
     viewer.removeShape("bounding box");
@@ -55,11 +62,24 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
                    detector_->bounding_box_.max_pt.z - detector_->bounding_box_.min_pt.z,
                    "bounding box");
 
-    /*viewer.removeShape("bounding");
-    viewer.addCube(detector_->bounding_box_.min_pt.x, detector_->bounding_box_.max_pt.x,
-                   detector_->bounding_box_.min_pt.y, detector_->bounding_box_.max_pt.y,
-                   detector_->bounding_box_.min_pt.z, detector_->bounding_box_.max_pt.z,
-                   0.2, 0.2, 0.2, "bounding");*/
+    viewer.removeShape("transformed bounding box");
+    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+    viewer.addCube(-0.5f * detector_->bounding_box_.mean_diag,
+                   Eigen::Quaternionf::Identity(),
+                   detector_->bounding_box_.max_pt.x - detector_->bounding_box_.min_pt.x,
+                   detector_->bounding_box_.max_pt.y - detector_->bounding_box_.min_pt.y,
+                   detector_->bounding_box_.max_pt.z - detector_->bounding_box_.min_pt.z,
+                   "transformed bounding box");
+
+    PointT origin(0.0, 0.0, 0.0);
+    PointT eigen1, eigen2;
+    eigen1.getVector3fMap() = detector_->bounding_box_.eigen_vectors.col(0);
+    eigen2.getVector3fMap() = detector_->bounding_box_.eigen_vectors.col(1);
+
+    viewer.removeShape("eigen1");
+    viewer.addLine<PointT>(origin, eigen1, "eigen1");
+    viewer.removeShape("eigen2");
+    viewer.addLine<PointT>(origin, eigen2, "eigen2");
 
     detector_->draw_bounding_box_ = false;
   }
@@ -72,11 +92,8 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
     PointT middle;
     middle.getVector4fMap() = detector_->bounding_box_.centroid;
 
-    //viewer.removeShape("real plane");
+    viewer.removeShape("real plane");
     viewer.addPlane(*(detector_->table_plane_), middle.x, middle.y, middle.z, "real plane");
-    //viewer.removeShape("where plane");
-    //viewer.addPlane(*(detector_->table_plane_), "where plane");
-
 
     PointCloudTPtr sampled_side_grasps = detector_->getSampledSideGrasps();
 
@@ -84,10 +101,6 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
     if (!viewer.updatePointCloud(sampled_side_grasps, red_color, "sampled side cloud"))
       viewer.addPointCloud<PointT>(sampled_side_grasps, red_color, "sampled side cloud");
 
-    //PointT mean_diag;
-    //mean_diag.getVector3fMap() = detector_->bounding_box_.mean_diag;
-
-    //visualizePoint(mean_diag, 0, 255, 255, "mean_diag", viewer);
     visualizePoint(middle, 0, 0, 255, "centroid", viewer);
 
     detector_->draw_sampled_grasps_ = false;

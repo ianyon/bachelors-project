@@ -77,7 +77,8 @@ set(sources src/example.cpp
         src/base_visualizer.cpp
         src/segmentation_visualizer.cpp
         src/detection_visualizer.cpp
-        src/utils.cpp)
+        src/utils.cpp
+        src/ellipse_operations.cpp)
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 

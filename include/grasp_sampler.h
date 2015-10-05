@@ -5,6 +5,7 @@
 
 #include "definitions.h"
 #include "containers.h"
+#include "ellipse_operations.h"
 
 namespace bachelors_final_project
 {
@@ -34,9 +35,8 @@ public:
 
 private:
   PointCloudTPtr side_grasps_, top_grasps_;
-  double grasp_heigth_;
-  double ellipse_angular_step_;
-  std::vector<double> theta_array_;
+  double grasp_height_;
+  EllipseOperations ellipse_ops_;
 };
 
 } // namespace detection

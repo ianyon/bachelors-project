@@ -363,7 +363,12 @@ void segmentation::CloudSegmentator::execute()
   clock_t beginCallback = clock();
 
   // If no cloud or no new images since last time, do nothing.
-  if (sensor_cloud_->size() == 0 || last_seen_seq_ == sensor_cloud_->header.seq) return;
+  if (sensor_cloud_->size() == 0 || last_seen_seq_ == sensor_cloud_->header.seq)
+  {
+    // Clean data
+    cloud_cluster_vector_.clear();
+    return;
+  }
 
   // Update seq
   last_seen_seq_ = sensor_cloud_->header.seq;

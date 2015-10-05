@@ -43,7 +43,6 @@ void detection::GraspPointDetector::detect(const PointCloudTPtr &input_object, c
   if (input_object->size() == 0) return;
 
   object_cloud_ = input_object->makeShared();
-  //table_plane_.reset(new ModelCoefficients(*table_plane));
   table_plane_ = boost::make_shared<ModelCoefficients>(*table_plane);
 
   // Check if computation succeeded
@@ -55,18 +54,37 @@ bool detection::GraspPointDetector::doProcessing()
 {
   ROS_INFO_ONCE("'Do Processing' called!");
 
-  /*ProjectInliers<PointXYZ> proj;
+  ProjectInliers<PointXYZ> proj;
   proj.setModelType(SACMODEL_PLANE);
   proj.setInputCloud(object_cloud_);
   proj.setModelCoefficients(table_plane_);
-  proj.filter(*projected_object_);*/
+  proj.filter(*projected_object_);
 
+  // b = green (y)
+  // a = blue (z)
+  // x no axis
+
+  /*Ok, in that case, the problem is this:
+  - You have a plane P designated by its normal vector n
+  - You want P parallel to camera plane XY
+  Form above you can state that P is perpendicular to camera z aaxis
+  You then need to make n and z parallel i.e. you are looking for a
+  transformation that convert let say o_n (plan normal origin) to camera
+  origin(0,0,0) and u_n(normalized normal vector n) to (0,0,1). You can
+  then give these two pair points system(<o_camera, o_n> and <z_camera,
+  u_n>) to TransformationFromCorrespondences class and then call
+  getTransformation which will give you the best transformation.
+      This transformation might then be used in transformPointCloud to
+  compute new point cloud coordinates.*/
+
+  boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
   // TODO: check if we need planar object or 3D one
-  boundingBox(object_cloud_, &bounding_box_);
+  computeBoundingBox(projected_object_, &bounding_box_);
 
   // Find all the samples poses
   sampler.sampleGraspingPoses(bounding_box_);
   draw_sampled_grasps_= true;
+  bounding_box_lock.unlock();
 
   // TODO: implement grasp filter
   // Remove infeasible ones
@@ -85,36 +103,47 @@ bool detection::GraspPointDetector::doProcessing()
    the transformation you have to apply is
    Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
-void detection::GraspPointDetector::boundingBox(PointCloudTPtr &cloud, BoundingBox *bounding_box)
+void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBox *bounding_box)
 {
-  // Compute principal direction
-  Eigen::Vector4f centroid;
-  pcl::compute3DCentroid(*cloud, centroid);
-  Eigen::Matrix3f covariance;
-  computeCovarianceMatrixNormalized(*cloud, centroid, covariance);
+  // Compute princcloudipal direction
+  Eigen::Vector4f sensor_centroid;
+  pcl::compute3DCentroid(*obj_cloud, sensor_centroid);
+  Eigen::Matrix3f sensor_covariance;
+  computeCovarianceMatrixNormalized(*obj_cloud, sensor_centroid, sensor_covariance);
 
   // Compute eigen vectors
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance);
-  Eigen::Matrix3f eigen_vectors = eigen_solver.eigenvectors();
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(sensor_covariance);
+  Eigen::Matrix3f sensor_eigen_vectors = eigen_solver.eigenvectors();
   // Third component is orthogonal to principal axes
-  eigen_vectors.col(2) = eigen_vectors.col(0).cross(eigen_vectors.col(1));
+  sensor_eigen_vectors.col(2) = sensor_eigen_vectors.col(0).cross(sensor_eigen_vectors.col(1));
 
   // Move the points to the that reference frame
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  Eigen::Matrix3f rotation_matrix(eigen_vectors.transpose());
-  transform.translate(-1.f * (rotation_matrix * centroid.head<3>()));
-  transform.rotate(rotation_matrix);
-  pcl::transformPointCloud(*cloud, *transformed_cloud_, transform);
+  // Change coordinates from kinect's to object's
+  // Rotate to objects coordinates
+  Eigen::Matrix3f rotation_to_obj_coordinates(sensor_eigen_vectors.transpose());
+  // Translate to ojb coordinates: Make the centroid be the origin
+  transform.translate(-1.f * (rotation_to_obj_coordinates * sensor_centroid.head<3>()));
+  transform.rotate(rotation_to_obj_coordinates);
+  pcl::transformPointCloud(*obj_cloud, *transformed_cloud_, transform);
 
-  PointT min_pt, max_pt;
-  getMinMax3D(*transformed_cloud_, min_pt, max_pt);
-  const Eigen::Vector3f mean_diag = 0.5f * (max_pt.getVector3fMap() + min_pt.getVector3fMap());
+  PointT origin_min_pt, origin_max_pt;
+  getMinMax3D(*transformed_cloud_, origin_min_pt, origin_max_pt);
+  const Eigen::Vector3f origin_bounding_box_center =
+      0.5f * (origin_max_pt.getVector3fMap() + origin_min_pt.getVector3fMap());
 
-  // final transform
-  const Eigen::Quaternionf rotation(eigen_vectors);
-  const Eigen::Vector3f translation = eigen_vectors * mean_diag + centroid.head<3>();
+  // Final transform: back to object coordinates
+  const Eigen::Quaternionf rotation_to_sensor_coordinates(sensor_eigen_vectors);
+  const Eigen::Vector3f translation_to_sensor_coordinates = sensor_eigen_vectors * origin_bounding_box_center +
+                                                            sensor_centroid.head<3>();
 
-  bounding_box->initialize(min_pt, max_pt, rotation, translation, centroid, eigen_vectors, mean_diag);
+  transform = Eigen::Affine3f::Identity();
+  transform.translate(-origin_bounding_box_center);
+  pcl::transformPointCloud(*transformed_cloud_, *transformed_cloud_, transform);
+
+  bounding_box->initialize(origin_min_pt, origin_max_pt, rotation_to_sensor_coordinates,
+                           translation_to_sensor_coordinates, sensor_centroid,
+                           sensor_eigen_vectors, origin_bounding_box_center);
 
   draw_bounding_box_ = true;
 }

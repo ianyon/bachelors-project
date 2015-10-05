@@ -62,7 +62,7 @@ void visualization::SegmentationVisualizer::visualize()
 
 void visualization::SegmentationVisualizer::visualizeNormalsCloud(PCLVisualizer &viewer, int viewport)
 {
-  boost::mutex::scoped_lock updateLock(segmentator_->update_normals_mutex_);
+  boost::mutex::scoped_lock update_lock(segmentator_->update_normals_mutex_);
   // Check if cloud was updated (If not present program fails due to try to visualize zero size normals)
   if (segmentator_->point_clouds_updated_)
   {
@@ -80,7 +80,7 @@ void visualization::SegmentationVisualizer::visualizeNormalsCloud(PCLVisualizer 
 
     segmentator_->point_clouds_updated_ = false;
   }
-  updateLock.unlock();
+  update_lock.unlock();
 }
 
 void visualization::SegmentationVisualizer::visualizePlaneCloud(PCLVisualizer &viewer, int viewport)
