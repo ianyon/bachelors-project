@@ -121,10 +121,10 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
   // Change coordinates from kinect's to object's
   // Rotate to objects coordinates
-  Eigen::Matrix3f rotation_to_obj_coordinates(sensor_eigen_vectors.transpose());
+  Eigen::Matrix3f rotation_to_obj_coords(sensor_eigen_vectors.transpose());
   // Translate to ojb coordinates: Make the centroid be the origin
-  transform.translate(-1.f * (rotation_to_obj_coordinates * sensor_centroid.head<3>()));
-  transform.rotate(rotation_to_obj_coordinates);
+  transform.translate(-1.f * (rotation_to_obj_coords * sensor_centroid.head<3>()));
+  transform.rotate(rotation_to_obj_coords);
   pcl::transformPointCloud(*obj_cloud, *transformed_cloud_, transform);
 
   PointT origin_min_pt, origin_max_pt;
@@ -133,17 +133,23 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
       0.5f * (origin_max_pt.getVector3fMap() + origin_min_pt.getVector3fMap());
 
   // Final transform: back to object coordinates
-  const Eigen::Quaternionf rotation_to_sensor_coordinates(sensor_eigen_vectors);
-  const Eigen::Vector3f translation_to_sensor_coordinates = sensor_eigen_vectors * origin_bounding_box_center +
-                                                            sensor_centroid.head<3>();
+  const Eigen::Quaternionf rotation_to_sensor_coords(sensor_eigen_vectors);
+  const Eigen::Vector3f translation_to_sensor_coords = sensor_eigen_vectors * origin_bounding_box_center +
+                                                       sensor_centroid.head<3>();
 
   transform = Eigen::Affine3f::Identity();
   transform.translate(-origin_bounding_box_center);
   pcl::transformPointCloud(*transformed_cloud_, *transformed_cloud_, transform);
 
-  bounding_box->initialize(origin_min_pt, origin_max_pt, rotation_to_sensor_coordinates,
-                           translation_to_sensor_coordinates, sensor_centroid,
-                           sensor_eigen_vectors, origin_bounding_box_center);
+  PointT origin_min_3d_pt, origin_max_3d_pt;
+  getMinMax3D(*object_cloud_, origin_min_3d_pt, origin_max_3d_pt);
+  double heigth_3D = (origin_max_3d_pt.x - origin_min_3d_pt.x)/2.0;
+
+  bounding_box->initialize(origin_min_pt, origin_max_pt, rotation_to_sensor_coords, translation_to_sensor_coords,
+                           sensor_centroid,
+                           sensor_eigen_vectors,
+                           origin_bounding_box_center,
+                           heigth_3D);
 
   draw_bounding_box_ = true;
 }

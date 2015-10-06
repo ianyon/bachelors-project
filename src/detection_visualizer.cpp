@@ -62,8 +62,13 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
                    detector_->bounding_box_.max_pt.z - detector_->bounding_box_.min_pt.z,
                    "bounding box");
 
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    //transform.translate(bounding_box.translation);
+    transform.translate(detector_->bounding_box_.translation);
+    transform.rotate(detector_->bounding_box_.eigen_vectors);
+    viewer.addCoordinateSystem(0.25,transform);
+
     viewer.removeShape("transformed bounding box");
-    boost::this_thread::sleep(boost::posix_time::milliseconds(100));
     viewer.addCube(-0.5f * detector_->bounding_box_.mean_diag,
                    Eigen::Quaternionf::Identity(),
                    detector_->bounding_box_.max_pt.x - detector_->bounding_box_.min_pt.x,
@@ -100,6 +105,12 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
     PointCloudColorHandlerCustom<PointT> red_color(sampled_side_grasps, 255, 0, 0);
     if (!viewer.updatePointCloud(sampled_side_grasps, red_color, "sampled side cloud"))
       viewer.addPointCloud<PointT>(sampled_side_grasps, red_color, "sampled side cloud");
+
+    PointCloudTPtr sampled_top_grasps = detector_->getSampledTopGrasps();
+
+    PointCloudColorHandlerCustom<PointT> new_red_color(sampled_top_grasps, 255, 0, 0);
+    if (!viewer.updatePointCloud(sampled_top_grasps, new_red_color, "sampled top cloud"))
+      viewer.addPointCloud<PointT>(sampled_top_grasps, new_red_color, "sampled top cloud");
 
     visualizePoint(middle, 0, 0, 255, "centroid", viewer);
 
