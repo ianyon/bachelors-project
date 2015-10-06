@@ -42,11 +42,6 @@ struct BoundingBox
   double heigth_3D;
 };
 
-struct GraspTypesContainer
-{
-  std::vector <PointT> side_grasps, top_grasps;
-};
-
 struct RankedGrasps
 {
   std::map<PointT, int> side_grasps, top_grasps;

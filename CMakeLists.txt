@@ -44,6 +44,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   dynamic_reconfigure
+  moveit_ros_planning_interface
 )
 
 ## Add include directories
@@ -78,7 +79,8 @@ set(sources src/example.cpp
         src/segmentation_visualizer.cpp
         src/detection_visualizer.cpp
         src/utils.cpp
-        src/ellipse_operations.cpp)
+        src/ellipse_operations.cpp
+        src/grasp_filter.cpp)
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 

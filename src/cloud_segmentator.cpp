@@ -1,3 +1,5 @@
+#include <viewer_spawner.h>
+#include <dynamic_reconfigure/server.h>
 #include "cloud_segmentator.h"
 
 #include <pcl/filters/filter.h>
@@ -59,7 +61,7 @@ void segmentation::CloudSegmentator::sensorCallback(const PointCloudTConstPtr &s
 }
 
 void segmentation::CloudSegmentator::cropOrganizedPointCloud(const PointCloudTPtr &cloudInput,
-                                          PointCloudTPtr &croppedCloud)
+                                                             PointCloudTPtr &croppedCloud)
 {
   clock_t begin = clock();
   // Kinect is 640/480
@@ -92,7 +94,7 @@ void segmentation::CloudSegmentator::cropOrganizedPointCloud(const PointCloudTPt
 }
 
 PointCloudTPtr segmentation::CloudSegmentator::gaussianSmoothing(const PointCloudTPtr &cloudInput,
-                                                         PointCloudTPtr &smoothed_cloud_)
+                                                                 PointCloudTPtr &smoothed_cloud_)
 {
   clock_t begin = clock();
   //Set up the Gaussian Kernel
@@ -119,7 +121,7 @@ PointCloudTPtr segmentation::CloudSegmentator::gaussianSmoothing(const PointClou
 
 
 void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudTPtr &sensor_cloud,
-                                            PointCloudNormalPtr &cloud_normals)
+                                                               PointCloudNormalPtr &cloud_normals)
 {
   clock_t begin = clock();
   IntegralImageNormalEstimation<PointXYZ, Normal> ne;
@@ -144,7 +146,7 @@ void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudT
       return;
   }
 
- // TODO: Analyze use multithreading OMP Classes
+  // TODO: Analyze use multithreading OMP Classes
   ne.setMaxDepthChangeFactor((float) cfg.maxDepthChangeFactorParam);
   ne.setDepthDependentSmoothing(cfg.useDepthDependentSmoothingParam);
   ne.setNormalSmoothingSize((float) cfg.normalSmoothingSizeParam);
@@ -175,7 +177,8 @@ void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudT
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
 bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudTPtr &input, PointCloudNormalPtr &normals,
-                                      ModelCoefficients::Ptr &coefficients, PointIndices::Ptr &inliers)
+                                                         ModelCoefficients::Ptr &coefficients,
+                                                         PointIndices::Ptr &inliers)
 {
   clock_t begin = clock();
   // Intialize the SACSegmentationFromNormals object
@@ -248,9 +251,9 @@ void segmentation::CloudSegmentator::extractPlaneCloud(const PointCloudTPtr &inp
 }
 
 void segmentation::CloudSegmentator::projectOnPlane(const PointCloudTPtr &sensor_cloud,
-                                 const ModelCoefficients::Ptr &table_coefficients,
-                                 const PointIndices::Ptr &tableInliers,
-                                 PointCloudTPtr &projectedTableCloud)
+                                                    const ModelCoefficients::Ptr &table_coefficients,
+                                                    const PointIndices::Ptr &tableInliers,
+                                                    PointCloudTPtr &projectedTableCloud)
 {
   clock_t begin = clock();
   ProjectInliers<PointXYZ> proj;
@@ -263,7 +266,7 @@ void segmentation::CloudSegmentator::projectOnPlane(const PointCloudTPtr &sensor
 }
 
 void segmentation::CloudSegmentator::computeTableConvexHull(const PointCloudTPtr &projectedTableCloud,
-                                         PointCloudTPtr &tableConvexHull)
+                                                            PointCloudTPtr &tableConvexHull)
 {
   clock_t begin = clock();
   ConvexHull<PointXYZ> chull;
@@ -275,8 +278,8 @@ void segmentation::CloudSegmentator::computeTableConvexHull(const PointCloudTPtr
 }
 
 bool segmentation::CloudSegmentator::extractCloudOverTheTable(const PointCloudTPtr &sensor_cloud,
-                                           const PointCloudTPtr &tableConvexHull,
-                                           PointCloudTPtr &cloudOverTheTable)
+                                                              const PointCloudTPtr &tableConvexHull,
+                                                              PointCloudTPtr &cloudOverTheTable)
 {
   clock_t begin = clock();
   // Segment those points that are in the polygonal prism
@@ -348,6 +351,8 @@ void segmentation::CloudSegmentator::clusterObjects(const PointCloudTPtr &cloud_
     extract.setInputCloud(cloud_over_table);
     extract.setIndices(cluster);
     extract.filter(*cloudCluster);
+
+    cloudCluster->header = sensor_cloud_->header;
 
     // Store the clusters in a vector. It's the best way?
     cloud_cluster_vector_[i] = cloudCluster;
@@ -445,4 +450,13 @@ bool segmentation::CloudSegmentator::doProcessing(const PointCloudTPtr &input)
   return true;
 }
 
+PointCloudTPtr segmentation::CloudSegmentator::getCluster(size_t index)
+{
+  return cloud_cluster_vector_[index];
+}
+
+const pcl::ModelCoefficientsPtr segmentation::CloudSegmentator::getTable()
+{
+  return table_coefficients_;
+}
 } // namespace bachelors_final_project

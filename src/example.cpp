@@ -34,7 +34,7 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
 
 }
 
-int main (int argc, char** argv)
+int main(int argc, char **argv)
 {
   using namespace bachelors_final_project;
   using namespace bachelors_final_project::segmentation;
@@ -51,17 +51,17 @@ int main (int argc, char** argv)
   ROS_DEBUG("DEBUG ACTIVATED");*/
 
   // Initialize ROS
-  ros::init (argc, argv, "bachelors_final_project");
+  ros::init(argc, argv, "bachelors_final_project");
   ros::NodeHandle nh;
 
   // CloudSegmentator needs to be a pointer because mutex cannot be copied
   CloudSegmentator *segmentator = new CloudSegmentator(nh);
-  gpd::GraspPointDetector detector;
+  gpd::GraspPointDetector detector(nh);
   viz::ViewerSpawner spawner(segmentator, &detector);
 
 
   // Create a ROS subscriber for the input point cloud
-  ros::Subscriber sub = nh.subscribe ("/camera/depth/points", 1, &CloudSegmentator::sensorCallback, segmentator);
+  ros::Subscriber sub = nh.subscribe("/camera/depth/points", 1, &CloudSegmentator::sensorCallback, segmentator);
 
   // Create Dynamic reconfigure server
   dynamic_reconfigure::Server<ParametersConfig> server;
@@ -76,7 +76,7 @@ int main (int argc, char** argv)
   ROS_INFO("Escuchando");
 
   // Spin
-  while(ros::ok())
+  while (ros::ok())
   {
     ros::spinOnce();                // Handle ROS events
 
@@ -91,15 +91,16 @@ int main (int argc, char** argv)
     size_t selected_cluster_index;
     size_t max_size = 0;
 
-    for (size_t i = 0; i< segmentator->cloud_cluster_vector_.size();i++)
+    for (size_t i = 0; i < segmentator->cloud_cluster_vector_.size(); i++)
     {
-      if(segmentator->cloud_cluster_vector_[i]->size() > max_size )
+      if (segmentator->cloud_cluster_vector_[i]->size() > max_size)
         selected_cluster_index = i;
     }
 
     int cluster_size = segmentator->cloud_cluster_vector_[selected_cluster_index]->size();
     ROS_INFO("Using cluster with %d points", cluster_size);
 
-    detector.detect(segmentator->cloud_cluster_vector_[selected_cluster_index], segmentator->table_coefficients_);
+    detector.detect(segmentator->getCluster(0), segmentator->getTable());
   }
 }
+

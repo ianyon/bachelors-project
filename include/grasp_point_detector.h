@@ -8,6 +8,7 @@
 #include "definitions.h"
 #include "containers.h"
 #include "grasp_sampler.h"
+#include "grasp_filter.h"
 #include <bachelors_final_project/ParametersConfig.h>
 
 namespace bachelors_final_project
@@ -19,12 +20,12 @@ class GraspPointDetector
 {
 public:
   //! Constructor.
-  GraspPointDetector();
+  GraspPointDetector(ros::NodeHandle &handle);
   void updateConfig(bachelors_final_project::ParametersConfig &config);
 
   bool doProcessing();
 
-  void detect(const PointCloudTPtr &, const pcl::ModelCoefficientsPtr &);
+  void detect(const PointCloudTPtr &cluster, const pcl::ModelCoefficientsPtr &table);
 
   void computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBox *);
 
@@ -34,8 +35,6 @@ public:
   PointCloudTPtr transformed_cloud_;
 
   boost::mutex update_bounding_box_mutex_;
-
-  GraspTypesContainer feasible_grasps;
 
   RankedGrasps ranked_grasps;
 
@@ -51,6 +50,9 @@ public:
   PointCloudTPtr getSampledSideGrasps();
 
   PointCloudTPtr getSampledTopGrasps();
+
+  GraspFilter grasp_filter_;
+  std::string kinect_frame_id_;
 };
 
 } // namespace detection

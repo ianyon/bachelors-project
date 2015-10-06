@@ -75,18 +75,23 @@ public:
  */
   void clusterObjects(const PointCloudTPtr &cloudOverTheTable);
 
+  PointCloudTPtr getCluster(size_t index);
+
+  const pcl::ModelCoefficientsPtr getTable();
+  
   bool point_clouds_updated_;
   bool plane_updated_;
   bool cloud_over_table_updated_;
   bool clusters_updated_;
+
   boost::mutex update_normals_mutex_;
 
   ros::Publisher pub_planar_, pub_objects_;
-
   PointCloudTPtr sensor_cloud_;
   PointCloudTPtr smoothed_cloud_;
   PointCloudTPtr plane_cloud_;
   PointCloudNormalPtr cloud_normals_;
+
   PointCloudTPtr cloud_over_table_;
 
   std::vector<PointCloudTPtr> cloud_cluster_vector_;
