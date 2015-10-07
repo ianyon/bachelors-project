@@ -1,0 +1,12 @@
+<launch>
+
+  <param name="/use_sim_time" type="bool" value="true" />
+
+  <include file="$(find openni_launch)/launch/openni.launch">
+           <arg name="load_driver" value="False"/>
+  </include>
+
+  <node name="rqt_bag" pkg="rqt_bag" type="rqt_bag" required="true"
+  	args="--clock $(find bachelors_final_project)/crop.bag" />
+           
+</launch>
