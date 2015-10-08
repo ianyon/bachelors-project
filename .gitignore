@@ -1,3 +1,9 @@
 *.bag
 *.pcd
 *.png
+.directory
+.idea/
+data*
+*.bak
+*.wp3
+*~

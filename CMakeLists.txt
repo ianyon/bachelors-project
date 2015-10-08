@@ -14,7 +14,7 @@ endif()
 ##############################################
 
 # Cotire Precompiled headers
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/ian/catkin_ws/src/bachelors_final_project/cmake/Modules")#"${CMAKE_SOURCE_DIR}/cmake/Modules/")
 include(cotire)
 
 set(CATKIN_DEVEL_PREFIX "/home/ian/catkin_ws/devel")

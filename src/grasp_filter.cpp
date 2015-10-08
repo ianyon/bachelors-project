@@ -112,15 +112,15 @@ run  ./devel/lib/pr2_moveit_tutorials/pick_place_tutorial*/
   test_constraints.orientation_constraints.push_back(ocm);
   group_->setPathConstraints(test_constraints);
 
-  BOOST_FOREACH(PointT sample, samples)
+  /*BOOST_FOREACH(PointT sample, samples)
   {
     processSample(sample);
-  }
+  }*/
 
-  /*for (int i = 0; i < samples->size(); ++i)
+  for (int i = 0; i < samples->size(); ++i)
   {
     processSample(samples->points[i]);
-  }*/
+  }
   group_->clearPathConstraints();
 }
 
