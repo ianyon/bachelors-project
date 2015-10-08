@@ -47,31 +47,13 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBox &bounding_box, PointC
     // Now transform to the objects reference system
     final_point = pcl::transformPoint(ellipse_point, getTransform(bounding_box, true));
 
-    side_grasps->push_back(ellipse_point);
+    //side_grasps->push_back(ellipse_point);
     side_grasps->push_back(final_point);
   }
 }
 
-Eigen::Affine3f detection::GraspSampler::getTransform(const BoundingBox &bounding_box, bool side_grasp_transform) const
-{
-  // The transformation from 0,0 to the objects coordinate system
-  Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  if (side_grasp_transform)
-    transform.translate(bounding_box.translation);
-  else
-    transform.translate(bounding_box.centroid.head<3>());
-  transform.rotate(bounding_box.eigen_vectors);
-  return transform;
-}
-
-
 void detection::GraspSampler::sampleTopGrasps(BoundingBox &bounding_box, PointCloudTPtr &top_grasps)
 {
-  // We'll sample the points in the origin and then translate and rotate them
-  /*Eigen::Vector3f translation_to_sensor_coords = bounding_box.centroid.head<3>();
-  //transform.translate(translation_to_sensor_coords);
-  transform.translate(bounding_box.translation);
-  transform.rotate(bounding_box.eigen_vectors);*/
   Eigen::Affine3f transform = getTransform(bounding_box, false);
 
   // Compute the number of samples for each axis proportional to the relation of their lengths
@@ -96,6 +78,18 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBox &bounding_box, PointCl
   sampleAxis(top_grasps, transform, mayor_axis, height, min_minor_axis, minor_axis_samples, minor_axis_step, false);
 }
 
+Eigen::Affine3f detection::GraspSampler::getTransform(const BoundingBox &bounding_box, bool side_grasp_transform) const
+{
+  // The transformation from 0,0 to the objects coordinate system
+  Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+  if (side_grasp_transform)
+    transform.translate(bounding_box.translation);
+  else
+    transform.translate(bounding_box.centroid.head<3>());
+  transform.rotate(bounding_box.eigen_vectors);
+  return transform;
+}
+
 void detection::GraspSampler::sampleAxis(PointCloudTPtr &top_grasps, Eigen::Affine3f &transform, float fixed_axis,
                                          float height, float min_axis, int n_samples, double step, bool is_mayor)
 {
@@ -118,7 +112,7 @@ void detection::GraspSampler::sampleAxis(PointCloudTPtr &top_grasps, Eigen::Affi
     // Now transform to the objects reference system
     final_point = pcl::transformPoint(axis_sample, transform);
     top_grasps->push_back(final_point);
-    top_grasps->push_back(axis_sample);
+    //top_grasps->push_back(axis_sample);
   }
 }
 

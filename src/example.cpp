@@ -75,6 +75,12 @@ int main(int argc, char **argv)
 
   ROS_INFO("Escuchando");
 
+  while(sub.getNumPublishers () < 1)
+  {
+    ros::WallDuration sleep_t(0.5);
+    sleep_t.sleep();
+  }
+
   // Spin
   while (ros::ok())
   {

@@ -32,6 +32,10 @@ public:
 
   PointCloudTPtr side_grasps_, top_grasps_;
 
+  typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
+
+  MoveGroupPtr group_;
+
   static const std::string WORLD_FRAME;
   static const std::string ROBOT_BASE_FRAME;
   static const float WAIT_TRANSFORM_TIMEOUT;
@@ -39,6 +43,12 @@ public:
   void initializePublisher(ros::NodeHandle &handle);
 
   void visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan);
+
+  void processGraspSamples(PointCloudTPtr samples);
+
+  void processSample(PointT &sample);
+
+  void addCollisionObject();
 };
 
 } // namespace detection
