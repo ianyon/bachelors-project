@@ -36,6 +36,8 @@ public:
 
   MoveGroupPtr group_;
 
+  planning_scene::PlanningScene planning_scene;
+
   static const std::string WORLD_FRAME;
   static const std::string ROBOT_BASE_FRAME;
   static const float WAIT_TRANSFORM_TIMEOUT;

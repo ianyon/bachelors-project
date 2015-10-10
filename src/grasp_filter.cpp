@@ -188,10 +188,11 @@ void detection::GraspFilter::processSample(PointT &sample)
 
         planning_pipeline->generatePlan(psm.getPlanningScene(), req, res);
    * */
-  /*collision_detection::AllowedCollisionMatrix acm = planning_scene.getAllowedCollisionMatrix();
+  planning_scene = new planning_scene::PlanningScene(robot.robotModel());
+  collision_detection::AllowedCollisionMatrix acm = planning_scene.getAllowedCollisionMatrix();
   robot_state::RobotState copied_state = planning_scene.getCurrentState();
   collision_result.clear();
-  planning_scene.checkCollision(collision_request, collision_result, copied_state, acm);*/
+  planning_scene.checkCollision(collision_request, collision_result, copied_state, acm);
   ROS_INFO_STREAM("Test 6: Current state is "
                   << (collision_result.collision ? "in" : "not in")
                   << " self collision");
