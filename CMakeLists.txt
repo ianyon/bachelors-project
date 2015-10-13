@@ -91,18 +91,18 @@ target_link_libraries(example
         ${catkin_LIBRARIES}
         libvtkCommon.so
         libvtkFiltering.so )
-cotire(example)
+#cotire(example)
 #add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
 
-get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
-get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
-get_target_property(_precompiledHeader example COTIRE_CXX_PRECOMPILED_HEADER)
-get_target_property(_unityTargetName example COTIRE_UNITY_TARGET_NAME)
+#get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
+#get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
+#get_target_property(_precompiledHeader example COTIRE_CXX_PRECOMPILED_HEADER)
+#get_target_property(_unityTargetName example COTIRE_UNITY_TARGET_NAME)
 
-message(STATUS "${_unitySource}")
-message(STATUS "${_prefixHeader}")
-message(STATUS "${_precompiledHeader}")
-message(STATUS "${_unityTargetName}")
+#message(STATUS "${_unitySource}")
+#message(STATUS "${_prefixHeader}")
+#message(STATUS "${_precompiledHeader}")
+#message(STATUS "${_unityTargetName}")
 
 #############
 ## Testing ##

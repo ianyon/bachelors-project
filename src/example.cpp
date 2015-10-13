@@ -63,6 +63,8 @@ int main(int argc, char **argv)
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe("/camera/depth/points", 1, &CloudSegmentator::sensorCallback, segmentator);
 
+  ROS_INFO("Topic: %s", sub.getTopic().c_str());
+
   // Create Dynamic reconfigure server
   dynamic_reconfigure::Server<ParametersConfig> server;
   // Bind callback function to update values

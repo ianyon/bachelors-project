@@ -15,8 +15,9 @@ namespace bachelors_final_project
 namespace detection
 {
 
-struct BoundingBox
+class BoundingBox
 {
+public:
   void initialize(PointT _min_pt, PointT _max_pt, Eigen::Quaternionf _rotation, Eigen::Vector3f _translation,
                     Eigen::Vector4f _centroid, Eigen::Matrix3f _eigen_vectors, Eigen::Vector3f _mean_diag,
                     double _heigth_3D)
@@ -29,6 +30,21 @@ struct BoundingBox
     eigen_vectors = _eigen_vectors;
     mean_diag = _mean_diag;
     heigth_3D = _heigth_3D;
+  }
+
+  double getXLength()
+  {
+    return max_pt.x - min_pt.x;
+  }
+
+  double getYLength()
+  {
+    return max_pt.y - min_pt.y;
+  }
+
+  double getZLength()
+  {
+    return max_pt.z - min_pt.z;
   }
 
   PointT min_pt;

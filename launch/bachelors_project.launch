@@ -1,81 +1,73 @@
 <launch>
-    <arg name="simulation" default="true"/>
+  <arg name="simulation" default="true"/>
 
-    <include file="$(find bachelors_final_project)/launch/simulated_openni.launch" if="$(arg simulation)">
-        <arg name="load_driver" value="False"/>
-    </include>
+  <!--<include file="$(find bachelors_final_project)/launch/simulated_openni.launch" if="$(arg simulation)">
+      <arg name="load_driver" value="false"/>
+      <arg name="camera" value="head_mount_kinect"/>
+  </include>-->
 
-    <include file="$(find pr2_moveit_config)/launch/planning_context.launch" required="true">
-        <arg name="load_robot_description" value="true"/>
-    </include>
+  <!-- MoveIt -->
+  <param name="capabilities" value="move_group/MoveGroupCartesianPathService
+                    move_group/MoveGroupExecuteService
+                    move_group/MoveGroupKinematicsService
+                    move_group/MoveGroupMoveAction
+                    move_group/MoveGroupPickPlaceAction
+                    move_group/MoveGroupPlanService
+                    move_group/MoveGroupQueryPlannersService
+                    move_group/MoveGroupStateValidationService
+                    move_group/MoveGroupGetPlanningSceneService
+                    " />
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch">
+      <arg name="allow_trajectory_execution" value="true"/>
+      <arg name="info" value="true"/>
+  </include>
+  <!-- Launches planning_context
+       Load SRDF, Joint limits, kinematics
+       Launches moveit_controller_manager = pr2 -->
+  <!-- MoveIt -->  
 
+  <!-- Gazebo pr2_empty_world.launch includes pr2.launch and empty_world.launch -->
+  <!-- start pr2 robot -->
+  <include file="$(find pr2_gazebo)/launch/pr2.launch"/>
+  <!-- Startup PR2 without any mechanism controllers>
+       Loads robot_description
+       Spawns PR2
+       Load and Start Default Controllers -->
+  <!-- start pr2 robot -->
 
-    <param name="capabilities" value="move_group/MoveGroupCartesianPathService
-                      move_group/MoveGroupExecuteService
-                      move_group/MoveGroupKinematicsService
-                      move_group/MoveGroupMoveAction
-                      move_group/MoveGroupPickPlaceAction
-                      move_group/MoveGroupPlanService
-                      move_group/MoveGroupQueryPlannersService
-                      move_group/MoveGroupStateValidationService
-                      move_group/MoveGroupGetPlanningSceneService
-                      " />
+  <!-- Set robot initial position -->
+  <node name="timed_initial_position" pkg="moveit_test" type="timed_roslaunch.sh" output="screen" 
+    args="rosrun 5 moveit_test change_model_position.py -urdf -param robot_description -model pr2 -ros_namespace /gazebo -J head_tilt_joint 0.9"/>
+  <!-- Set robot initial position -->
 
+  <!-- Gazebo -->
+  <arg name="paused" default="true"/>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find moveit_test)/worlds/table_with_objects.world"/>
+    <arg name="gui" value="false" />
+    <arg name="paused" value="$(arg paused)" />
+  </include>  
+  <arg name="gui" default="true"/>
+  <group if="$(arg gui)">
+    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="screen" required="true"/>
+  </group>
+  <!-- Gazebo -->
 
-    <include file="$(find pr2_moveit_config)/launch/move_group.launch">
-        <arg name="allow_trajectory_execution" value="true"/>
-        <arg name="fake_execution" value="false"/>
-        <arg name="info" value="true"/>
-        <arg name="debug" value="$(arg debug)"/>
-    </include>
-
-    <!-- Lanzar mundo vacío  -->
-    <include file="$(find gazebo_ros)/launch/empty_world.launch">
-        <arg name="gui" value="$(arg gui)"/>
-        <arg name="paused" value="$(arg paused)"/>
-    </include>
-
-    <!-- Lanzar el PR2 a partir de pr2_gazebo -->
-    <include file="$(find pr2_gazebo)/launch/pr2.launch"/>
-    <!-- -J r_upper_arm_roll_joint -1.64
-    -J r_shoulder_pan_joint -2.135
-    -J r_shoulder_lift_joint -0.02
-    -J r_forearm_roll_joint -1.64
-    -J r_elbow_flex_joint -2.07
-    -J r_wrist_flex_joint -1.68
-    -J r_wrist_roll_joint 1.40 -->
-    <!-- Ya es incluido por pr2.launch:
-    include file="$(find pr2_controller_configuration_gazebo)/launch/pr2_default_controllers.launch" /-->
-
-    <!-- Spawnear la mesa -->
-    <!-- PARA OBTENER TODOS LOS PARAMETROS POSIBLES DE spawn_model, HACER
-    "rosrun gazebo_ros spawn_model -h" MIENTRAS SE EJECUTA ROS. -->
-    <!--<param name="table_description"
-           command="$(find xacro)/xacro.py /home/mexomagno/.gazebo/models/mesita/model.sdf" />
-    <node name="spawn_table"
-          pkg="gazebo_ros"
-          type="spawn_model"
-          args="-sdf -param table_description -model mesita -x 1.5 -y 0 -z 0 -Y 1.5707"
-          respawn="false"
-          output="screen" />-->
-    <!-- Lo annterior sería equivalente por consola a: -->
-    <!-- rosrun gazebo_ros spawn_model -sdf -file /home/mexomagno/.gazebo/models/table/model.sdf -model
-    mesita -x 1.5 -y 0 -z 0 -Y 1.5707 -->
-    <!-- Para eliminar modelo desde consola, llamar al servicio de gazebo y entregar nombre del modelo: -->
-    <!-- rosservice call /gazebo/delete_model mesita -->
-
-    <!-- Spawnear la lata -->
-    <!--<node name="spawn_object" pkg="gazebo_ros" type="spawn_model"
-          args="-sdf -file /home/mexomagno/.gazebo/models/coke_can/model.sdf -model lata_coca -x 1.5 -z 0.51"
-          respawn="false" output="screen" />-->
-
-
-    <!-- parameters that give you reasonable physics as well as good speed -->
-    <!-- needed so that gripper joint stops on objects instead of oscillating forever-->
-    <node name="sor_pgs_iters" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_iters 50"/>
-    <node name="sor_pgs_w" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_w 1.0"/>
-    <node name="time_step" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo time_step 0.001"/>
-
-    <!-- Lanzar gzclient -->
-    <node pkg="gazebo_ros" type="gzclient" name="gzclient"/>
+  <!-- Rviz -->
+  <arg name="moveit_rviz" default="true" />
+  <arg     if="$(arg moveit_rviz)" name="command_args" default="-d $(find pr2_moveit_config)/launch/moveit.rviz" />
+  <arg unless="$(arg moveit_rviz)" name="command_args" default="-d $(find moveit_test)/rviz/pr2_table.rviz" />
+  
+  <arg name="no_rviz" default="false"/>
+  <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false" args="$(arg command_args)" output="screen" unless="$(arg no_rviz)">
+    <!-- Don't know why needs these params. It specifies the kinematic solver and their params. -->
+    <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
+  </node>
+  <!-- Rviz -->
+    
+  <!-- parameters that give you reasonable physics as well as good speed -->
+  <!-- needed so that gripper joint stops on objects instead of oscillating forever-->
+  <node name="sor_pgs_iters" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_iters 50"/>
+  <node name="sor_pgs_w" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_w 1.0"/>
+  <node name="time_step" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo time_step 0.001"/>
 </launch>

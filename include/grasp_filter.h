@@ -26,6 +26,8 @@ public:
   void filterGraspingPoses(PointCloudTPtr, PointCloudTPtr, std::string);
 
   ros::Publisher display_publisher;
+  ros::Publisher collision_obj_publisher;
+  ros::Publisher attached_obj_publisher;
 
   tf::TransformListener transform_listener;
   tf::StampedTransform stamped_transform;
@@ -36,7 +38,7 @@ public:
 
   MoveGroupPtr group_;
 
-  planning_scene::PlanningScene planning_scene;
+  //planning_scene::PlanningScene planning_scene;
 
   static const std::string WORLD_FRAME;
   static const std::string ROBOT_BASE_FRAME;
