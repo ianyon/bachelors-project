@@ -8,6 +8,8 @@
 #include <vector>
 #include <map>
 
+#include <boost/shared_ptr.hpp>
+
 #include "definitions.h"
 
 namespace bachelors_final_project
@@ -18,18 +20,12 @@ namespace detection
 class BoundingBox
 {
 public:
-  void initialize(PointT _min_pt, PointT _max_pt, Eigen::Quaternionf _rotation, Eigen::Vector3f _translation,
+  void BoundingBox(PointT _min_pt, PointT _max_pt, Eigen::Quaternionf _rotation, Eigen::Vector3f _translation,
                     Eigen::Vector4f _centroid, Eigen::Matrix3f _eigen_vectors, Eigen::Vector3f _mean_diag,
-                    double _heigth_3D)
+                    double _heigth_3D):
+    min_pt_(min_pt), max_pt_(max_pt), rotation_(rotation), translation_(translation), centroid_(centroid),
+    eigen_vectors_(eigen_vectors), mean_diag_(mean_diag), heigth_3D_(heigth_3D);
   {
-    min_pt = _min_pt;
-    max_pt = _max_pt;
-    rotation = _rotation;
-    translation = _translation;
-    centroid = _centroid;
-    eigen_vectors = _eigen_vectors;
-    mean_diag = _mean_diag;
-    heigth_3D = _heigth_3D;
   }
 
   double getXLength()
@@ -57,6 +53,8 @@ public:
   Eigen::Vector3f mean_diag;
   double heigth_3D;
 };
+
+typedef boost::shared_ptr<BoundingBox> BoundingBoxPtr;
 
 struct RankedGrasps
 {

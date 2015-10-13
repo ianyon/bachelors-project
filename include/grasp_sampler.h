@@ -17,15 +17,15 @@ class GraspSampler
 public:
   GraspSampler();
 
-  void sampleGraspingPoses(BoundingBox &);
+  void sampleGraspingPoses(BoundingBoxPtr &);
 
-  void sampleSideGrasps(BoundingBox &, PointCloudTPtr &);
+  void sampleSideGrasps(BoundingBoxPtr &, PointCloudTPtr &);
 
-  void sampleTopGrasps(BoundingBox &, PointCloudTPtr &);
+  void sampleTopGrasps(BoundingBoxPtr &, PointCloudTPtr &);
 
   void sampleAxis(PointCloudTPtr &, Eigen::Affine3f &, float, float, float, int, double, bool);
 
-  Eigen::Affine3f getTransform(const BoundingBox &bounding_box, bool side_grasp_transform) const;
+  Eigen::Affine3f getTransform(const BoundingBoxPtr &bounding_box, bool side_grasp_transform) const;
 
   const PointCloudTPtr getSideGrasps() const
   {

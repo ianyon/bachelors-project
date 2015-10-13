@@ -27,7 +27,7 @@ public:
 
   void detect(const PointCloudTPtr &cluster, const pcl::ModelCoefficientsPtr &table);
 
-  void computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBox *);
+  void computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBoxPtr&);
 
   bool draw_bounding_box_;
 
@@ -40,7 +40,7 @@ public:
 
   GraspSampler sampler;
 
-  BoundingBox bounding_box_;
+  BoundingBoxPtr &bounding_box_;
 
   bachelors_final_project::ParametersConfig cfg;
   pcl::ModelCoefficientsPtr table_plane_;

@@ -68,15 +68,17 @@ bool detection::GraspPointDetector::doProcessing()
   // a = blue (z) - b = green (y)
 
   boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
-  computeBoundingBox(projected_object_, &bounding_box_);
+  computeBoundingBox(projected_object_, bounding_box_);
 
   // Find all the samples poses
   sampler.sampleGraspingPoses(bounding_box_);
   draw_sampled_grasps_ = true;
   bounding_box_lock.unlock();
 
+  // Configure filter
+  grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_plane_);
   // Remove infeasible ones
-  grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps(), kinect_frame_id_);
+  grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
 
   return true;
 }
@@ -91,7 +93,7 @@ bool detection::GraspPointDetector::doProcessing()
    the transformation you have to apply is
    Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
-void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBox *bounding_box)
+void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBoxPtr &bounding_box)
 {
   // Compute princcloudipal direction
   Eigen::Vector4f sensor_centroid;
@@ -133,11 +135,8 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
   getMinMax3D(*object_cloud_, origin_min_3d_pt, origin_max_3d_pt);
   double heigth_3D = (origin_max_3d_pt.x - origin_min_3d_pt.x) / 2.0;
 
-  bounding_box->initialize(origin_min_pt, origin_max_pt, rotation_to_sensor_coords, translation_to_sensor_coords,
-                           sensor_centroid,
-                           sensor_eigen_vectors,
-                           origin_bounding_box_center,
-                           heigth_3D);
+  bounding_box.reset(new BoundingBox(origin_min_pt, origin_max_pt, rotation_to_sensor_coords, translation_to_sensor_coords,
+                                     sensor_centroid, sensor_eigen_vectors, origin_bounding_box_center, heigth_3D));
 
   draw_bounding_box_ = true;
 }

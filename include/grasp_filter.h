@@ -7,11 +7,19 @@
 
 #include <string>
 #include <ros/node_handle.h>
+
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
+
+#include <pcl/ModelCoefficients.h>
+
 #include <moveit/move_group_interface/move_group.h>
 
+#include <moveit_msgs/AllowedCollisionMatrix.h>
+#include <moveit_msgs/GetPlanningScene.h>
+
 #include "definitions.h"
+#include "containers.h"
 
 namespace bachelors_final_project
 {
@@ -23,15 +31,38 @@ class GraspFilter
 public:
   GraspFilter();
 
-  void filterGraspingPoses(PointCloudTPtr, PointCloudTPtr, std::string);
+  void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, pcl::ModelCoefficientsPtr &table_plane_);
+
+  void filterGraspingPoses(PointCloudTPtr side_grasps, PointCloudTPtr top_grasps);
+
+  void initializePublisher(ros::NodeHandle &handle);
+
+  void visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan);
+
+  void processGraspSamples(PointCloudTPtr samples);
+
+  void processSample(PointT &sample);
+
+  void addSupportTable(pcl::ModelCoefficientsPtr &table_plane, BoundingBoxPtr &bounding_box);
+
+  void addCollisionObject(BoundingBoxPtr &bounding_box);
+
+  void updateAllowedCollisionMatrix();
+
+  moveit_msgs::AllowedCollisionMatrix& getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv);
 
   ros::Publisher display_publisher;
   ros::Publisher collision_obj_publisher;
   ros::Publisher attached_obj_publisher;
+  ros::Publisher planning_scene_diff_publisher;
+
+  ros::ServiceClient client_get_scene;
 
   tf::TransformListener transform_listener;
+
   tf::StampedTransform stamped_transform;
 
+  BoundingBoxPtr bounding_box_;
   PointCloudTPtr side_grasps_, top_grasps_;
 
   typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
@@ -43,16 +74,12 @@ public:
   static const std::string WORLD_FRAME;
   static const std::string ROBOT_BASE_FRAME;
   static const float WAIT_TRANSFORM_TIMEOUT;
+  static const std::string GRASPABLE_OBJECT;
+  static const std::string SUPPORT_TABLE;
 
-  void initializePublisher(ros::NodeHandle &handle);
+  std::string kinect_frame_id_;
 
-  void visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan);
-
-  void processGraspSamples(PointCloudTPtr samples);
-
-  void processSample(PointT &sample);
-
-  void addCollisionObject();
+  pcl::ModelCoefficientsPtr table_plane_;
 };
 
 } // namespace detection
