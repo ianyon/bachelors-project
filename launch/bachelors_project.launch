@@ -1,49 +1,22 @@
 <launch>
-  <arg name="simulation" default="true"/>
-
-  <!--<include file="$(find bachelors_final_project)/launch/simulated_openni.launch" if="$(arg simulation)">
-      <arg name="load_driver" value="false"/>
-      <arg name="camera" value="head_mount_kinect"/>
-  </include>-->
-
-  <!-- MoveIt -->
-  <param name="capabilities" value="move_group/MoveGroupCartesianPathService
-                    move_group/MoveGroupExecuteService
-                    move_group/MoveGroupKinematicsService
-                    move_group/MoveGroupMoveAction
-                    move_group/MoveGroupPickPlaceAction
-                    move_group/MoveGroupPlanService
-                    move_group/MoveGroupQueryPlannersService
-                    move_group/MoveGroupStateValidationService
-                    move_group/MoveGroupGetPlanningSceneService
-                    " />
-  <include file="$(find pr2_moveit_config)/launch/move_group.launch">
-      <arg name="allow_trajectory_execution" value="true"/>
-      <arg name="info" value="true"/>
-  </include>
-  <!-- Launches planning_context
-       Load SRDF, Joint limits, kinematics
-       Launches moveit_controller_manager = pr2 -->
-  <!-- MoveIt -->  
-
   <!-- Gazebo pr2_empty_world.launch includes pr2.launch and empty_world.launch -->
   <!-- start pr2 robot -->
-  <include file="$(find pr2_gazebo)/launch/pr2.launch"/>
+  <include file="$(find bachelors_final_project)/launch/my_pr2.launch"/>
   <!-- Startup PR2 without any mechanism controllers>
        Loads robot_description
        Spawns PR2
        Load and Start Default Controllers -->
   <!-- start pr2 robot -->
 
-  <!-- Set robot initial position -->
-  <node name="timed_initial_position" pkg="moveit_test" type="timed_roslaunch.sh" output="screen" 
-    args="rosrun 5 moveit_test change_model_position.py -urdf -param robot_description -model pr2 -ros_namespace /gazebo -J head_tilt_joint 0.9"/>
-  <!-- Set robot initial position -->
+  <!--<include file="$(find bachelors_final_project)/launch/simulated_openni.launch" if="$(arg simulation)">
+      <arg name="load_driver" value="false"/>
+      <arg name="camera" value="head_mount_kinect"/>
+  </include>-->
 
   <!-- Gazebo -->
   <arg name="paused" default="true"/>
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find moveit_test)/worlds/table_with_objects.world"/>
+    <arg name="world_name" value="$(find bachelors_final_project)/worlds/table_with_objects.world"/>
     <arg name="gui" value="false" />
     <arg name="paused" value="$(arg paused)" />
   </include>  
@@ -53,10 +26,24 @@
   </group>
   <!-- Gazebo -->
 
+  <!-- Set robot initial position -->
+  <node name="timed_initial_position" pkg="bachelors_final_project" type="timed_roslaunch.sh" output="screen" 
+    args="rosrun 5 bachelors_final_project change_model_position.py -urdf -param robot_description -model pr2 -ros_namespace /gazebo -J head_tilt_joint 0.9"/>
+  <!-- Set robot initial position -->
+
+  <!-- MoveIt -->
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch">
+      <!--<arg name="info" value="true"/>-->
+  </include>
+  <!-- Launches planning_context
+       Load SRDF, Joint limits, kinematics
+       Launches moveit_controller_manager = pr2 -->
+  <!-- MoveIt -->  
+
   <!-- Rviz -->
-  <arg name="moveit_rviz" default="true" />
+  <arg name="moveit_rviz" default="false" />
   <arg     if="$(arg moveit_rviz)" name="command_args" default="-d $(find pr2_moveit_config)/launch/moveit.rviz" />
-  <arg unless="$(arg moveit_rviz)" name="command_args" default="-d $(find moveit_test)/rviz/pr2_table.rviz" />
+  <arg unless="$(arg moveit_rviz)" name="command_args" default="-d $(find bachelors_final_project)/rviz/pr2_table.rviz" />
   
   <arg name="no_rviz" default="false"/>
   <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false" args="$(arg command_args)" output="screen" unless="$(arg no_rviz)">

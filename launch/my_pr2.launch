@@ -1,0 +1,9 @@
+<launch>
+  
+  <!-- Startup PR2 without any mechanism controllers -->
+  <include file="$(find bachelors_final_project)/launch/my_pr2_no_controllers.launch" />
+
+  <!-- Load and Start Default Controllers -->
+  <include file="$(find bachelors_final_project)/launch/my_default_controllers.launch" />  
+
+</launch>
