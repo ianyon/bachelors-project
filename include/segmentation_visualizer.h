@@ -22,9 +22,6 @@ namespace visualization
 class SegmentationVisualizer : public BaseVisualizer
 {
 public:
-  SegmentationVisualizer()
-  { }
-
   SegmentationVisualizer(segmentation::CloudSegmentator *);
 
   void visualize();

@@ -1,6 +1,8 @@
-#include <viewer_spawner.h>
-#include <dynamic_reconfigure/server.h>
 #include "cloud_segmentator.h"
+
+#include <iostream>
+
+#include <dynamic_reconfigure/server.h>
 
 #include <pcl/filters/filter.h>
 #include <pcl/filters/convolution_3d.h>
@@ -16,6 +18,7 @@
 #include <pcl/surface/convex_hull.h>
 
 #include "utils.h"
+#include "viewer_spawner.h"
 
 using namespace pcl;
 
@@ -27,6 +30,7 @@ namespace bachelors_final_project
  */
 segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh)
 {
+  std::cout << "Init cloud constructor!" << std::endl;
   // Create a ROS publisher
   pub_planar_ = nh.advertise<PointCloudT>("planar", 1);
   pub_objects_ = nh.advertise<PointCloudT>("objects", 1);
@@ -56,6 +60,7 @@ void segmentation::CloudSegmentator::updateConfig(ParametersConfig &config)
 
 void segmentation::CloudSegmentator::sensorCallback(const PointCloudTConstPtr &sensorInput)
 {
+  std::cout << "LLAMAMOS AL CALLBACK!" << std::endl;
   ROS_INFO_ONCE("Callback Called");
   sensor_cloud_ = sensorInput->makeShared();
 }

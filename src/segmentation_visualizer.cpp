@@ -1,5 +1,7 @@
 #include "segmentation_visualizer.h"
 
+#include <iostream>
+
 #include "definitions.h"
 #include "cloud_segmentator.h"
 
@@ -11,6 +13,7 @@ namespace bachelors_final_project
 visualization::SegmentationVisualizer::SegmentationVisualizer(segmentation::CloudSegmentator *segmentator) :
     segmentator_(segmentator)
 {
+  std::cout << "INIT constructor!" << std::endl;
   const int colors[10][3] = {{170, 57,  57},
                              {170, 96,  57},
                              {37,  112, 89},
@@ -24,6 +27,7 @@ visualization::SegmentationVisualizer::SegmentationVisualizer(segmentation::Clou
   *(array_t *) colors_ = *(array_t *) colors;
 
   last_max_clusters_ = 0;
+  std::cout << "Done constructor!" << std::endl;
 }
 
 void visualization::SegmentationVisualizer::configureSegmentationViewer(PCLVisualizer &viewer)
@@ -40,6 +44,7 @@ void visualization::SegmentationVisualizer::configureSegmentationViewer(PCLVisua
 
 void visualization::SegmentationVisualizer::visualize()
 {
+  std::cout << "Init visualize!" << std::endl;
   PCLVisualizer viewer("Segmentation Viewer");
 
   int v1(0), v2(0);
@@ -48,14 +53,18 @@ void visualization::SegmentationVisualizer::visualize()
 
   configureSegmentationViewer(viewer);
 
+  std::cout << "Ready to spin!" << std::endl;
+
   while (!viewer.wasStopped())
   {
+    std::cout << "Pre spin!" << std::endl;
     viewer.spinOnce(100);
 
     visualizeNormalsCloud(viewer, v1);
     visualizePlaneCloud(viewer, v1);
     visualizeOverTableCloud(viewer, v1);
     visualizeClusters(viewer, v2);
+    std::cout << "Done spin!" << std::endl;
   }
 }
 

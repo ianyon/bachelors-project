@@ -5,6 +5,7 @@
 #include "detection_visualizer.h"
 
 #include <string>
+#include <iostream>
 
 #include "grasp_point_detector.h"
 
@@ -26,13 +27,15 @@ void visualization::DetectionVisualizer::configureDetectionViewer(PCLVisualizer 
 
 void visualization::DetectionVisualizer::visualize()
 {
+  std::cout << "Init detection visualize!" << std::endl;
   PCLVisualizer viewer("Detection Viewer");
 
   configureDetectionViewer(viewer);
 
+  std::cout << "Ready to loop detection visualizer!" << std::endl;
   while (!viewer.wasStopped())
   {
-    viewer.spinOnce();
+    viewer.spinOnce(100);
 
     boost::mutex::scoped_lock bounding_box_lock(detector_->update_bounding_box_mutex_);
     visualizeBoundingBox(viewer);
@@ -55,31 +58,31 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
 
     // Draw the box
     viewer.removeShape("bounding box");
-    viewer.addCube(detector_->bounding_box_.translation,
-                   detector_->bounding_box_.rotation,
-                   detector_->bounding_box_.max_pt.x - detector_->bounding_box_.min_pt.x,
-                   detector_->bounding_box_.max_pt.y - detector_->bounding_box_.min_pt.y,
-                   detector_->bounding_box_.max_pt.z - detector_->bounding_box_.min_pt.z,
+    viewer.addCube(detector_->bounding_box_->translation_,
+                   detector_->bounding_box_->rotation_,
+                   detector_->bounding_box_->max_pt_.x - detector_->bounding_box_->min_pt_.x,
+                   detector_->bounding_box_->max_pt_.y - detector_->bounding_box_->min_pt_.y,
+                   detector_->bounding_box_->max_pt_.z - detector_->bounding_box_->min_pt_.z,
                    "bounding box");
 
     Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-    //transform.translate(bounding_box.translation);
-    transform.translate(detector_->bounding_box_.translation);
-    transform.rotate(detector_->bounding_box_.eigen_vectors);
+    //transform.translate(bounding_box.translation_);
+    transform.translate(detector_->bounding_box_->translation_);
+    transform.rotate(detector_->bounding_box_->eigen_vectors_);
     viewer.addCoordinateSystem(0.25,transform);
 
     viewer.removeShape("transformed bounding box");
-    viewer.addCube(-0.5f * detector_->bounding_box_.mean_diag,
+    viewer.addCube(-0.5f * detector_->bounding_box_->mean_diag_,
                    Eigen::Quaternionf::Identity(),
-                   detector_->bounding_box_.max_pt.x - detector_->bounding_box_.min_pt.x,
-                   detector_->bounding_box_.max_pt.y - detector_->bounding_box_.min_pt.y,
-                   detector_->bounding_box_.max_pt.z - detector_->bounding_box_.min_pt.z,
+                   detector_->bounding_box_->max_pt_.x - detector_->bounding_box_->min_pt_.x,
+                   detector_->bounding_box_->max_pt_.y - detector_->bounding_box_->min_pt_.y,
+                   detector_->bounding_box_->max_pt_.z - detector_->bounding_box_->min_pt_.z,
                    "transformed bounding box");
 
     PointT origin(0.0, 0.0, 0.0);
     PointT eigen1, eigen2;
-    eigen1.getVector3fMap() = detector_->bounding_box_.eigen_vectors.col(0);
-    eigen2.getVector3fMap() = detector_->bounding_box_.eigen_vectors.col(1);
+    eigen1.getVector3fMap() = detector_->bounding_box_->eigen_vectors_.col(0);
+    eigen2.getVector3fMap() = detector_->bounding_box_->eigen_vectors_.col(1);
 
     viewer.removeShape("eigen1");
     viewer.addLine<PointT>(origin, eigen1, "eigen1");
@@ -95,7 +98,7 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
   if (detector_->draw_sampled_grasps_)
   {
     PointT middle;
-    middle.getVector4fMap() = detector_->bounding_box_.centroid;
+    middle.getVector4fMap() = detector_->bounding_box_->centroid_;
 
     viewer.removeShape("real plane");
     viewer.addPlane(*(detector_->table_plane_), middle.x, middle.y, middle.z, "real plane");
@@ -112,7 +115,7 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
     if (!viewer.updatePointCloud(sampled_top_grasps, new_red_color, "sampled top cloud"))
       viewer.addPointCloud<PointT>(sampled_top_grasps, new_red_color, "sampled top cloud");
 
-    visualizePoint(middle, 0, 0, 255, "centroid", viewer);
+    visualizePoint(middle, 0, 0, 255, "centroid_", viewer);
 
     detector_->draw_sampled_grasps_ = false;
   }

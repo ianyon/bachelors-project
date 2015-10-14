@@ -29,30 +29,31 @@ public:
 
   void computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBoxPtr&);
 
+  PointCloudTPtr getSampledSideGrasps();
+  PointCloudTPtr getSampledTopGrasps();
+
   bool draw_bounding_box_;
+  bool draw_sampled_grasps_;
+
+  boost::mutex update_bounding_box_mutex_;
+
+  std::string kinect_frame_id_;
 
   PointCloudTPtr object_cloud_;
   PointCloudTPtr transformed_cloud_;
 
-  boost::mutex update_bounding_box_mutex_;
 
   RankedGrasps ranked_grasps;
 
   GraspSampler sampler;
+  //GraspFilter grasp_filter_;
 
-  BoundingBoxPtr &bounding_box_;
+  BoundingBoxPtr bounding_box_;
 
   bachelors_final_project::ParametersConfig cfg;
   pcl::ModelCoefficientsPtr table_plane_;
   PointCloudTPtr projected_object_;
 
-  bool draw_sampled_grasps_;
-  PointCloudTPtr getSampledSideGrasps();
-
-  PointCloudTPtr getSampledTopGrasps();
-
-  GraspFilter grasp_filter_;
-  std::string kinect_frame_id_;
 };
 
 } // namespace detection

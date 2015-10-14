@@ -20,7 +20,8 @@ namespace bachelors_final_project
  */
 detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle)
 {
-  grasp_filter_.initializePublisher(handle);
+  bounding_box_.reset(new BoundingBox);
+  //grasp_filter_.initializePublisher(handle);
 
   // Initialize pointers to point clouds
   object_cloud_.reset(new PointCloudT);
@@ -67,6 +68,7 @@ bool detection::GraspPointDetector::doProcessing()
   // projected_object_ lies in plane YZ with
   // a = blue (z) - b = green (y)
 
+  clock_t begin = clock();
   boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
   computeBoundingBox(projected_object_, bounding_box_);
 
@@ -74,11 +76,14 @@ bool detection::GraspPointDetector::doProcessing()
   sampler.sampleGraspingPoses(bounding_box_);
   draw_sampled_grasps_ = true;
   bounding_box_lock.unlock();
+  ROS_INFO("Grasping sampling  took %gms", durationMillis(begin));
 
+  begin = clock();
   // Configure filter
-  grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_plane_);
+  //grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_plane_);
   // Remove infeasible ones
-  grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
+  //grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
+  //ROS_INFO("Grasping filtering took %gms", durationMillis(begin));
 
   return true;
 }
@@ -87,9 +92,9 @@ bool detection::GraspPointDetector::doProcessing()
  * 1) compute the centroid (c0, c1, c2) and the normalized covariance
  * 2) compute the eigenvectors e0, e1, e2. The reference system will be (e0, e1, e0 X e1) --- note: e0 X e1 = +/- e2
  * 3) move the points in that RF
-   - note: the transformation given by the rotation matrix (e0, e1, e0 X e1) & (c0, c1, c2) must be inverted
+   - note: the transformation given by the rotation_ matrix (e0, e1, e0 X e1) & (c0, c1, c2) must be inverted
  * 4) compute the max, the min and the center of the diagonal
- * 5) given a box centered at the origin with size (max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z)
+ * 5) given a box centered at the origin with size (max_pt_.x - min_pt_.x, max_pt_.y - min_pt_.y, max_pt_.z - min_pt_.z)
    the transformation you have to apply is
    Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
@@ -135,8 +140,8 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
   getMinMax3D(*object_cloud_, origin_min_3d_pt, origin_max_3d_pt);
   double heigth_3D = (origin_max_3d_pt.x - origin_min_3d_pt.x) / 2.0;
 
-  bounding_box.reset(new BoundingBox(origin_min_pt, origin_max_pt, rotation_to_sensor_coords, translation_to_sensor_coords,
-                                     sensor_centroid, sensor_eigen_vectors, origin_bounding_box_center, heigth_3D));
+  bounding_box->initialize(origin_min_pt, origin_max_pt, rotation_to_sensor_coords, translation_to_sensor_coords,
+                           sensor_centroid, sensor_eigen_vectors, origin_bounding_box_center, heigth_3D);
 
   draw_bounding_box_ = true;
 }

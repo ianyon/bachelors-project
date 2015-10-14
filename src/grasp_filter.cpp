@@ -16,9 +16,11 @@
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
 #include <moveit_msgs/DisplayTrajectory.h>
+#include <moveit_msgs/CollisionObject.h>
+#include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
-#include <moveit_msgs/AllowedCollisionMatrix.h>
-#include <moveit_msgs/GetPlanningScene.h>
+
+#include <boost/foreach.hpp>
 
 using std::string;
 
@@ -30,18 +32,19 @@ const std::string detection::GraspFilter::ROBOT_BASE_FRAME = "/base_footprint";
 const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
 
-const float detection::GraspFilter::WAIT_TRANSFORM_TIMEOUT = 1.0;
+const float detection::GraspFilter::WAIT_TRANSFORM_TIMEOUT = 2.0;
 
 detection::GraspFilter::GraspFilter()
+{
+}
+
+void detection::GraspFilter::initializePublisher(ros::NodeHandle &handle)
 {
   group_.reset(new moveit::planning_interface::MoveGroup("right_arm"));
 
   ROS_INFO("Frame de referencia: %s", group_->getPlanningFrame().c_str());
   ROS_INFO("End Effector link: %s", group_->getEndEffectorLink().c_str());
-}
 
-void detection::GraspFilter::initializePublisher(ros::NodeHandle &handle)
-{
   display_publisher = handle.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
 
   collision_obj_publisher = handle.advertise<moveit_msgs::CollisionObject>("collision_object", 10);
@@ -59,7 +62,7 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &b
   bounding_box_ = bounding_box;
   table_plane_ = table_plane;
 
-  ros::Time transform_time = ros::Time(0);
+  /*ros::Time transform_time = ros::Time(0);
   // Try to obtain the current transform
   try
   {
@@ -76,7 +79,7 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &b
   {
     ROS_ERROR("Excepción al obtener transformación: %s", ex.what());
     return;
-  }
+  }*/
 
   //transform_listener.transformQuaternion(ROBOT_BASE_FRAME,normal_quat,normal_quat_baseframe);
 
@@ -99,7 +102,7 @@ void detection::GraspFilter::updateAllowedCollisionMatrix()
   }
   else
   {
-    moveit_msgs::AllowedCollisionMatrix &currentACM = getCollisionMatrix(scene_srv);
+    moveit_msgs::AllowedCollisionMatrix currentACM = getCollisionMatrix(scene_srv);
 
     currentACM.entry_names.push_back(GRASPABLE_OBJECT);
     moveit_msgs::AllowedCollisionEntry entry;
@@ -135,11 +138,10 @@ void detection::GraspFilter::updateAllowedCollisionMatrix()
   }
 }
 
-moveit_msgs::AllowedCollisionMatrix& detection::GraspFilter::getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv)
+moveit_msgs::AllowedCollisionMatrix detection::GraspFilter::getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv)
 {
   ROS_INFO_STREAM("Modified scene!");
-  moveit_msgs::PlanningScene currentScene = scene_srv.response.scene;
-  moveit_msgs::AllowedCollisionMatrix currentACM = currentScene.allowed_collision_matrix;
+  moveit_msgs::AllowedCollisionMatrix currentACM = scene_srv.response.scene.allowed_collision_matrix;
 
   ROS_ERROR_STREAM("size of acm_entry_names after " << currentACM.entry_names.size());
   ROS_ERROR_STREAM("size of acm_entry_values after " << currentACM.entry_values.size());
@@ -152,8 +154,8 @@ void detection::GraspFilter::filterGraspingPoses(PointCloudTPtr side_grasps, Poi
   side_grasps_ = side_grasps;
   top_grasps_ = top_grasps;
 
-  processGraspSamples(side_grasps_);
-  processGraspSamples(top_grasps_);
+  feasible_side_grasps_.reset(new PointCloudT(processGraspSamples(side_grasps_)));
+  feasible_top_grasps_.reset(new PointCloudT(processGraspSamples(top_grasps_)));
 }
 
 void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan)
@@ -167,17 +169,26 @@ void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup
 }
 
 
-void detection::GraspFilter::processGraspSamples(PointCloudTPtr samples)
+PointCloudT detection::GraspFilter::processGraspSamples(PointCloudTPtr samples)
 {
   // TODO select the group closer to the object
+  PointCloudT feasible_grasps;
 
-  for (int i = 0; i < samples->size(); ++i)
+  BOOST_FOREACH(PointT point, samples->points)
   {
-    processSample(samples->points[i]);
+    if(processSample(point))
+      feasible_grasps.push_back(point);
   }
+
+  /*for (int i = 0; i < samples->size(); ++i)
+  {
+    if(processSample(samples->points[i]))
+      feasible_grasps.push_back(samples->points[i]);
+  }*/
+  return feasible_grasps;
 }
 
-void detection::GraspFilter::processSample(PointT &sample)
+bool detection::GraspFilter::processSample(PointT &sample)
 {
   //TODO: Transform coordinates?
   // Define a goal pose
@@ -197,6 +208,8 @@ void detection::GraspFilter::processSample(PointT &sample)
   // Sleep to give Rviz time to visualize the plan.
   sleep(5.0);
   //if (success) visualizePlan(pose_plan);
+
+  return success;
 }
 
 void detection::GraspFilter::addSupportTable(pcl::ModelCoefficientsPtr &table_plane, BoundingBoxPtr &bounding_box)
@@ -223,9 +236,9 @@ void detection::GraspFilter::addSupportTable(pcl::ModelCoefficientsPtr &table_pl
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = bounding_box->mean_diag[0];
-  box_pose.position.y = bounding_box->mean_diag[1];
-  box_pose.position.z = bounding_box->mean_diag[2];
+  box_pose.position.x = bounding_box->mean_diag_[0];
+  box_pose.position.y = bounding_box->mean_diag_[1];
+  box_pose.position.z = bounding_box->mean_diag_[2];
   co.primitive_poses.push_back(box_pose);
 
   collision_obj_publisher.publish(co);
@@ -257,18 +270,27 @@ void detection::GraspFilter::addCollisionObject(BoundingBoxPtr &bounding_box)
   // TODO: Axes may not be right
   primitive.dimensions[shape_msgs::SolidPrimitive::BOX_X] = bounding_box->getXLength();
   primitive.dimensions[shape_msgs::SolidPrimitive::BOX_Y] = bounding_box->getYLength();
-  primitive.dimensions[shape_msgs::SolidPrimitive::BOX_Z] = bounding_box->heigth_3D;
+  primitive.dimensions[shape_msgs::SolidPrimitive::BOX_Z] = bounding_box->heigth_3D_;
   co.primitives.push_back(primitive);
 
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = bounding_box->mean_diag[0];
-  box_pose.position.y = bounding_box->mean_diag[1];
-  box_pose.position.z = bounding_box->mean_diag[2];
+  box_pose.position.x = bounding_box->mean_diag_[0];
+  box_pose.position.y = bounding_box->mean_diag_[1];
+  box_pose.position.z = bounding_box->mean_diag_[2];
   co.primitive_poses.push_back(box_pose);
 
   collision_obj_publisher.publish(co);
 }
 
+PointCloudTPtr detection::GraspFilter::getSideGrasps()
+{
+  return feasible_side_grasps_;
+}
+
+PointCloudTPtr detection::GraspFilter::getTopGrasps()
+{
+  return feasible_top_grasps_;
+}
 } // namespace bachelors_final_project

@@ -4,6 +4,8 @@
 #pragma message "\n\n\nNOT CLANG\n\n\n"
 #endif
 
+#include <iostream>
+
 #include <dynamic_reconfigure/server.h>
 
 #include <bachelors_final_project/ParametersConfig.h>
@@ -14,6 +16,8 @@
 
 namespace bachelors_final_project
 {
+
+static const std::string KINECT_TOPIC = "/head_mount_kinect/depth/points";
 
 void parameterCallback(ParametersConfig &cfg, uint32_t level,
                        segmentation::CloudSegmentator *data_handler, visualization::ViewerSpawner *visualizer)
@@ -55,13 +59,13 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   // CloudSegmentator needs to be a pointer because mutex cannot be copied
-  CloudSegmentator *segmentator = new CloudSegmentator(nh);
+  CloudSegmentator segmentator(nh);
   gpd::GraspPointDetector detector(nh);
-  viz::ViewerSpawner spawner(segmentator, &detector);
+  viz::ViewerSpawner spawner(&segmentator, &detector);
 
 
   // Create a ROS subscriber for the input point cloud
-  ros::Subscriber sub = nh.subscribe("/camera/depth/points", 1, &CloudSegmentator::sensorCallback, segmentator);
+  ros::Subscriber sub = nh.subscribe(KINECT_TOPIC, 1, &CloudSegmentator::sensorCallback, &segmentator);
 
   ROS_INFO("Topic: %s", sub.getTopic().c_str());
 
@@ -69,7 +73,7 @@ int main(int argc, char **argv)
   dynamic_reconfigure::Server<ParametersConfig> server;
   // Bind callback function to update values
   dynamic_reconfigure::Server<ParametersConfig>::CallbackType f = boost::bind(
-      &parameterCallback, _1, _2, segmentator, &spawner);
+      &parameterCallback, _1, _2, &segmentator, &spawner);
   server.setCallback(f);
 
   //Start visualization
@@ -77,38 +81,33 @@ int main(int argc, char **argv)
 
   ROS_INFO("Escuchando");
 
-  while(sub.getNumPublishers () < 1)
-  {
-    ros::WallDuration sleep_t(0.5);
-    sleep_t.sleep();
-  }
-
   // Spin
   while (ros::ok())
   {
     ros::spinOnce();                // Handle ROS events
+    segmentator.execute();        // Do Heavy processing
 
-    segmentator->execute();        // Do Heavy processing
-
-    if (segmentator->cloud_cluster_vector_.size() == 0)
+    if (segmentator.cloud_cluster_vector_.size() == 0)
     {
       //ROS_INFO("No clusters, continue searching");
       continue;
     }
 
+    std::cout << "Hay clusters!" << std::endl;
+    
     size_t selected_cluster_index;
     size_t max_size = 0;
 
-    for (size_t i = 0; i < segmentator->cloud_cluster_vector_.size(); i++)
+    for (size_t i = 0; i < segmentator.cloud_cluster_vector_.size(); i++)
     {
-      if (segmentator->cloud_cluster_vector_[i]->size() > max_size)
+      if (segmentator.cloud_cluster_vector_[i]->size() > max_size)
         selected_cluster_index = i;
     }
 
-    int cluster_size = segmentator->cloud_cluster_vector_[selected_cluster_index]->size();
+    int cluster_size = segmentator.cloud_cluster_vector_[selected_cluster_index]->size();
     ROS_INFO("Using cluster with %d points", cluster_size);
 
-    detector.detect(segmentator->getCluster(0), segmentator->getTable());
+    //detector.detect(segmentator.getCluster(0), segmentator.getTable());
   }
 }
 
