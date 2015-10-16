@@ -27,12 +27,8 @@ using std::string;
 namespace bachelors_final_project
 {
 
-const std::string detection::GraspFilter::WORLD_FRAME = "/odom_combined";
-const std::string detection::GraspFilter::ROBOT_BASE_FRAME = "/base_footprint";
 const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
-
-const float detection::GraspFilter::WAIT_TRANSFORM_TIMEOUT = 2.0;
 
 detection::GraspFilter::GraspFilter()
 {

@@ -73,14 +73,18 @@ FILE (GLOB_RECURSE all_cfgs ${CMAKE_SOURCE_DIR}/cfg/*.cfg)
 set(sources src/example.cpp
         src/cloud_segmentator.cpp
         src/grasp_point_detector.cpp
+
         src/grasp_sampler.cpp
+        src/ellipse_operations.cpp
+        #src/grasp_filter.cpp
+
         src/viewer_spawner.cpp
         src/base_visualizer.cpp
         src/segmentation_visualizer.cpp
+
         src/detection_visualizer.cpp
-        src/utils.cpp
-        src/ellipse_operations.cpp
-        src/grasp_filter.cpp)
+
+        src/utils.cpp)
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 
@@ -91,8 +95,13 @@ target_link_libraries(example
         ${catkin_LIBRARIES}
         libvtkCommon.so
         libvtkFiltering.so )
-#cotire(example)
-#add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
+cotire(example)
+add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
+
+add_custom_target(stop_physics
+        COMMAND rosservice call /gazebo/pause_physics)
+add_dependencies(example stop_physics)
+add_dependencies(example_unity stop_physics)
 
 #get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
 #get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)

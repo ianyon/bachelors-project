@@ -6,6 +6,7 @@
 #include <ros/console.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include "base_visualizer.h"
+#include "definitions.h"
 
 
 namespace bachelors_final_project
@@ -38,12 +39,16 @@ public:
 
   std::string generateName(unsigned long i);
 
+  void visualizeCloud(const std::string &id, PointCloudTPtr &cloud, int r, int g, int b,
+                      pcl::visualization::PCLVisualizer &viewer, int viewport);
+
   segmentation::CloudSegmentator *segmentator_;
   int normals_count_;
   float normals_size_;
-  int colors_[10][3];
-  unsigned long last_max_clusters_;
 
+  int colors_[10][3];
+
+  unsigned long last_max_clusters_;
 };
 
 // Needed to initialize bidimensional array without C++11

@@ -12,7 +12,7 @@ visualization::ViewerSpawner::ViewerSpawner(segmentation::CloudSegmentator *segm
     segmentation_visualizer_(segmentator), detection_visualizer_(detector)
 {
   show_segmentation_viewer_ = true;
-  show_detection_viewer_ = true;
+  show_detection_viewer_ = false;
 }
 
 void visualization::ViewerSpawner::spawn()

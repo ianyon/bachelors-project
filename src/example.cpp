@@ -8,16 +8,17 @@
 
 #include <dynamic_reconfigure/server.h>
 
-#include <bachelors_final_project/ParametersConfig.h>
-#include <base_visualizer.h>
-#include <viewer_spawner.h>
+#include <std_srvs/Empty.h>
+
+#include "bachelors_final_project/ParametersConfig.h"
+#include "base_visualizer.h"
+#include "viewer_spawner.h"
+#include "utils.h"
 #include "cloud_segmentator.h"
 #include "grasp_point_detector.h"
 
 namespace bachelors_final_project
 {
-
-static const std::string KINECT_TOPIC = "/head_mount_kinect/depth/points";
 
 void parameterCallback(ParametersConfig &cfg, uint32_t level,
                        segmentation::CloudSegmentator *data_handler, visualization::ViewerSpawner *visualizer)
@@ -48,15 +49,20 @@ int main(int argc, char **argv)
   // Delete parameters to start in clean state
   //ros::param::del("/bachelors_final_project");
 
-  /*if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug)) {
+  if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug)) {
     ros::console::notifyLoggerLevelsChanged();
+    ROS_DEBUG("DEBUG ACTIVATED");
   }
-
-  ROS_DEBUG("DEBUG ACTIVATED");*/
 
   // Initialize ROS
   ros::init(argc, argv, "bachelors_final_project");
   ros::NodeHandle nh;
+
+  ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics");
+  std_srvs::Empty srv;
+  if (client.call(srv)) ROS_INFO("Unpaused physics");
+  else ROS_ERROR("Failed to call service /gazebo/unpause_physics");
+  ros::ServiceClient client2 = nh.serviceClient<std_srvs::Empty>("/gazebo/pause_physics");
 
   // CloudSegmentator needs to be a pointer because mutex cannot be copied
   CloudSegmentator segmentator(nh);
@@ -109,5 +115,9 @@ int main(int argc, char **argv)
 
     //detector.detect(segmentator.getCluster(0), segmentator.getTable());
   }
+
+  std_srvs::Empty srv2;
+  if (client2.call(srv2)) ROS_INFO("Paused physics");
+  else ROS_ERROR("Failed to call service /gazebo/pause_physics");
 }
 

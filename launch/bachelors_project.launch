@@ -22,9 +22,17 @@
   </include>  
   <arg name="gui" default="true"/>
   <group if="$(arg gui)">
-    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="screen" required="true"/>
+    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="screen"/>
   </group>
   <!-- Gazebo -->
+
+  <!-- To improve performance: Needs to be inmediately after gazebo -->
+  <!--<node name="$(anon throttle)" pkg="topic_tools" type="throttle" 
+    args="messages head_mount_kinect/depth/points 1.0"/>
+  <node name="$(anon throttle)" pkg="topic_tools" type="throttle" 
+    args="messages head_mount_kinect/depth_registered/points 1.0"/>
+  <remap from="head_mount_kinect/depth/points" to="head_mount_kinect/depth/points_throttle"/>
+  <remap from="head_mount_kinect/depth_registered/points" to="head_mount_kinect/depth_registered/points_throttle"/>-->
 
   <!-- Set robot initial position -->
   <node name="timed_initial_position" pkg="bachelors_final_project" type="timed_roslaunch.sh" output="screen" 
@@ -32,29 +40,26 @@
   <!-- Set robot initial position -->
 
   <!-- MoveIt -->
-  <include file="$(find pr2_moveit_config)/launch/move_group.launch">
-      <!--<arg name="info" value="true"/>-->
-  </include>
+  <!--<param name="/move_group/max_range" value="2.5" />-->
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch"/>
+  <!-- To improve performance -->
+  <rosparam param="/move_group/max_range">2.5</rosparam> <!-- Default 5.0 -->
+  <rosparam param="/move_group/octomap_resolution">0.035</rosparam> <!-- Default 0.025 -->
   <!-- Launches planning_context
        Load SRDF, Joint limits, kinematics
        Launches moveit_controller_manager = pr2 -->
   <!-- MoveIt -->  
 
-  <!-- Rviz -->
-  <arg name="moveit_rviz" default="false" />
-  <arg     if="$(arg moveit_rviz)" name="command_args" default="-d $(find pr2_moveit_config)/launch/moveit.rviz" />
-  <arg unless="$(arg moveit_rviz)" name="command_args" default="-d $(find bachelors_final_project)/rviz/pr2_table.rviz" />
-  
-  <arg name="no_rviz" default="false"/>
-  <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false" args="$(arg command_args)" output="screen" unless="$(arg no_rviz)">
-    <!-- Don't know why needs these params. It specifies the kinematic solver and their params. -->
-    <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
-  </node>
+  <!-- Rviz -->  
+  <arg name="rviz" default="true"/>
+  <include file="$(find bachelors_final_project)/launch/my_rviz.launch" if="$(arg rviz)">
+    <arg name="moveit_rviz" value="false" />
+  </include>
   <!-- Rviz -->
     
   <!-- parameters that give you reasonable physics as well as good speed -->
   <!-- needed so that gripper joint stops on objects instead of oscillating forever-->
-  <node name="sor_pgs_iters" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_iters 50"/>
+  <node name="sor_pgs_iters" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_iters 25"/>
   <node name="sor_pgs_w" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_w 1.0"/>
   <node name="time_step" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo time_step 0.001"/>
 </launch>

@@ -1,8 +1,7 @@
 #include "segmentation_visualizer.h"
 
-#include <iostream>
+#include <pcl/common/centroid.h>
 
-#include "definitions.h"
 #include "cloud_segmentator.h"
 
 using namespace pcl::visualization;
@@ -10,10 +9,18 @@ using namespace pcl::visualization;
 namespace bachelors_final_project
 {
 
+static const std::string ORIGIN_CLOUD_ID = "origin cloud";
+static const std::string PLANE_SHAPE_ID = "real plane";
+static const std::string PLANE_NORMAL_ID = "normal line";
+static const std::string PLANE_NORMAL_BASE_FRAME_ID = "normal line base frame";
+static const std::string PLANE_CLOUD_ID = "plane";
+static const std::string NORMALS_CLOUD_ID = "Normals";
+static const std::string CROPPED_CLOUD_ID = "Cloud";
+static const std::string CLOUD_OVER_TABLE_ID = "over table";
+
 visualization::SegmentationVisualizer::SegmentationVisualizer(segmentation::CloudSegmentator *segmentator) :
     segmentator_(segmentator)
 {
-  std::cout << "INIT constructor!" << std::endl;
   const int colors[10][3] = {{170, 57,  57},
                              {170, 96,  57},
                              {37,  112, 89},
@@ -27,15 +34,15 @@ visualization::SegmentationVisualizer::SegmentationVisualizer(segmentation::Clou
   *(array_t *) colors_ = *(array_t *) colors;
 
   last_max_clusters_ = 0;
-  std::cout << "Done constructor!" << std::endl;
 }
+
 
 void visualization::SegmentationVisualizer::configureSegmentationViewer(PCLVisualizer &viewer)
 {
   configureBaseViewer(viewer);
 
   viewer.setCameraPosition(0.414395, -0.134601, 0.669816, 0.190149, 0.0424081, 1.09322, -0.13325,
-                            -0.93753, 0.321374);
+                           -0.93753, 0.321374);
   viewer.setCameraFieldOfView(0.8575);
   viewer.setCameraClipDistances(0.0067374, 6.7374);
   viewer.setPosition(637, 145);
@@ -44,7 +51,7 @@ void visualization::SegmentationVisualizer::configureSegmentationViewer(PCLVisua
 
 void visualization::SegmentationVisualizer::visualize()
 {
-  std::cout << "Init visualize!" << std::endl;
+  ROS_INFO("Intitiated segmentation visualizer thread!");
   PCLVisualizer viewer("Segmentation Viewer");
 
   int v1(0), v2(0);
@@ -53,21 +60,16 @@ void visualization::SegmentationVisualizer::visualize()
 
   configureSegmentationViewer(viewer);
 
-  std::cout << "Ready to spin!" << std::endl;
-
   while (!viewer.wasStopped())
   {
-    std::cout << "Pre spin!" << std::endl;
     viewer.spinOnce(100);
 
     visualizeNormalsCloud(viewer, v1);
     visualizePlaneCloud(viewer, v1);
     visualizeOverTableCloud(viewer, v1);
     visualizeClusters(viewer, v2);
-    std::cout << "Done spin!" << std::endl;
   }
 }
-
 
 void visualization::SegmentationVisualizer::visualizeNormalsCloud(PCLVisualizer &viewer, int viewport)
 {
@@ -75,17 +77,14 @@ void visualization::SegmentationVisualizer::visualizeNormalsCloud(PCLVisualizer 
   // Check if cloud was updated (If not present program fails due to try to visualize zero size normals)
   if (segmentator_->point_clouds_updated_)
   {
+    visualizeCloud(CROPPED_CLOUD_ID, segmentator_->cropped_cloud_, 255, 0, 0, viewer, viewport);
+
     // Visualize normals
-    viewer.removePointCloud("Normals");
+    viewer.removePointCloud(NORMALS_CLOUD_ID);
+    viewer.addPointCloudNormals<PointT, Normal>(segmentator_->cropped_cloud_, segmentator_->cloud_normals_,
+        normals_count_, normals_size_, NORMALS_CLOUD_ID, viewport);
 
-    // Visualize plane (The add functions copy the data)
-    PointCloudColorHandlerCustom<PointT> red_color(segmentator_->smoothed_cloud_, 255, 0, 0);
-    if (!viewer.updatePointCloud(segmentator_->smoothed_cloud_, red_color, "Cloud"))
-      viewer.addPointCloud<PointT>(segmentator_->smoothed_cloud_, red_color, "Cloud", viewport);
-
-    viewer.addPointCloudNormals<PointT, Normal>(
-        segmentator_->smoothed_cloud_, segmentator_->cloud_normals_,
-        normals_count_, normals_size_, "Normals", viewport);
+    visualizeCloud(ORIGIN_CLOUD_ID, segmentator_->cropped_cloud_base_frame, 255, 255, 0, viewer, viewport);
 
     segmentator_->point_clouds_updated_ = false;
   }
@@ -96,15 +95,33 @@ void visualization::SegmentationVisualizer::visualizePlaneCloud(PCLVisualizer &v
 {
   if (segmentator_->plane_updated_)
   {
+    viewer.removeShape(PLANE_SHAPE_ID);
+    viewer.removeShape(PLANE_NORMAL_ID);
+    viewer.removeShape(PLANE_NORMAL_BASE_FRAME_ID);
+    if (segmentator_->plane_cloud_->size() == 0)
+    {
+      viewer.removePointCloud(PLANE_CLOUD_ID, viewport);
+      segmentator_->plane_updated_ = false;
+      return;
+    }
+
     // Visualize plane
-    PointCloudColorHandlerCustom<PointT> single_color(segmentator_->plane_cloud_, 0, 255, 0);
-    if (!viewer.updatePointCloud(segmentator_->plane_cloud_, single_color, "plane"))
-      viewer.addPointCloud<PointT>(segmentator_->plane_cloud_, single_color, "plane", viewport);
+    visualizeCloud(PLANE_CLOUD_ID, segmentator_->plane_cloud_, 0, 255, 0, viewer, viewport);
 
-    PointT middle = segmentator_->plane_cloud_->points[(int) segmentator_->plane_cloud_->points.size() / 2];
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*(segmentator_->plane_cloud_), centroid);
+    PointT middle;
+    middle.getVector4fMap() = centroid;
 
-    viewer.removeShape("real plane");
-    viewer.addPlane(*(segmentator_->table_coefficients_), middle.x, middle.y, middle.z, "real plane", viewport);
+    viewer.addPlane(*(segmentator_->table_coefficients_), middle.x, middle.y, middle.z, PLANE_SHAPE_ID, viewport);
+
+    PointT plane_normal_kinect_frame;
+    plane_normal_kinect_frame.getVector4fMap() =
+        segmentator_->plane_normal_kinect_frame_.getVector4fMap() + middle.getVector4fMap();
+
+    viewer.addLine(middle, plane_normal_kinect_frame, PLANE_NORMAL_ID, viewport);
+
+    viewer.addLine(PointT(), segmentator_->plane_normal_base_frame_, PLANE_NORMAL_BASE_FRAME_ID, viewport);
 
     segmentator_->plane_updated_ = false;
   }
@@ -114,10 +131,8 @@ void visualization::SegmentationVisualizer::visualizeOverTableCloud(PCLVisualize
 {
   if (segmentator_->cloud_over_table_updated_)
   {
-    // Visualize plane
-    PointCloudColorHandlerCustom<PointT> blue_color(segmentator_->cloud_over_table_, 0, 0, 255);
-    if (!viewer.updatePointCloud(segmentator_->cloud_over_table_, blue_color, "over table"))
-      viewer.addPointCloud<PointT>(segmentator_->cloud_over_table_, blue_color, "over table", viewport);
+    // Visualize cloud_over_table
+    visualizeCloud(CLOUD_OVER_TABLE_ID, segmentator_->cloud_over_table_, 0, 0, 255, viewer, viewport);
 
     segmentator_->cloud_over_table_updated_ = false;
   }
@@ -142,14 +157,9 @@ void visualization::SegmentationVisualizer::visualizeClusters(PCLVisualizer &vie
     for (unsigned long i = 0; i < size; i++)
     {
       PointCloudTPtr cluster = segmentator_->cloud_cluster_vector_[i];
-      std::string name = generateName(i);
-
       unsigned long j = i % 10;
-      PointCloudColorHandlerCustom<PointT> rgb_color(
-          cluster, colors_[j][0], colors_[j][1], colors_[j][2]);
       // Visualize cluster i
-      if (!viewer.updatePointCloud(cluster, rgb_color, name))
-        viewer.addPointCloud<PointT>(cluster, rgb_color, name, viewport);
+      visualizeCloud(generateName(i), cluster, colors_[j][0], colors_[j][1], colors_[j][2], viewer, viewport);
     }
     segmentator_->clusters_updated_ = false;
   }
@@ -163,4 +173,21 @@ std::string visualization::SegmentationVisualizer::generateName(unsigned long i)
 
   return name;
 }
+
+void visualization::SegmentationVisualizer::visualizeCloud(
+    const std::string &id, PointCloudTPtr &cloud, int r, int g, int b, PCLVisualizer &viewer, int viewport)
+{
+  if(cloud->size()==0)
+  {
+    ROS_WARN("Tried to visualize a cloud %s with no points", id.c_str());
+    return;
+  }
+
+  PointCloudColorHandlerCustom<PointT> color(cloud, r, g, b);
+
+  // Visualize cloud (The add functions copy the data)
+  if (!viewer.updatePointCloud(cloud, color, id))
+    viewer.addPointCloud<PointT>(cloud, color, id, viewport);
+}
+
 } // namespace bachelors_final_project
