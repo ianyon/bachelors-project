@@ -3,16 +3,18 @@
 
 #include <ros/ros.h>
 
+#include <tf/transform_listener.h>
+
 #include <boost/thread/pthread/mutex.hpp>
 
 #include <pcl_ros/point_cloud.h>
-
 #include <pcl/PointIndices.h>
+
 #include <pcl/ModelCoefficients.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 #include "definitions.h"
 #include <bachelors_final_project/ParametersConfig.h>
-#include <pcl/segmentation/sac_segmentation.h>
 
 namespace bachelors_final_project
 {
@@ -105,6 +107,7 @@ public:
 
   uint32_t last_seen_seq_;
 
+  tf::TransformListener tf_listener_;
   PointT plane_normal_base_frame_, plane_normal_kinect_frame_;
 };
 

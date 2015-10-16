@@ -3,6 +3,8 @@
 
 #include <pcl/PointIndices.h>
 
+#include <tf/transform_listener.h>
+
 #include "definitions.h"
 
 namespace bachelors_final_project
@@ -23,10 +25,11 @@ void extractPointCloud(const PointCloudNormalPtr &input, pcl::PointIndices::Ptr 
                        bool extract_negative_set = false);
 
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const PointT &point_in,
-                    PointT &point_out, uint64_t micro_sec_time);
+                    PointT &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
 bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const PointCloudTPtr &cloud_in,
-                         const PointCloudTPtr &cloud_out, const uint64_t micro_sec_time);
+                         const PointCloudTPtr &cloud_out, const uint64_t micro_sec_time,
+                         tf::TransformListener &tf_listener);
 
 
 } // namespace bachelors_final_project

@@ -84,11 +84,32 @@ void visualization::SegmentationVisualizer::visualizeNormalsCloud(PCLVisualizer 
     viewer.addPointCloudNormals<PointT, Normal>(segmentator_->cropped_cloud_, segmentator_->cloud_normals_,
         normals_count_, normals_size_, NORMALS_CLOUD_ID, viewport);
 
-    visualizeCloud(ORIGIN_CLOUD_ID, segmentator_->cropped_cloud_base_frame, 255, 255, 0, viewer, viewport);
+    if(false)
+    {
+      visualizeCloud(ORIGIN_CLOUD_ID, segmentator_->cropped_cloud_base_frame, 255, 255, 0, viewer, viewport);
+      visualizeLine(PLANE_NORMAL_BASE_FRAME_ID, segmentator_->plane_normal_base_frame_,
+                    segmentator_->cropped_cloud_base_frame, viewer, viewport);
+    }
 
     segmentator_->point_clouds_updated_ = false;
   }
   update_lock.unlock();
+}
+
+PointT visualization::SegmentationVisualizer::visualizeLine(std::string id, PointT &point, PointCloudTPtr &cloud,
+                                                            PCLVisualizer &viewer, int viewport)
+{
+  Eigen::Vector4f centroid;
+  pcl::compute3DCentroid(*cloud, centroid);
+  PointT middle;
+  middle.getVector4fMap() = centroid;
+
+  PointT translated_point;
+  translated_point.getVector4fMap() = point.getVector4fMap() + middle.getVector4fMap();
+
+  viewer.removeShape(id);
+  viewer.addLine(middle, translated_point, id, viewport);
+  return middle;
 }
 
 void visualization::SegmentationVisualizer::visualizePlaneCloud(PCLVisualizer &viewer, int viewport)
@@ -96,8 +117,6 @@ void visualization::SegmentationVisualizer::visualizePlaneCloud(PCLVisualizer &v
   if (segmentator_->plane_updated_)
   {
     viewer.removeShape(PLANE_SHAPE_ID);
-    viewer.removeShape(PLANE_NORMAL_ID);
-    viewer.removeShape(PLANE_NORMAL_BASE_FRAME_ID);
     if (segmentator_->plane_cloud_->size() == 0)
     {
       viewer.removePointCloud(PLANE_CLOUD_ID, viewport);
@@ -108,20 +127,10 @@ void visualization::SegmentationVisualizer::visualizePlaneCloud(PCLVisualizer &v
     // Visualize plane
     visualizeCloud(PLANE_CLOUD_ID, segmentator_->plane_cloud_, 0, 255, 0, viewer, viewport);
 
-    Eigen::Vector4f centroid;
-    pcl::compute3DCentroid(*(segmentator_->plane_cloud_), centroid);
-    PointT middle;
-    middle.getVector4fMap() = centroid;
+    PointT middle = visualizeLine(PLANE_NORMAL_ID, segmentator_->plane_normal_kinect_frame_,
+                                  segmentator_->plane_cloud_, viewer, viewport);
 
     viewer.addPlane(*(segmentator_->table_coefficients_), middle.x, middle.y, middle.z, PLANE_SHAPE_ID, viewport);
-
-    PointT plane_normal_kinect_frame;
-    plane_normal_kinect_frame.getVector4fMap() =
-        segmentator_->plane_normal_kinect_frame_.getVector4fMap() + middle.getVector4fMap();
-
-    viewer.addLine(middle, plane_normal_kinect_frame, PLANE_NORMAL_ID, viewport);
-
-    viewer.addLine(PointT(), segmentator_->plane_normal_base_frame_, PLANE_NORMAL_BASE_FRAME_ID, viewport);
 
     segmentator_->plane_updated_ = false;
   }

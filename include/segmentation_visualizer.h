@@ -42,8 +42,12 @@ public:
   void visualizeCloud(const std::string &id, PointCloudTPtr &cloud, int r, int g, int b,
                       pcl::visualization::PCLVisualizer &viewer, int viewport);
 
+  PointT visualizeLine(std::string id, PointT &point, PointCloudTPtr &cloud, pcl::visualization::PCLVisualizer &viewer,
+                       int viewport);
+
   segmentation::CloudSegmentator *segmentator_;
   int normals_count_;
+
   float normals_size_;
 
   int colors_[10][3];

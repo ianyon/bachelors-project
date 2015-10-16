@@ -214,8 +214,8 @@ bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudTPtr &i
 void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<PointT, Normal> &seg)
 {
   PointT normal_base_frame((float) cfg.planeXParam, (float) cfg.planeYParam, (float) cfg.planeZParam);
-  if(transformPoint(FOOTPRINT_FRAME, sensor_cloud_->header.frame_id, normal_base_frame,
-                 plane_normal_kinect_frame_, sensor_cloud_->header.stamp))
+  if (transformPoint(FOOTPRINT_FRAME, sensor_cloud_->header.frame_id, normal_base_frame, plane_normal_kinect_frame_,
+                     sensor_cloud_->header.stamp, tf_listener_))
   {
     plane_normal_base_frame_ = normal_base_frame;
 
@@ -229,13 +229,13 @@ void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<Poi
     seg.setEpsAngle(cfg.epsAngleParam * M_PI / 180.0);
   }
 
-  transformPointCloud(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, cropped_cloud_,
-                      cropped_cloud_base_frame, sensor_cloud_->header.stamp);
+  transformPointCloud(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, cropped_cloud_, cropped_cloud_base_frame,
+                      sensor_cloud_->header.stamp, tf_listener_);
 
 }
 
 void segmentation::CloudSegmentator::projectOnPlane(const PointCloudTPtr &sensor_cloud,
-                                                    const ModelCoefficients::Ptr &table_coefficients,
+                                                    const ModelCoefficientsPtr &table_coefficients,
                                                     const PointIndices::Ptr &tableInliers,
                                                     PointCloudTPtr &projectedTableCloud)
 {

@@ -60,12 +60,10 @@ void extractPointCloud(const PointCloudNormalPtr &input, pcl::PointIndices::Ptr 
 }
 
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const PointT &point_in,
-                    PointT &point_out, uint64_t micro_sec_time)
+                    PointT &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
-  tf::TransformListener tf_listener;
   // Constructor requires seconds
-  const ros::Time tf_time(micro_sec_time / 1000000);
-
+  ros::Time tf_time(micro_sec_time / 1000000.0);
   try
   {
     ROS_DEBUG("Waiting for transform between %s and %s...", init_frame.c_str(), final_frame.c_str());
@@ -74,27 +72,19 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
       ROS_ERROR("Couldn't obtain transform from %s to %s in %gs", init_frame.c_str(), final_frame.c_str(), TF_TIMEOUT);
       return false;
     }
+
     tf::StampedTransform stamped_tf;
     tf_listener.lookupTransform(final_frame, init_frame, tf_time, stamped_tf);
 
-    geometry_msgs::PointStamped point_init_frame;
-    point_init_frame.header.frame_id = init_frame;
-    point_init_frame.header.stamp = tf_time;
-    point_init_frame.header.stamp = stamped_tf.stamp_;
-    point_init_frame.point.x = point_in.x;
-    point_init_frame.point.y = point_in.y;
-    point_init_frame.point.z = point_in.z;
-
-    geometry_msgs::PointStamped point_final_frame;
-    tf_listener.transformPoint(final_frame, point_init_frame, point_final_frame);
+    tf::Vector3 point_init_frame(point_in.x, point_in.y, point_in.z);
+    tf::Vector3 point_final_frame = stamped_tf*point_init_frame;
 
     ROS_DEBUG("Transformed point [%g,%g,%g] in frame %s to [%g,%g,%g] in frame %s",
               point_in.x, point_in.y, point_in.z, init_frame.c_str(),
-              point_final_frame.point.x, point_final_frame.point.y, point_final_frame.point.z,
+              point_final_frame.x(), point_final_frame.y(), point_final_frame.z(),
               final_frame.c_str());
 
-    point_out = PointT((float) point_final_frame.point.x, (float) point_final_frame.point.y,
-                  (float) point_final_frame.point.z);
+    point_out = PointT((float) point_final_frame.x(), (float) point_final_frame.y(), (float) point_final_frame.z());
   }
   catch (tf::TransformException ex)
   {
@@ -106,11 +96,11 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
 }
 
 bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const PointCloudTPtr &cloud_in,
-                         const PointCloudTPtr &cloud_out, const uint64_t micro_sec_time)
+                         const PointCloudTPtr &cloud_out, const uint64_t micro_sec_time,
+                         tf::TransformListener &tf_listener)
 {
-  tf::TransformListener tf_listener;
   // Constructor requires seconds
-  const ros::Time tf_time(micro_sec_time / 1000000);
+  ros::Time tf_time(micro_sec_time / 1000000.0);
 
   try
   {
@@ -121,7 +111,7 @@ bool transformPointCloud(const std::string &init_frame, const std::string &final
       return false;
     }
 
-    pcl_ros::transformPointCloud(final_frame, *cloud_in, *cloud_out, tf_listener);
+    pcl_ros::transformPointCloud(final_frame, tf_time, *cloud_in, init_frame, *cloud_out, tf_listener);
 
     ROS_DEBUG("Transformed pointcloud of size %lu from frame %s to %s", cloud_out->size(), init_frame.c_str(),
               final_frame.c_str());
