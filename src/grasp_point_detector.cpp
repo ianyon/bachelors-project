@@ -38,7 +38,7 @@ void detection::GraspPointDetector::updateConfig(ParametersConfig &config)
   cfg = config;
 }
 
-void detection::GraspPointDetector::detect(const PointCloudTPtr &input_object, const pcl::ModelCoefficientsPtr &table_plane)
+void detection::GraspPointDetector::detect(const PointCloudPtr &input_object, const pcl::ModelCoefficientsPtr &table_plane)
 {
   clock_t beginCallback = clock();
 
@@ -98,7 +98,7 @@ bool detection::GraspPointDetector::doProcessing()
    the transformation you have to apply is
    Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
-void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBoxPtr &bounding_box)
+void detection::GraspPointDetector::computeBoundingBox(PointCloudPtr &obj_cloud, BoundingBoxPtr &bounding_box)
 {
   // Compute princcloudipal direction
   Eigen::Vector4f sensor_centroid;
@@ -122,7 +122,7 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
   transform.rotate(rotation_to_obj_coords);
   pcl::transformPointCloud(*obj_cloud, *transformed_cloud_, transform);
 
-  PointT origin_min_pt, origin_max_pt;
+  Point origin_min_pt, origin_max_pt;
   getMinMax3D(*transformed_cloud_, origin_min_pt, origin_max_pt);
   const Eigen::Vector3f origin_bounding_box_center =
       0.5f * (origin_max_pt.getVector3fMap() + origin_min_pt.getVector3fMap());
@@ -136,7 +136,7 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
   transform.translate(-origin_bounding_box_center);
   pcl::transformPointCloud(*transformed_cloud_, *transformed_cloud_, transform);
 
-  PointT origin_min_3d_pt, origin_max_3d_pt;
+  Point origin_min_3d_pt, origin_max_3d_pt;
   getMinMax3D(*object_cloud_, origin_min_3d_pt, origin_max_3d_pt);
   double heigth_3D = (origin_max_3d_pt.x - origin_min_3d_pt.x) / 2.0;
 
@@ -147,12 +147,12 @@ void detection::GraspPointDetector::computeBoundingBox(PointCloudTPtr &obj_cloud
 }
 
 
-PointCloudTPtr detection::GraspPointDetector::getSampledSideGrasps()
+PointCloudPtr detection::GraspPointDetector::getSampledSideGrasps()
 {
   return sampler.getSideGrasps();
 }
 
-PointCloudTPtr detection::GraspPointDetector::getSampledTopGrasps()
+PointCloudPtr detection::GraspPointDetector::getSampledTopGrasps()
 {
   return sampler.getTopGrasps();
 }

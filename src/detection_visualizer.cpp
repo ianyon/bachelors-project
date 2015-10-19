@@ -48,13 +48,13 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
 {
   if (detector_->draw_bounding_box_)
   {
-    PointCloudColorHandlerCustom<PointT> white_color(detector_->object_cloud_, 180, 180, 180);
+    PointCloudColorHandlerCustom<Point> white_color(detector_->object_cloud_, 180, 180, 180);
     if (!viewer.updatePointCloud(detector_->object_cloud_, white_color, "object"))
-      viewer.addPointCloud<PointT>(detector_->object_cloud_, white_color, "object");
+      viewer.addPointCloud<Point>(detector_->object_cloud_, white_color, "object");
 
-    PointCloudColorHandlerCustom<PointT> grey_color(detector_->transformed_cloud_, 120, 120, 120);
+    PointCloudColorHandlerCustom<Point> grey_color(detector_->transformed_cloud_, 120, 120, 120);
     if (!viewer.updatePointCloud(detector_->transformed_cloud_, grey_color, "transformed_object"))
-      viewer.addPointCloud<PointT>(detector_->transformed_cloud_, grey_color, "transformed_object");
+      viewer.addPointCloud<Point>(detector_->transformed_cloud_, grey_color, "transformed_object");
 
     // Draw the box
     viewer.removeShape("bounding box");
@@ -79,15 +79,15 @@ void visualization::DetectionVisualizer::visualizeBoundingBox(PCLVisualizer &vie
                    detector_->bounding_box_->max_pt_.z - detector_->bounding_box_->min_pt_.z,
                    "transformed bounding box");
 
-    PointT origin(0.0, 0.0, 0.0);
-    PointT eigen1, eigen2;
+    Point origin(0.0, 0.0, 0.0);
+    Point eigen1, eigen2;
     eigen1.getVector3fMap() = detector_->bounding_box_->eigen_vectors_.col(0);
     eigen2.getVector3fMap() = detector_->bounding_box_->eigen_vectors_.col(1);
 
     viewer.removeShape("eigen1");
-    viewer.addLine<PointT>(origin, eigen1, "eigen1");
+    viewer.addLine<Point>(origin, eigen1, "eigen1");
     viewer.removeShape("eigen2");
-    viewer.addLine<PointT>(origin, eigen2, "eigen2");
+    viewer.addLine<Point>(origin, eigen2, "eigen2");
 
     detector_->draw_bounding_box_ = false;
   }
@@ -97,23 +97,23 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
 {
   if (detector_->draw_sampled_grasps_)
   {
-    PointT middle;
+    Point middle;
     middle.getVector4fMap() = detector_->bounding_box_->centroid_;
 
     viewer.removeShape("real plane");
     viewer.addPlane(*(detector_->table_plane_), middle.x, middle.y, middle.z, "real plane");
 
-    PointCloudTPtr sampled_side_grasps = detector_->getSampledSideGrasps();
+    PointCloudPtr sampled_side_grasps = detector_->getSampledSideGrasps();
 
-    PointCloudColorHandlerCustom<PointT> red_color(sampled_side_grasps, 255, 0, 0);
+    PointCloudColorHandlerCustom<Point> red_color(sampled_side_grasps, 255, 0, 0);
     if (!viewer.updatePointCloud(sampled_side_grasps, red_color, "sampled side cloud"))
-      viewer.addPointCloud<PointT>(sampled_side_grasps, red_color, "sampled side cloud");
+      viewer.addPointCloud<Point>(sampled_side_grasps, red_color, "sampled side cloud");
 
-    PointCloudTPtr sampled_top_grasps = detector_->getSampledTopGrasps();
+    PointCloudPtr sampled_top_grasps = detector_->getSampledTopGrasps();
 
-    PointCloudColorHandlerCustom<PointT> new_red_color(sampled_top_grasps, 255, 0, 0);
+    PointCloudColorHandlerCustom<Point> new_red_color(sampled_top_grasps, 255, 0, 0);
     if (!viewer.updatePointCloud(sampled_top_grasps, new_red_color, "sampled top cloud"))
-      viewer.addPointCloud<PointT>(sampled_top_grasps, new_red_color, "sampled top cloud");
+      viewer.addPointCloud<Point>(sampled_top_grasps, new_red_color, "sampled top cloud");
 
     visualizePoint(middle, 0, 0, 255, "centroid_", viewer);
 
@@ -121,14 +121,14 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps(PCLVisualizer vi
   }
 }
 
-void visualization::DetectionVisualizer::visualizePoint(PointT point, int red, int green, int blue,
+void visualization::DetectionVisualizer::visualizePoint(Point point, int red, int green, int blue,
                                                         string name, PCLVisualizer viewer)
 {
-  PointCloudTPtr cloud(new PointCloudT);
+  PointCloudPtr cloud(new PointCloudT);
   cloud->push_back(point);
 
-  PointCloudColorHandlerCustom<PointT> color(cloud, red, green, blue);
+  PointCloudColorHandlerCustom<Point> color(cloud, red, green, blue);
   if (!viewer.updatePointCloud(cloud, color, name))
-    viewer.addPointCloud<PointT>(cloud, color, name);
+    viewer.addPointCloud<Point>(cloud, color, name);
 }
 } // namespace bachelors_final_project

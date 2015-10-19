@@ -39,11 +39,13 @@ public:
 
   std::string generateName(unsigned long i);
 
-  void visualizeCloud(const std::string &id, PointCloudTPtr &cloud, int r, int g, int b,
+  bool visualizeCloud(const std::string &id, PointCloudPtr &cloud, int r, int g, int b,
                       pcl::visualization::PCLVisualizer &viewer, int viewport);
 
-  PointT visualizeLine(std::string id, PointT &point, PointCloudTPtr &cloud, pcl::visualization::PCLVisualizer &viewer,
-                       int viewport);
+  bool visualizeLine(std::string id, Point &point, PointCloudPtr &cloud,
+                     pcl::visualization::PCLVisualizer &viewer, int viewport, Point *middle);
+
+  segmentation::CloudSegmentator & obj();
 
   segmentation::CloudSegmentator *segmentator_;
   int normals_count_;

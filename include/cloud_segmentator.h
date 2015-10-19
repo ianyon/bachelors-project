@@ -30,9 +30,9 @@ public:
   void updateConfig(ParametersConfig &config);
 
   //! Callback function for subscriber.
-  void sensorCallback(const PointCloudTConstPtr &sensorInput);
+  void sensorCallback(const PointCloudConstPtr &sensorInput);
 
-  bool doProcessing(const PointCloudTPtr &input);
+  bool doProcessing(const PointCloudPtr &input);
 
   void execute();
 
@@ -46,21 +46,21 @@ public:
  * Return: A pointer to the ModelCoefficients (i.e., the 4 coefficients of the plane,
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
-  bool fitPlaneFromNormals(const PointCloudTPtr &input, PointCloudNormalPtr &normals,
+  bool fitPlaneFromNormals(const PointCloudPtr &input, PointCloudNormalPtr &normals,
                            pcl::ModelCoefficientsPtr &coefficients, pcl::PointIndicesPtr &inliers);
 
-  void computeNormalsEfficiently(const PointCloudTPtr &sensor_cloud, PointCloudNormalPtr &cloud_normals_);
+  bool computeNormalsEfficiently(const PointCloudPtr &sensor_cloud, PointCloudNormalPtr &cloud_normals_);
 
-  void projectOnPlane(const PointCloudTPtr &sensor_cloud, const pcl::ModelCoefficientsPtr &tableCoefficients,
-                      const pcl::PointIndicesPtr &tableInliers, PointCloudTPtr &projectedTableCloud);
+  void projectOnPlane(const PointCloudPtr &sensor_cloud, const pcl::ModelCoefficientsPtr &tableCoefficients,
+                      const pcl::PointIndicesPtr &tableInliers, PointCloudPtr &projectedTableCloud);
 
-  void computeTableConvexHull(const PointCloudTPtr &projectedTableCloud, PointCloudTPtr &tableConvexHull);
+  void computeTableConvexHull(const PointCloudPtr &projectedTableCloud, PointCloudPtr &tableConvexHull);
 
-  bool extractCloudOverTheTable(const PointCloudTPtr &sensor_cloud, const PointCloudTPtr &tableConvexHull,
-                                PointCloudTPtr &cloud_over_table);
+  bool extractCloudOverTheTable(const PointCloudPtr &sensor_cloud, const PointCloudPtr &tableConvexHull,
+                                pcl::PointIndicesPtr &indices_over_table);
 
-  void cropOrganizedPointCloud(const PointCloudTPtr &cloud_in,
-                               PointCloudTPtr &cropped_cloud);
+  void cropOrganizedPointCloud(const PointCloudPtr &cloud_in,
+                               PointCloudPtr &cropped_cloud);
 
   /* Use EuclidieanClusterExtraction to group a cloud into contiguous clusters
  * Inputs:
@@ -72,15 +72,16 @@ public:
  *     The minimum and maximum allowable cluster sizes
  * Return (by reference): a vector of PointIndices containing the points indices in each cluster
  */
-  void clusterObjects(const PointCloudTPtr &cloudOverTheTable);
+  bool clusterObjects(const PointCloudPtr &cloud_in,
+                      const pcl::PointIndicesPtr &indices);
 
-  PointCloudTPtr getCluster(size_t index);
+  PointCloudPtr getCluster(size_t index);
 
   const pcl::ModelCoefficientsPtr getTable();
 
-  void setPlaneAxis(pcl::SACSegmentationFromNormals<PointT, Normal> &seg);
+  void setPlaneAxis(pcl::SACSegmentationFromNormals<Point, Normal> &seg);
 
-  void clearSegmentation();
+  bool clearSegmentation(FailedLevel failed_level);
 
   bool point_clouds_updated_;
   bool plane_updated_;
@@ -91,15 +92,16 @@ public:
   boost::mutex update_normals_mutex_;
   ros::Publisher pub_planar_, pub_objects_;
 
-  PointCloudTPtr sensor_cloud_;
-  PointCloudTPtr cropped_cloud_;
-  PointCloudTPtr plane_cloud_;
-  PointCloudTPtr cropped_cloud_base_frame;
-  PointCloudTPtr cloud_over_table_;
+  PointCloudPtr sensor_cloud_;
+  PointCloudPtr cropped_cloud_;
+  PointCloudPtr plane_cloud_;
+  PointCloudPtr cropped_cloud_base_frame;
+  PointCloudPtr cloud_over_table_;
+  pcl::PointIndicesPtr indices_over_table_;
 
   PointCloudNormalPtr cloud_normals_;
 
-  std::vector<PointCloudTPtr> cloud_cluster_vector_;
+  std::vector<PointCloudPtr> clusters_vector_;
 
   pcl::ModelCoefficientsPtr table_coefficients_;
 
@@ -108,7 +110,8 @@ public:
   uint32_t last_seen_seq_;
 
   tf::TransformListener tf_listener_;
-  PointT plane_normal_base_frame_, plane_normal_kinect_frame_;
+  Point plane_normal_base_frame_, plane_normal_kinect_frame_;
+  Point normal_base_frame_reconstructed_;
 };
 
 } // namespace segmentation

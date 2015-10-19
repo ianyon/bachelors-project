@@ -98,10 +98,11 @@ target_link_libraries(example
 cotire(example)
 add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
 
-add_custom_target(stop_physics
-        COMMAND rosservice call /gazebo/pause_physics)
-add_dependencies(example stop_physics)
-add_dependencies(example_unity stop_physics)
+execute_process(COMMAND rosservice call /gazebo/pause_physics)
+#add_custom_target(stop_physics
+#    COMMAND rosservice call /gazebo/pause_physics)
+#add_dependencies(example stop_physics)
+#add_dependencies(example_unity stop_physics)
 
 #get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
 #get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)

@@ -21,7 +21,7 @@ public:
 
   bool ellipsePointsLeft();
 
-  bool getNewEllipsePoint(double, PointT*);
+  bool getNewEllipsePoint(double, Point *);
 
   double computeCircumference(double mayor_axis, double minor_axis, double delta_theta,
                               double number_integrals);

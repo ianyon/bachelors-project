@@ -45,7 +45,7 @@ bool detection::EllipseOperations::ellipsePointsLeft()
   return computation_step < number_integrals;
 }
 
-bool detection::EllipseOperations::getNewEllipsePoint(double height, PointT *point)
+bool detection::EllipseOperations::getNewEllipsePoint(double height, Point *point)
 {
   bool found = false;
   // Calculate ellipse point

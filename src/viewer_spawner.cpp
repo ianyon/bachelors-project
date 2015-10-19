@@ -20,14 +20,14 @@ void visualization::ViewerSpawner::spawn()
   if(show_segmentation_viewer_)
   {
     std::cout << "Spawning Segmentation visualizer!" << std::endl;
-    segmentation_thread = boost::thread(&visualization::SegmentationVisualizer::visualize, segmentation_visualizer_);
+    segmentation_thread = boost::thread(&SegmentationVisualizer::visualize, &segmentation_visualizer_);
     segmentation_thread.detach();
   }
 
   if (show_detection_viewer_)
   {
     std::cout << "Spawning Detection visualizer!" << std::endl;
-    detection_thread = boost::thread(&visualization::DetectionVisualizer::visualize, detection_visualizer_);
+    detection_thread = boost::thread(&DetectionVisualizer::visualize, &detection_visualizer_);
     detection_thread.detach();
   }
 }

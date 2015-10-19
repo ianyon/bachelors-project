@@ -25,12 +25,12 @@ public:
 
   bool doProcessing();
 
-  void detect(const PointCloudTPtr &cluster, const pcl::ModelCoefficientsPtr &table);
+  void detect(const PointCloudPtr &cluster, const pcl::ModelCoefficientsPtr &table);
 
-  void computeBoundingBox(PointCloudTPtr &obj_cloud, BoundingBoxPtr&);
+  void computeBoundingBox(PointCloudPtr &obj_cloud, BoundingBoxPtr&);
 
-  PointCloudTPtr getSampledSideGrasps();
-  PointCloudTPtr getSampledTopGrasps();
+  PointCloudPtr getSampledSideGrasps();
+  PointCloudPtr getSampledTopGrasps();
 
   bool draw_bounding_box_;
   bool draw_sampled_grasps_;
@@ -39,8 +39,8 @@ public:
 
   std::string kinect_frame_id_;
 
-  PointCloudTPtr object_cloud_;
-  PointCloudTPtr transformed_cloud_;
+  PointCloudPtr object_cloud_;
+  PointCloudPtr transformed_cloud_;
 
 
   RankedGrasps ranked_grasps;
@@ -52,7 +52,7 @@ public:
 
   bachelors_final_project::ParametersConfig cfg;
   pcl::ModelCoefficientsPtr table_plane_;
-  PointCloudTPtr projected_object_;
+  PointCloudPtr projected_object_;
 
 };
 

@@ -26,7 +26,7 @@ void detection::GraspSampler::sampleGraspingPoses(BoundingBoxPtr &bounding_box)
   sampleTopGrasps(bounding_box, top_grasps_);
 }
 
-void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, PointCloudTPtr &side_grasps)
+void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, PointCloudPtr &side_grasps)
 {
   // We'll sample the points in the origin and then translate and rotate them
   double a = (bounding_box->max_pt_.z - bounding_box->min_pt_.z) / 2;
@@ -36,7 +36,7 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Poi
   ellipse_ops_.setNumberOfPoints(50);
   ellipse_ops_.prepareComputation(a, b);
 
-  PointT final_point, ellipse_point;
+  Point final_point, ellipse_point;
   // Continue while we can keep finding points
   while (ellipse_ops_.ellipsePointsLeft())
   {
@@ -52,7 +52,7 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Poi
   }
 }
 
-void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, PointCloudTPtr &top_grasps)
+void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, PointCloudPtr &top_grasps)
 {
   Eigen::Affine3f transform = getTransform(bounding_box, false);
 
@@ -91,10 +91,10 @@ Eigen::Affine3f detection::GraspSampler::getTransform(const BoundingBoxPtr &boun
   return transform;
 }
 
-void detection::GraspSampler::sampleAxis(PointCloudTPtr &top_grasps, Eigen::Affine3f &transform, float fixed_axis,
+void detection::GraspSampler::sampleAxis(PointCloudPtr &top_grasps, Eigen::Affine3f &transform, float fixed_axis,
                                          float height, float min_axis, int n_samples, double step, bool is_mayor)
 {
-  PointT final_point, axis_sample;
+  Point final_point, axis_sample;
   for (int i = 0; i < n_samples; ++i)
   {
     axis_sample.x = -height;

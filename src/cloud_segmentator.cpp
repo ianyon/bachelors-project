@@ -2,6 +2,8 @@
 
 #include <dynamic_reconfigure/server.h>
 
+#include <pcl/common/angles.h>
+
 #include <pcl/filters/filter.h>
 #include <pcl/filters/convolution_3d.h>
 #include <pcl/filters/project_inliers.h>
@@ -26,7 +28,6 @@ namespace bachelors_final_project
  */
 segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh)
 {
-  std::cout << "Init cloud constructor!" << std::endl;
   // Create a ROS publisher
   pub_planar_ = nh.advertise<PointCloudT>("planar", 1);
   pub_objects_ = nh.advertise<PointCloudT>("objects", 1);
@@ -35,10 +36,11 @@ segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh)
   sensor_cloud_.reset(new PointCloudT);
   cropped_cloud_.reset(new PointCloudT);
   plane_cloud_.reset(new PointCloudT);
-  cloud_normals_.reset(new PointCloud<Normal>);
+  cloud_normals_.reset(new PointCloudNormal);
   table_coefficients_.reset(new ModelCoefficients());
   cloud_over_table_.reset(new PointCloudT);
   cropped_cloud_base_frame.reset(new PointCloudT);
+  indices_over_table_.reset(new PointIndices());
 
   // Initialize flags
   plane_updated_ = false;
@@ -55,14 +57,14 @@ void segmentation::CloudSegmentator::updateConfig(ParametersConfig &config)
   cfg = config;
 }
 
-void segmentation::CloudSegmentator::sensorCallback(const PointCloudTConstPtr &sensorInput)
+void segmentation::CloudSegmentator::sensorCallback(const PointCloudConstPtr &sensorInput)
 {
   ROS_INFO_ONCE("Callback Called");
   sensor_cloud_ = sensorInput->makeShared();
 }
 
-void segmentation::CloudSegmentator::cropOrganizedPointCloud(const PointCloudTPtr &cloud_in,
-                                                             PointCloudTPtr &cropped_cloud)
+void segmentation::CloudSegmentator::cropOrganizedPointCloud(const PointCloudPtr &cloud_in,
+                                                             PointCloudPtr &cropped_cloud)
 {
   clock_t begin = clock();
   // Kinect is 640/480
@@ -97,16 +99,16 @@ void segmentation::CloudSegmentator::cropOrganizedPointCloud(const PointCloudTPt
 
   cropped_cloud->is_dense = cloud_in->is_dense;
 
-  ROS_DEBUG("PointCloud cropping took %gms", durationMillis(begin));
-  ROS_DEBUG("Cropped from %lu to %lu", cloud_in->points.size(), cropped_cloud->points.size());
+  ROS_DEBUG("[%g ms] PointCloud cropping [%lu to %lu]", durationMillis(begin), cloud_in->points.size(),
+            cropped_cloud->points.size());
 }
 
 
-void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudTPtr &sensor_cloud,
+bool segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudPtr &sensor_cloud,
                                                                PointCloudNormalPtr &cloud_normals)
 {
   clock_t begin = clock();
-  IntegralImageNormalEstimation<PointT, Normal> ne;
+  IntegralImageNormalEstimation<Point, Normal> ne;
 
   switch (cfg.normalEstimationMethodParam)
   {
@@ -125,22 +127,25 @@ void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudT
     default:
       ROS_ERROR("Wrong Normal estimation method. Parameter error");
       ros::shutdown();
-      return;
+      exit(-1);
   }
 
-  // TODO: Analyze use multithreading OMP Classes
-  ne.setMaxDepthChangeFactor((float) cfg.maxDepthChangeFactorParam);
+  // First convert from [m] to [cm] then counter the 2 factor:
+  // https://github.com/PointCloudLibrary/pcl/blob/master/features/include/pcl/features/impl/integral_image_normal.hpp#L744
+  ne.setMaxDepthChangeFactor((float) ((cfg.maxDepthChangeFactorParam / 100) / 2.0));
   ne.setDepthDependentSmoothing(cfg.useDepthDependentSmoothingParam);
   ne.setNormalSmoothingSize((float) cfg.normalSmoothingSizeParam);
   ne.setInputCloud(sensor_cloud);
   //ne.setKSearch(0);
   ne.compute(*cloud_normals);
-  ROS_DEBUG("Integral image normals took %gms", durationMillis(begin));
 
   // Remove NaN from pointcloud and normals
   PointIndices::Ptr indices(new PointIndices());
   removeNaNFromPointCloud(*sensor_cloud, *sensor_cloud, indices->indices);
-  extractPointCloud(cloud_normals, indices, cloud_normals);
+  normalPointCloudFromIndices(cloud_normals, indices, cloud_normals);
+  ROS_DEBUG("[%g ms] Integral image normals", durationMillis(begin));
+
+  return cloud_normals_->size() != 0;
 }
 
 /* Use SACSegmentation to find the dominant plane in the scene
@@ -153,16 +158,16 @@ void segmentation::CloudSegmentator::computeNormalsEfficiently(const PointCloudT
  * Return: A pointer to the ModelCoefficients (i.e., the 4 coefficients of the plane,
  *         represented in c0*x + c1*y + c2*z + c3 = 0 form)
  */
-bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudTPtr &input, PointCloudNormalPtr &normals,
+bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudPtr &input, PointCloudNormalPtr &normals,
                                                          ModelCoefficients::Ptr &coefficients,
                                                          PointIndices::Ptr &inliers)
 {
   clock_t begin = clock();
   // Intialize the SACSegmentationFromNormals object
-  SACSegmentationFromNormals<PointT, Normal> seg;
+  SACSegmentationFromNormals <Point, Normal> seg;
   //seg.setModelType(SACMODEL_NORMAL_PLANE);
-  seg.setModelType(SACMODEL_PERPENDICULAR_PLANE);
-  //seg.setModelType(SACMODEL_NORMAL_PARALLEL_PLANE);
+  //seg.setModelType(SACMODEL_PERPENDICULAR_PLANE);
+  seg.setModelType(SACMODEL_NORMAL_PARALLEL_PLANE);
   seg.setMethodType(SAC_RANSAC);
   /************** SACSegmentationFromNormals **************/
   // Set the relative weight (between 0 and 1) to give to the angular distance
@@ -181,11 +186,11 @@ bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudTPtr &i
   seg.setProbability(cfg.probabilityParam);
 
   // Set the maximum distance allowed when drawing random samples.
-  PointCloudTPtr temp_cloud(new PointCloudT);
+  PointCloudPtr temp_cloud(new PointCloudT);
   copyPointCloud(*input, *temp_cloud);
 
   //SACSegmentation<Normal>::SearchPtr search(new search::KdTree<Normal>);
-  SACSegmentation<PointT>::SearchPtr search(new search::KdTree<PointT>);
+  SACSegmentation<Point>::SearchPtr search(new search::KdTree<Point>);
   search->setInputCloud(temp_cloud);
   seg.setSamplesMaxDist(cfg.sampleMaxDistanceParam, search);
 
@@ -201,23 +206,22 @@ bool segmentation::CloudSegmentator::fitPlaneFromNormals(const PointCloudTPtr &i
     return false;
   }
 
-  ROS_DEBUG_STREAM("PLANE FOUND. Model coefficients: " <<
-                   coefficients->values[0] << " " << coefficients->values[1] << " " <<
-                   coefficients->values[2] << " " << coefficients->values[3]);
-
-  ROS_DEBUG("Model inliers: %lu", inliers->indices.size());
-
-  ROS_DEBUG("Plane segmentation took %gms", durationMillis(begin));
+  ROS_DEBUG("[%g ms] Plane segmentation (%lu): [%g %g %g %g]", durationMillis(begin), inliers->indices.size(),
+            coefficients->values[0], coefficients->values[1], coefficients->values[2], coefficients->values[3]);
   return true;
 }
 
-void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<PointT, Normal> &seg)
+void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals <Point, Normal> &seg)
 {
-  PointT normal_base_frame((float) cfg.planeXParam, (float) cfg.planeYParam, (float) cfg.planeZParam);
+  tf::Vector3 normal_base_frame(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
   if (transformPoint(FOOTPRINT_FRAME, sensor_cloud_->header.frame_id, normal_base_frame, plane_normal_kinect_frame_,
                      sensor_cloud_->header.stamp, tf_listener_))
   {
-    plane_normal_base_frame_ = normal_base_frame;
+    plane_normal_base_frame_ = Point((float) normal_base_frame.x(), (float) normal_base_frame.y(),
+                                     (float) normal_base_frame.z());
+
+    tf::Vector3 plane_normal_kinect_frame(plane_normal_kinect_frame_.x, plane_normal_kinect_frame_.y,
+                                          plane_normal_kinect_frame_.z);
 
     Eigen::Vector3f axis(plane_normal_kinect_frame_.x, plane_normal_kinect_frame_.y,
                          plane_normal_kinect_frame_.z);
@@ -226,66 +230,69 @@ void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<Poi
 
     // Set the angle epsilon (delta) threshold. The maximum allowed difference between the model
     // normal and the given axis in radians. Specify the angle of the normals of the above plane
-    seg.setEpsAngle(cfg.epsAngleParam * M_PI / 180.0);
+    seg.setEpsAngle(pcl::deg2rad(cfg.epsAngleParam));
   }
+  else
+    throw ComputeFailedException("Without transform can't find horizontal plane to segment table");
 
-  transformPointCloud(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, cropped_cloud_, cropped_cloud_base_frame,
-                      sensor_cloud_->header.stamp, tf_listener_);
+  if (false)
+  {
+    transformPointCloud(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, cropped_cloud_, cropped_cloud_base_frame,
+                        sensor_cloud_->header.stamp, tf_listener_);
+    tf::Vector3 plane_normal_kinect_frame(plane_normal_kinect_frame_.x, plane_normal_kinect_frame_.y,
+                                          plane_normal_kinect_frame_.z);
+    transformPoint(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, plane_normal_kinect_frame,
+                   normal_base_frame_reconstructed_, sensor_cloud_->header.stamp, tf_listener_);
+    ROS_ERROR("RECONSTRUCTED %g %g %g", normal_base_frame_reconstructed_.x, normal_base_frame_reconstructed_.y,
+              normal_base_frame_reconstructed_.z);
+  }
 
 }
 
-void segmentation::CloudSegmentator::projectOnPlane(const PointCloudTPtr &sensor_cloud,
+void segmentation::CloudSegmentator::projectOnPlane(const PointCloudPtr &sensor_cloud,
                                                     const ModelCoefficientsPtr &table_coefficients,
                                                     const PointIndices::Ptr &tableInliers,
-                                                    PointCloudTPtr &projectedTableCloud)
+                                                    PointCloudPtr &projectedTableCloud)
 {
   clock_t begin = clock();
-  ProjectInliers<PointT> proj;
+  ProjectInliers<Point> proj;
   proj.setModelType(SACMODEL_PLANE);
   proj.setIndices(tableInliers);
   proj.setInputCloud(sensor_cloud);
   proj.setModelCoefficients(table_coefficients);
   proj.filter(*projectedTableCloud);
-  ROS_DEBUG("Project on plane took %gms", durationMillis(begin));
+  ROS_DEBUG("[%g ms] Project on plane", durationMillis(begin));
 }
 
-void segmentation::CloudSegmentator::computeTableConvexHull(const PointCloudTPtr &projectedTableCloud,
-                                                            PointCloudTPtr &tableConvexHull)
+void segmentation::CloudSegmentator::computeTableConvexHull(const PointCloudPtr &projectedTableCloud,
+                                                            PointCloudPtr &tableConvexHull)
 {
   clock_t begin = clock();
-  ConvexHull<PointT> chull;
+  ConvexHull<Point> chull;
   chull.setInputCloud(projectedTableCloud);
   chull.reconstruct(*tableConvexHull);
   tableConvexHull->push_back(tableConvexHull->at(0));
-  ROS_DEBUG("Convex hull took %gms", durationMillis(begin));
-  ROS_DEBUG("Convex hull has: %lu data points.", tableConvexHull->points.size());
+  ROS_DEBUG("[%g ms] Convex hull [%lu points]", durationMillis(begin), tableConvexHull->points.size());
 }
 
-bool segmentation::CloudSegmentator::extractCloudOverTheTable(const PointCloudTPtr &sensor_cloud,
-                                                              const PointCloudTPtr &tableConvexHull,
-                                                              PointCloudTPtr &cloud_over_table)
+bool segmentation::CloudSegmentator::extractCloudOverTheTable(const PointCloudPtr &sensor_cloud,
+                                                              const PointCloudPtr &tableConvexHull,
+                                                              PointIndicesPtr &indices_over_table)
 {
   clock_t begin = clock();
   // Segment those points that are in the polygonal prism
-  ExtractPolygonalPrismData<PointT> prism;
+  ExtractPolygonalPrismData<Point> prism;
   // Objects must lie between minHeight and maxHeight m over the plane
   prism.setHeightLimits(cfg.minHeightParam, cfg.maxHeightParam);
   prism.setInputCloud(sensor_cloud);
   prism.setInputPlanarHull(tableConvexHull);
-  PointIndices::Ptr indices_over_table(new PointIndices());
   prism.segment(*indices_over_table);
 
-  if (indices_over_table->indices.size() == 0)
-  {
-    ROS_WARN("No points over the table. Took %gms", durationMillis(begin));
-    return false;
-  }
-
-  // Extraxt indices over the table
-  extractPointCloud(sensor_cloud, indices_over_table, cloud_over_table);
-  ROS_DEBUG("Extract cloud over the table [%lu points] took %gms",
-            indices_over_table->indices.size(), durationMillis(begin));
-  return true;
+  bool empty = indices_over_table->indices.size() == 0;
+  ROS_WARN_COND(empty, "No points over the table. Took %g ms", durationMillis(begin));
+  ROS_DEBUG_COND(!empty, "[%g ms] Extract cloud over the table [%lu points]", durationMillis(begin),
+                 indices_over_table->indices.size());
+  return indices_over_table->indices.size() != 0;
 }
 
 
@@ -299,47 +306,41 @@ bool segmentation::CloudSegmentator::extractCloudOverTheTable(const PointCloudTP
  *     The minimum and maximum allowable cluster sizes
  * Return (by reference): a vector of PointIndices containing the points indices in each cluster
  */
-void segmentation::CloudSegmentator::clusterObjects(const PointCloudTPtr &cloud_over_table)
+bool segmentation::CloudSegmentator::clusterObjects(const PointCloudPtr &cloud_in,
+                                                    const PointIndicesPtr &over_table)
 {
   clock_t begin = clock();
 
-  // Creating the KdTree object for the search method of the extraction
-  search::KdTree<PointT>::Ptr tree(new search::KdTree<PointT>);
-  tree->setInputCloud(cloud_over_table);
-
-  EuclideanClusterExtraction<PointT> ec;
+  EuclideanClusterExtraction<Point> ec;
   ec.setClusterTolerance(cfg.clusterTolerance);
   ec.setMinClusterSize(cfg.minClusterSize);
   ec.setMaxClusterSize(cfg.maxClusterSize);
-
-  ec.setSearchMethod(tree);
-  ec.setInputCloud(cloud_over_table);
-
+  ec.setInputCloud(cloud_in);
+  ec.setIndices(over_table);
   std::vector<PointIndices> cluster_indices;
   ec.extract(cluster_indices);
-  ROS_DEBUG("Cluster extraction took %gms", durationMillis(begin));
 
-  begin = clock();
-
-  cloud_cluster_vector_.resize(cluster_indices.size());
+  bool empty = cluster_indices.size() == 0;
+  ROS_DEBUG_COND(empty, "[%g ms] Clustering Failed", durationMillis(begin));
 
   std::stringstream ss;
-  for (size_t i = 0; i < cluster_indices.size(); ++i)
+  BOOST_FOREACH(PointIndices
+  indices, cluster_indices)
   {
-    PointCloudTPtr cloudCluster(new PointCloudT);
-    PointIndices::Ptr cluster(new PointIndices(cluster_indices[i]));
+    PointCloudPtr cloud_cluster(new PointCloudT);
+    PointIndicesPtr cluster(boost::make_shared<PointIndices>(indices));
 
-    extractPointCloud(cloud_over_table, cluster, cloudCluster);
-    cloudCluster->header = sensor_cloud_->header;
+    pointCloudFromIndices(cloud_in, cluster, cloud_cluster);
+    cloud_cluster->header = sensor_cloud_->header;
 
     // Store the clusters in a vector. It's the best way?
-    cloud_cluster_vector_[i] = cloudCluster;
+    clusters_vector_.push_back(cloud_cluster);
 
-    int cluster_size = (int) cloudCluster->points.size();
-    ss << cluster_size << ", ";
+    ss << cloud_cluster->size() << ", ";
   }
-  ROS_DEBUG_STREAM("Found " << cluster_indices.size() << " clusters: [" << ss.str().c_str() << "]");
-  ROS_DEBUG("Cluster construction took %gms", durationMillis(begin));
+  ROS_DEBUG_COND(!empty, "[%g ms] Clustering [%lu]: [%s]", durationMillis(begin), cluster_indices.size(),
+                 ss.str().c_str());
+  return !empty;
 }
 
 void segmentation::CloudSegmentator::execute()
@@ -348,9 +349,8 @@ void segmentation::CloudSegmentator::execute()
 
   // If no cloud or no new images since last time, do nothing.
   if (sensor_cloud_->size() == 0 || last_seen_seq_ == sensor_cloud_->header.seq)
-  {
-    // Clean data
-    cloud_cluster_vector_.clear();
+  { // Clean data
+    clusters_vector_.clear();
     return;
   }
 
@@ -361,82 +361,93 @@ void segmentation::CloudSegmentator::execute()
   // if using ASyncSpinner). Shared pointers copies are atomic operations which means that this callback is
   // thread-safe. This is required to convert this node to a nodelet for instance and also to deal with more
   // complex GUI that may require you to use the ASyncSpinner. Note that no mutex are needed here, even in this case.
-  PointCloudTPtr &sensor_cloud = sensor_cloud_;
+  PointCloudPtr &sensor_cloud = sensor_cloud_;
 
   // Check if computation succeded
   if (doProcessing(sensor_cloud))
-    ROS_INFO("Callback took %gms\n\n", durationMillis(beginCallback));
+    ROS_INFO("[%g ms] Segmentation Success\n\n", durationMillis(beginCallback));
   else
-    clearSegmentation();
+    ROS_ERROR("[%g ms] Segmentation Failed\n\n", durationMillis(beginCallback));
 }
 
-bool segmentation::CloudSegmentator::doProcessing(const PointCloudTPtr &input)
+bool segmentation::CloudSegmentator::doProcessing(const PointCloudPtr &input)
 {
-  ROS_DEBUG("Do Processing!");
-  boost::mutex::scoped_lock updateLock(update_normals_mutex_);   // Init cropped_cloud_ and cloud_normals_ mutex
-
-  // PointCloud cropping
+  ROS_DEBUG("\n\nProcessing segmentation!");
+  boost::mutex::scoped_lock updateLock(update_normals_mutex_);
   cropOrganizedPointCloud(input, cropped_cloud_);
-  // Compute integral image normals
-  computeNormalsEfficiently(cropped_cloud_, cloud_normals_);
-
-  bool new_normals = cloud_normals_->size() != 0;
+  bool new_normals = computeNormalsEfficiently(cropped_cloud_, cloud_normals_);
   // Update visualization if there are normals
   point_clouds_updated_ = new_normals;
-  updateLock.unlock();                                        // End cropped_cloud_ and cloud_normals_ mutex
-
+  updateLock.unlock();
   if (!new_normals)
-  {
-    ROS_WARN("No normals from cloud");
-    return false;
-  }
-
+    return clearSegmentation(NORMALS);
 
   // Segment plane using normals
   PointIndices::Ptr tableInliers(new PointIndices());
-  // Only continue if we find a plane
-  if (!fitPlaneFromNormals(cropped_cloud_, cloud_normals_, table_coefficients_, tableInliers))
-    return false;
-
-
-  extractPointCloud(cropped_cloud_, tableInliers, plane_cloud_);
+  try
+  {
+    if (!fitPlaneFromNormals(cropped_cloud_, cloud_normals_, table_coefficients_, tableInliers))
+      return clearSegmentation(PLANE);
+  }
+  catch (ComputeFailedException ex)
+  {
+    return clearSegmentation(PLANE);
+  }
+  pointCloudFromIndices(cropped_cloud_, tableInliers, plane_cloud_);
   plane_updated_ = true;
 
   // Project plane points (inliers) in model plane
-  PointCloudTPtr projectedTableCloud(new PointCloudT);
+  PointCloudPtr projectedTableCloud(new PointCloudT);
   projectOnPlane(cropped_cloud_, table_coefficients_, tableInliers, projectedTableCloud);
   publish(pub_planar_, projectedTableCloud);
 
   // Create a Convex Hull representation of the projected inliers
-  PointCloudTPtr tableConvexHull(new PointCloudT);
+  PointCloudPtr tableConvexHull(new PointCloudT);
   computeTableConvexHull(projectedTableCloud, tableConvexHull);
 
   // Extract points over the table's convex hull
   // Only continue if there are points over the table
-  if (!extractCloudOverTheTable(cropped_cloud_, tableConvexHull, cloud_over_table_))
-    return false;
-
+  if (!extractCloudOverTheTable(cropped_cloud_, tableConvexHull, indices_over_table_))
+    return clearSegmentation(OVER_TABLE);
+  pointCloudFromIndices(cropped_cloud_, indices_over_table_, cloud_over_table_);
   publish(pub_objects_, cloud_over_table_);
   cloud_over_table_updated_ = true;
 
   // Clustering objects over the table
-  clusterObjects(cloud_over_table_);
+  if (!clusterObjects(cropped_cloud_, indices_over_table_))
+    return clearSegmentation(CLUSTERS);
   //publish(pubObjects, );
   clusters_updated_ = true;
   return true;
 }
 
-void segmentation::CloudSegmentator::clearSegmentation()
+bool segmentation::CloudSegmentator::clearSegmentation(FailedLevel failed_level)
 {
-  plane_cloud_->clear();
-  table_coefficients_->values.clear();
-  cloud_over_table_->clear();
-  cloud_cluster_vector_.clear();
+  std::stringstream ss;
+  switch (failed_level)
+  {
+    case NORMALS:
+      ss << " NORMALS,";
+      cloud_normals_->clear();
+    case PLANE:
+      ss << " PLANE,";
+      plane_cloud_->clear();
+      table_coefficients_->values.clear();
+    case OVER_TABLE:
+      ss << " OVER TABLE,";
+      cloud_over_table_->clear();
+      indices_over_table_->indices.clear();
+    case CLUSTERS:
+      ss << " CLUSTERS";
+      clusters_vector_.clear();
+  };
+  ROS_ERROR("Failed in: %s", ss.str().c_str());
+  return false;
 }
 
-PointCloudTPtr segmentation::CloudSegmentator::getCluster(size_t index)
+PointCloudPtr segmentation::CloudSegmentator::getCluster(size_t index)
 {
-  return cloud_cluster_vector_[index];
+  return clusters_vector_[index];
 }
 
 const ModelCoefficientsPtr segmentation::CloudSegmentator::getTable()

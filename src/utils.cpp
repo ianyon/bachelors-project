@@ -4,6 +4,9 @@
 
 #include <pcl/filters/extract_indices.h>
 
+using boost::str;
+using boost::format;
+
 
 namespace bachelors_final_project
 {
@@ -20,7 +23,7 @@ double durationMillis(clock_t &begin)
   return (double(clock() - begin) / CLOCKS_PER_SEC) * 1000;
 }
 
-void setProperties(const PointCloudTPtr &coppied_cloud, PointCloudTPtr &cloud_out, int width, int height)
+void setProperties(const PointCloudPtr &coppied_cloud, PointCloudPtr &cloud_out, int width, int height)
 {
   cloud_out->width = (uint32_t) width;
   cloud_out->height = (uint32_t) height;
@@ -31,22 +34,22 @@ void setProperties(const PointCloudTPtr &coppied_cloud, PointCloudTPtr &cloud_ou
   cloud_out->header = coppied_cloud->header;
 }
 
-void extractPointCloud(const PointCloudTPtr &input, pcl::PointIndices::Ptr &inliers, PointCloudTPtr &output,
-                       bool extract_negative_set)
+void pointCloudFromIndices(const PointCloudPtr &input, pcl::PointIndicesPtr &inliers, PointCloudPtr &output,
+                           bool extract_negative_set)
 {
   // Create the filtering object
-  pcl::ExtractIndices<PointT> extract;
+  pcl::ExtractIndices<Point> extract;
 
   // Extract the inliers
   extract.setInputCloud(input);
   extract.setIndices(inliers);
   extract.setNegative(extract_negative_set);
   extract.filter(*output);
-  ROS_DEBUG("Extracted PointCloud representing the planar component");
 }
 
-void extractPointCloud(const PointCloudNormalPtr &input, pcl::PointIndices::Ptr &inliers, PointCloudNormalPtr &output,
-                       bool extract_negative_set)
+void normalPointCloudFromIndices(const PointCloudNormalPtr &input, pcl::PointIndicesPtr &inliers,
+                                 PointCloudNormalPtr &output,
+                                 bool extract_negative_set)
 {
   // Create the filtering object
   pcl::ExtractIndices<Normal> extract;
@@ -56,35 +59,26 @@ void extractPointCloud(const PointCloudNormalPtr &input, pcl::PointIndices::Ptr 
   extract.setIndices(inliers);
   extract.setNegative(extract_negative_set);
   extract.filter(*output);
-  ROS_DEBUG("Extracted PointCloud representing the planar component");
 }
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const PointT &point_in,
-                    PointT &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,
+                    Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
   try
   {
-    ROS_DEBUG("Waiting for transform between %s and %s...", init_frame.c_str(), final_frame.c_str());
-    if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, ros::Duration(TF_TIMEOUT)))
-    {
-      ROS_ERROR("Couldn't obtain transform from %s to %s in %gs", init_frame.c_str(), final_frame.c_str(), TF_TIMEOUT);
-      return false;
-    }
+    if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, TF_DURATION))
+      throw tf::TransformException(str( format("Timeout [%gs]") % TF_TIMEOUT));
 
     tf::StampedTransform stamped_tf;
     tf_listener.lookupTransform(final_frame, init_frame, tf_time, stamped_tf);
+    tf::Vector3 point_final_frame = stamped_tf*point_in;
 
-    tf::Vector3 point_init_frame(point_in.x, point_in.y, point_in.z);
-    tf::Vector3 point_final_frame = stamped_tf*point_init_frame;
+    ROS_DEBUG("TF %s to %s [%g,%g,%g]", init_frame.c_str(), final_frame.c_str(),
+              point_final_frame.x(), point_final_frame.y(), point_final_frame.z());
 
-    ROS_DEBUG("Transformed point [%g,%g,%g] in frame %s to [%g,%g,%g] in frame %s",
-              point_in.x, point_in.y, point_in.z, init_frame.c_str(),
-              point_final_frame.x(), point_final_frame.y(), point_final_frame.z(),
-              final_frame.c_str());
-
-    point_out = PointT((float) point_final_frame.x(), (float) point_final_frame.y(), (float) point_final_frame.z());
+    point_out = Point((float) point_final_frame.x(), (float) point_final_frame.y(), (float) point_final_frame.z());
   }
   catch (tf::TransformException ex)
   {
@@ -95,8 +89,8 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
   return true;
 }
 
-bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const PointCloudTPtr &cloud_in,
-                         const PointCloudTPtr &cloud_out, const uint64_t micro_sec_time,
+bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const PointCloudPtr &cloud_in,
+                         const PointCloudPtr &cloud_out, const uint64_t micro_sec_time,
                          tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
@@ -104,17 +98,12 @@ bool transformPointCloud(const std::string &init_frame, const std::string &final
 
   try
   {
-    ROS_DEBUG("Waiting for transform between %s and %s...", init_frame.c_str(), final_frame.c_str());
-    if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, ros::Duration(TF_TIMEOUT)))
-    {
-      ROS_ERROR("Couldn't obtain transform from %s to %s in %gs", init_frame.c_str(), final_frame.c_str(), TF_TIMEOUT);
-      return false;
-    }
+    if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, TF_DURATION))
+      throw tf::TransformException(str( format("Timeout [%gs]") % TF_TIMEOUT));
 
     pcl_ros::transformPointCloud(final_frame, tf_time, *cloud_in, init_frame, *cloud_out, tf_listener);
 
-    ROS_DEBUG("Transformed pointcloud of size %lu from frame %s to %s", cloud_out->size(), init_frame.c_str(),
-              final_frame.c_str());
+    ROS_DEBUG("Transform pointcloud [%lu] from %s to %s", cloud_out->size(), init_frame.c_str(), final_frame.c_str());
   }
   catch (tf::TransformException ex)
   {

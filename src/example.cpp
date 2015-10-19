@@ -93,24 +93,21 @@ int main(int argc, char **argv)
     ros::spinOnce();                // Handle ROS events
     segmentator.execute();        // Do Heavy processing
 
-    if (segmentator.cloud_cluster_vector_.size() == 0)
+    if (segmentator.clusters_vector_.size() == 0)
     {
-      //ROS_INFO("No clusters, continue searching");
       continue;
     }
 
-    std::cout << "Hay clusters!" << std::endl;
-    
     size_t selected_cluster_index;
     size_t max_size = 0;
 
-    for (size_t i = 0; i < segmentator.cloud_cluster_vector_.size(); i++)
+    for (size_t i = 0; i < segmentator.clusters_vector_.size(); i++)
     {
-      if (segmentator.cloud_cluster_vector_[i]->size() > max_size)
+      if (segmentator.clusters_vector_[i]->size() > max_size)
         selected_cluster_index = i;
     }
 
-    int cluster_size = segmentator.cloud_cluster_vector_[selected_cluster_index]->size();
+    int cluster_size = segmentator.clusters_vector_[selected_cluster_index]->size();
     ROS_INFO("Using cluster with %d points", cluster_size);
 
     //detector.detect(segmentator.getCluster(0), segmentator.getTable());

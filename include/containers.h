@@ -24,9 +24,9 @@ public:
   {
   }
 
-  void initialize(PointT min_pt, PointT max_pt, Eigen::Quaternionf rotation, Eigen::Vector3f translation,
-                    Eigen::Vector4f centroid, Eigen::Matrix3f eigen_vectors, Eigen::Vector3f mean_diag,
-                    double heigth_3D)
+  void initialize(Point min_pt, Point max_pt, Eigen::Quaternionf rotation, Eigen::Vector3f translation,
+                  Eigen::Vector4f centroid, Eigen::Matrix3f eigen_vectors, Eigen::Vector3f mean_diag,
+                  double heigth_3D)
   {
     min_pt_ = min_pt;
     max_pt_ = max_pt;
@@ -54,8 +54,8 @@ public:
     return max_pt_.z - min_pt_.z;
   }
 
-  PointT min_pt_;
-  PointT max_pt_;
+  Point min_pt_;
+  Point max_pt_;
   // rotation_ represents the eigen vectors as a rotation_ matrix
   Eigen::Quaternionf rotation_;
   Eigen::Vector3f translation_;
@@ -69,7 +69,7 @@ typedef boost::shared_ptr<BoundingBox> BoundingBoxPtr;
 
 struct RankedGrasps
 {
-  std::map<PointT, int> side_grasps, top_grasps;
+  std::map<Point, int> side_grasps, top_grasps;
 };
 
 } // namespace detection
