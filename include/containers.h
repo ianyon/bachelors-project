@@ -14,6 +14,17 @@
 
 namespace bachelors_final_project
 {
+
+struct VisualizerParams
+{
+  VisualizerParams(int normals_count_, float normals_size):
+      normals_count(normals_count_), normals_size(normals_size)
+  {}
+
+  int normals_count;
+  float normals_size;
+};
+
 namespace detection
 {
 

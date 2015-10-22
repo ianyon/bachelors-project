@@ -18,13 +18,6 @@ double durationMillis(clock_t &);
 
 void setProperties(const PointCloudPtr &coppied_cloud, PointCloudPtr &cloud_out, int width, int height);
 
-void pointCloudFromIndices(const PointCloudPtr &input, pcl::PointIndicesPtr &inliers, PointCloudPtr &output,
-                           bool extract_negative_set = false);
-
-void normalPointCloudFromIndices(const PointCloudNormalPtr &input, pcl::PointIndicesPtr &inliers,
-                                 PointCloudNormalPtr &output,
-                                 bool extract_negative_set = false);
-
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 

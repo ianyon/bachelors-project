@@ -6,6 +6,7 @@
 #define BACHELORS_FINAL_PROJECT_DETECTIONVISUALIZER_H
 
 #include "base_visualizer.h"
+#include "containers.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -24,21 +25,34 @@ class DetectionVisualizer
 {
 
 public:
-  DetectionVisualizer(detection::GraspPointDetector *);
+  DetectionVisualizer(detection::GraspPointDetector &);
 
-  void visualize();
+  void computeSpinOnce();
 
-  void configureDetectionViewer(pcl::visualization::PCLVisualizer&);
+  void configure();
 
-  void visualizeBoundingBox(pcl::visualization::PCLVisualizer&);
+  void visualizeBoundingBox();
 
 
-  void visualizeSampledGrasps(pcl::visualization::PCLVisualizer viewer);
+  void visualizeSampledGrasps();
 
-  void visualizePoint(pcl::PointXYZ point, int red, int green, int blue, std::string name,
-                      pcl::visualization::PCLVisualizer viewer);
+  void visualizeBox(const detection::BoundingBox &box, const std::string id,
+                    const Eigen::Vector3f &translation, const Eigen::Quaternionf &rotation);
 
-  detection::GraspPointDetector *detector_;
+  void visualizeBox(const detection::BoundingBox &box, const std::string id);
+
+  detection::GraspPointDetector &detector_;
+
+  static const std::string OBJ;
+  static const std::string ORIGIN_OBJ;
+  static const std::string BOUNDING_BOX;
+  static const std::string ORIGIN_BOUNDING_BOX;
+  static const std::string EIGEN_VECTOR1;
+  static const std::string EIGEN_VECTOR2;
+  static const std::string SUPPORT_PLANE;
+  static const std::string SIDE_GRASPS;
+  static const std::string TOP_GRASPS;
+  static const std::string CENTROID;
 };
 
 } // namespace visualization

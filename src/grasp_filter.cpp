@@ -145,7 +145,7 @@ moveit_msgs::AllowedCollisionMatrix detection::GraspFilter::getCollisionMatrix(m
   return currentACM;
 }
 
-void detection::GraspFilter::filterGraspingPoses(PointCloudTPtr side_grasps, PointCloudTPtr top_grasps)
+void detection::GraspFilter::filterGraspingPoses(PointCloudPtr side_grasps, PointCloudPtr top_grasps)
 {
   side_grasps_ = side_grasps;
   top_grasps_ = top_grasps;
@@ -165,12 +165,12 @@ void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup
 }
 
 
-PointCloudT detection::GraspFilter::processGraspSamples(PointCloudTPtr samples)
+PointCloudT detection::GraspFilter::processGraspSamples(PointCloudPtr samples)
 {
   // TODO select the group closer to the object
   PointCloudT feasible_grasps;
 
-  BOOST_FOREACH(PointT point, samples->points)
+  BOOST_FOREACH(Point point, samples->points)
   {
     if(processSample(point))
       feasible_grasps.push_back(point);
@@ -184,7 +184,7 @@ PointCloudT detection::GraspFilter::processGraspSamples(PointCloudTPtr samples)
   return feasible_grasps;
 }
 
-bool detection::GraspFilter::processSample(PointT &sample)
+bool detection::GraspFilter::processSample(Point &sample)
 {
   //TODO: Transform coordinates?
   // Define a goal pose
@@ -280,12 +280,12 @@ void detection::GraspFilter::addCollisionObject(BoundingBoxPtr &bounding_box)
   collision_obj_publisher.publish(co);
 }
 
-PointCloudTPtr detection::GraspFilter::getSideGrasps()
+PointCloudPtr detection::GraspFilter::getSideGrasps()
 {
   return feasible_side_grasps_;
 }
 
-PointCloudTPtr detection::GraspFilter::getTopGrasps()
+PointCloudPtr detection::GraspFilter::getTopGrasps()
 {
   return feasible_top_grasps_;
 }

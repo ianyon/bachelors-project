@@ -76,9 +76,9 @@ set(sources src/example.cpp
 
         src/grasp_sampler.cpp
         src/ellipse_operations.cpp
-        #src/grasp_filter.cpp
+        src/grasp_filter.cpp
 
-        src/viewer_spawner.cpp
+        src/visualization_thread.cpp
         src/base_visualizer.cpp
         src/segmentation_visualizer.cpp
 

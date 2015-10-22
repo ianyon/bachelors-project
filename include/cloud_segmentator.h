@@ -9,9 +9,14 @@
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl/PointIndices.h>
-
 #include <pcl/ModelCoefficients.h>
+#include <pcl/features/integral_image_normal.h>
+#include <pcl/surface/convex_hull.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_polygonal_prism_data.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/project_inliers.h>
 
 #include "definitions.h"
 #include <bachelors_final_project/ParametersConfig.h>
@@ -75,13 +80,19 @@ public:
   bool clusterObjects(const PointCloudPtr &cloud_in,
                       const pcl::PointIndicesPtr &indices);
 
-  PointCloudPtr getCluster(size_t index);
+  PointCloudPtr getCluster(unsigned long index);
 
   const pcl::ModelCoefficientsPtr getTable();
 
   void setPlaneAxis(pcl::SACSegmentationFromNormals<Point, Normal> &seg);
 
   bool clearSegmentation(FailedLevel failed_level);
+
+  void pointCloudFromIndices(const PointCloudPtr &input, pcl::PointIndicesPtr &inliers, PointCloudPtr &output);
+
+  void normalPointCloudFromIndices(const PointCloudNormalPtr &input, pcl::PointIndicesPtr &inliers,
+                                   PointCloudNormalPtr &output);
+
 
   bool point_clouds_updated_;
   bool plane_updated_;
@@ -98,8 +109,17 @@ public:
   PointCloudPtr cropped_cloud_base_frame;
   PointCloudPtr cloud_over_table_;
   pcl::PointIndicesPtr indices_over_table_;
-
   PointCloudNormalPtr cloud_normals_;
+
+  pcl::SACSegmentationFromNormals<Point, Normal> sac_segmentation_;
+  pcl::IntegralImageNormalEstimation<Point, Normal> normal_estimation_;
+  pcl::ExtractIndices<Point> extract_;
+  pcl::ExtractIndices<Normal> extract_normals_;
+  pcl::SACSegmentation<Point>::SearchPtr search_;
+  pcl::ProjectInliers<Point> project_inliers_;
+  pcl::ConvexHull<Point> convex_hull_;
+  pcl::ExtractPolygonalPrismData<Point> extract_prism_;
+  pcl::EuclideanClusterExtraction<Point> euclidean_clustering_;
 
   std::vector<PointCloudPtr> clusters_vector_;
 
@@ -107,11 +127,18 @@ public:
 
   ParametersConfig cfg;
 
+
   uint32_t last_seen_seq_;
 
   tf::TransformListener tf_listener_;
   Point plane_normal_base_frame_, plane_normal_kinect_frame_;
   Point normal_base_frame_reconstructed_;
+
+  bool processed_cloud_;
+
+  bool setProcessedCloud(bool state);
+
+  bool noNewProcessedData();
 };
 
 } // namespace segmentation

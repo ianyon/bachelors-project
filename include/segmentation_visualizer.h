@@ -6,7 +6,6 @@
 #include <ros/console.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include "base_visualizer.h"
-#include "definitions.h"
 
 
 namespace bachelors_final_project
@@ -23,38 +22,48 @@ namespace visualization
 class SegmentationVisualizer : public BaseVisualizer
 {
 public:
-  SegmentationVisualizer(segmentation::CloudSegmentator *);
+  SegmentationVisualizer(segmentation::CloudSegmentator &);
 
-  void visualize();
+  void computeSpinOnce();
 
-  void configureSegmentationViewer(pcl::visualization::PCLVisualizer&);
+  void configure();
 
-  void visualizeNormalsCloud(pcl::visualization::PCLVisualizer&, int);
+  void visualizeNormalsCloud(int viewport);
 
-  void visualizePlaneCloud(pcl::visualization::PCLVisualizer&, int);
+  void visualizePlaneCloud(int viewport);
 
-  void visualizeOverTableCloud(pcl::visualization::PCLVisualizer&, int);
+  void visualizeOverTableCloud(int viewport);
 
-  void visualizeClusters(pcl::visualization::PCLVisualizer&, int);
+  void visualizeClusters(int viewport);
 
   std::string generateName(unsigned long i);
 
-  bool visualizeCloud(const std::string &id, PointCloudPtr &cloud, int r, int g, int b,
-                      pcl::visualization::PCLVisualizer &viewer, int viewport);
-
-  bool visualizeLine(std::string id, Point &point, PointCloudPtr &cloud,
-                     pcl::visualization::PCLVisualizer &viewer, int viewport, Point *middle);
+  virtual void setParams(VisualizerParams &params);
 
   segmentation::CloudSegmentator & obj();
 
-  segmentation::CloudSegmentator *segmentator_;
+  segmentation::CloudSegmentator &segmentator_;
+
   int normals_count_;
 
   float normals_size_;
 
   int colors_[10][3];
 
+  int v1, v2;
+
   unsigned long last_max_clusters_;
+
+  static const std::string ORIGIN_CLOUD;
+  static const std::string PLANE_SHAPE;
+  static const std::string PLANE_NORMAL;
+  static const std::string ORIGIN_PLANE_NORMAL;
+  static const std::string ORIGIN_PLANE_NORMAL_RECONSTRUCTED;
+  static const std::string PLANE_CLOUD;
+  static const std::string NORMALS_CLOUD;
+  static const std::string CROPPED_CLOUD;
+  static const std::string CLOUD_OVER_TABLE;
+  static const std::string VIZUALIZER_NAME;
 };
 
 // Needed to initialize bidimensional array without C++11

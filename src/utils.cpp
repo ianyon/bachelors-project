@@ -1,6 +1,7 @@
 #include <pcl_ros/transforms.h>
 
 #include "utils.h"
+#include "cloud_segmentator.h"
 
 #include <pcl/filters/extract_indices.h>
 
@@ -13,8 +14,6 @@ namespace bachelors_final_project
 
 void publish(const ros::Publisher &pub, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud)
 {
-//  pcl::PCLPointCloud2 pointCloudMsg;
-//  pcl::toPCLPointCloud2(*cloud, pointCloudMsg);
   pub.publish(cloud);
 }
 
@@ -32,33 +31,6 @@ void setProperties(const PointCloudPtr &coppied_cloud, PointCloudPtr &cloud_out,
   cloud_out->sensor_origin_ = coppied_cloud->sensor_origin_;
   cloud_out->sensor_orientation_ = coppied_cloud->sensor_orientation_;
   cloud_out->header = coppied_cloud->header;
-}
-
-void pointCloudFromIndices(const PointCloudPtr &input, pcl::PointIndicesPtr &inliers, PointCloudPtr &output,
-                           bool extract_negative_set)
-{
-  // Create the filtering object
-  pcl::ExtractIndices<Point> extract;
-
-  // Extract the inliers
-  extract.setInputCloud(input);
-  extract.setIndices(inliers);
-  extract.setNegative(extract_negative_set);
-  extract.filter(*output);
-}
-
-void normalPointCloudFromIndices(const PointCloudNormalPtr &input, pcl::PointIndicesPtr &inliers,
-                                 PointCloudNormalPtr &output,
-                                 bool extract_negative_set)
-{
-  // Create the filtering object
-  pcl::ExtractIndices<Normal> extract;
-
-  // Extract the inliers
-  extract.setInputCloud(input);
-  extract.setIndices(inliers);
-  extract.setNegative(extract_negative_set);
-  extract.filter(*output);
 }
 
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,

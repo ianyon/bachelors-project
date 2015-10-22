@@ -58,7 +58,6 @@ class GraspFilter
   pcl::ModelCoefficientsPtr table_plane_;
 
 public:
-
   GraspFilter();
 
   void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, pcl::ModelCoefficientsPtr &table_plane_);
