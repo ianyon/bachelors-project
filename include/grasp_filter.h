@@ -41,9 +41,9 @@ class GraspFilter
 
   tf::StampedTransform stamped_transform;
   BoundingBoxPtr bounding_box_;
-  PointCloudPtr side_grasps_, top_grasps_;
+  CloudPtr side_grasps_, top_grasps_;
 
-  PointCloudPtr feasible_side_grasps_, feasible_top_grasps_;
+  CloudPtr feasible_side_grasps_, feasible_top_grasps_;
 
   typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
 
@@ -62,13 +62,13 @@ public:
 
   void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, pcl::ModelCoefficientsPtr &table_plane_);
 
-  void filterGraspingPoses(PointCloudPtr side_grasps, PointCloudPtr top_grasps);
+  void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
 
   void initializePublisher(ros::NodeHandle &handle);
 
   void visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan);
 
-  PointCloudT processGraspSamples(PointCloudPtr samples);
+  Cloud processGraspSamples(CloudPtr samples);
 
   bool processSample(Point &sample);
 
@@ -78,9 +78,9 @@ public:
 
   void updateAllowedCollisionMatrix();
 
-  PointCloudPtr getSideGrasps();
+  CloudPtr getSideGrasps();
 
-  PointCloudPtr getTopGrasps();
+  CloudPtr getTopGrasps();
 };
 
 } // namespace detection

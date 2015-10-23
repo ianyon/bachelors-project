@@ -78,13 +78,14 @@ set(sources src/example.cpp
         src/ellipse_operations.cpp
         src/grasp_filter.cpp
 
-        src/visualization_thread.cpp
-        src/base_visualizer.cpp
-        src/segmentation_visualizer.cpp
+        src/visualization/visualization_thread.cpp
+        src/visualization/base_visualizer.cpp
+        src/visualization/segmentation_visualizer.cpp
 
-        src/detection_visualizer.cpp
+        src/visualization/detection_visualizer.cpp
 
-        src/utils.cpp)
+        src/utils.cpp
+        src/bounding_box.cpp)
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 

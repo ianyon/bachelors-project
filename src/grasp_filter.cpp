@@ -22,6 +22,8 @@
 
 #include <boost/foreach.hpp>
 
+#include "bounding_box.h"
+
 using std::string;
 
 namespace bachelors_final_project
@@ -145,13 +147,13 @@ moveit_msgs::AllowedCollisionMatrix detection::GraspFilter::getCollisionMatrix(m
   return currentACM;
 }
 
-void detection::GraspFilter::filterGraspingPoses(PointCloudPtr side_grasps, PointCloudPtr top_grasps)
+void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps)
 {
   side_grasps_ = side_grasps;
   top_grasps_ = top_grasps;
 
-  feasible_side_grasps_.reset(new PointCloudT(processGraspSamples(side_grasps_)));
-  feasible_top_grasps_.reset(new PointCloudT(processGraspSamples(top_grasps_)));
+  feasible_side_grasps_.reset(new Cloud(processGraspSamples(side_grasps_)));
+  feasible_top_grasps_.reset(new Cloud(processGraspSamples(top_grasps_)));
 }
 
 void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan)
@@ -165,10 +167,10 @@ void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup
 }
 
 
-PointCloudT detection::GraspFilter::processGraspSamples(PointCloudPtr samples)
+Cloud detection::GraspFilter::processGraspSamples(CloudPtr samples)
 {
   // TODO select the group closer to the object
-  PointCloudT feasible_grasps;
+  Cloud feasible_grasps;
 
   BOOST_FOREACH(Point point, samples->points)
   {
@@ -232,9 +234,9 @@ void detection::GraspFilter::addSupportTable(pcl::ModelCoefficientsPtr &table_pl
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = bounding_box->mean_diag_[0];
-  box_pose.position.y = bounding_box->mean_diag_[1];
-  box_pose.position.z = bounding_box->mean_diag_[2];
+  box_pose.position.x = bounding_box->middle_point_[0];
+  box_pose.position.y = bounding_box->middle_point_[1];
+  box_pose.position.z = bounding_box->middle_point_[2];
   co.primitive_poses.push_back(box_pose);
 
   collision_obj_publisher.publish(co);
@@ -272,20 +274,20 @@ void detection::GraspFilter::addCollisionObject(BoundingBoxPtr &bounding_box)
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = bounding_box->mean_diag_[0];
-  box_pose.position.y = bounding_box->mean_diag_[1];
-  box_pose.position.z = bounding_box->mean_diag_[2];
+  box_pose.position.x = bounding_box->middle_point_[0];
+  box_pose.position.y = bounding_box->middle_point_[1];
+  box_pose.position.z = bounding_box->middle_point_[2];
   co.primitive_poses.push_back(box_pose);
 
   collision_obj_publisher.publish(co);
 }
 
-PointCloudPtr detection::GraspFilter::getSideGrasps()
+CloudPtr detection::GraspFilter::getSideGrasps()
 {
   return feasible_side_grasps_;
 }
 
-PointCloudPtr detection::GraspFilter::getTopGrasps()
+CloudPtr detection::GraspFilter::getTopGrasps()
 {
   return feasible_top_grasps_;
 }

@@ -20,7 +20,7 @@ detection::EllipseOperations::EllipseOperations()
 {
   number_of_points_ = 30;
   delta_theta = 0.001;
-  number_integrals = round(/*2.0 * M_PI*/ M_PI / delta_theta);
+  number_integrals = round(2.0 * M_PI / delta_theta);
 
   // Computation params
   nextPoint = 0;

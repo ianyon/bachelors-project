@@ -19,28 +19,31 @@ public:
 
   void sampleGraspingPoses(BoundingBoxPtr &);
 
-  void sampleSideGrasps(BoundingBoxPtr &, PointCloudPtr &);
+  void sampleSideGrasps(BoundingBoxPtr &, CloudPtr &);
 
-  void sampleTopGrasps(BoundingBoxPtr &, PointCloudPtr &);
+  void sampleTopGrasps(BoundingBoxPtr &, CloudPtr &);
 
-  void sampleAxis(PointCloudPtr &, Eigen::Affine3f &, float, float, float, int, double, bool);
+  void sampleAxis(CloudPtr &, Eigen::Affine3f &, float, float, float, int, double, bool);
 
   Eigen::Affine3f getTransform(const BoundingBoxPtr &bounding_box, bool side_grasp_transform) const;
 
-  const PointCloudPtr getSideGrasps() const
+  const CloudPtr getSideGrasps() const
   {
     return side_grasps_;
   }
 
-  const PointCloudPtr getTopGrasps() const
+  const CloudPtr getTopGrasps() const
   {
     return top_grasps_;
   }
 
 private:
-  PointCloudPtr side_grasps_, top_grasps_;
+  void numberOfSamples(const BoundingBoxPtr &bounding_box, int &minor_axis_samples, int &mayor_axis_samples);
+
+  CloudPtr side_grasps_, top_grasps_;
   double side_grasp_height_;
   EllipseOperations ellipse_ops_;
+
   int top_grasp_samples;
 };
 

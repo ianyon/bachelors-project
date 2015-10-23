@@ -27,7 +27,7 @@ void visualization::BaseVisualizer::configure()
   addCoordinateSystem(0.5);
 }
 
-bool visualization::BaseVisualizer::visualizeCloud(const std::string &id, PointCloudPtr &cloud, int r, int g,
+bool visualization::BaseVisualizer::visualizeCloud(const std::string &id, CloudPtr &cloud, int r, int g,
                                                    int b, int viewport)
 {
   if (cloud->size() == 0)
@@ -55,7 +55,7 @@ void visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point,
   addArrow(middle, translated_point, 1.0, 0.94901961, 0.8, id, viewport);
 }
 
-bool visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point, Point *middle, PointCloudPtr &cloud,
+bool visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point, Point *middle, CloudPtr &cloud,
                                                    int viewport)
 {
   if (cloud->size() == 0)
@@ -76,7 +76,7 @@ void visualization::BaseVisualizer::visualizePoint(pcl::PointXYZ point, int red,
                                                    int blue,
                                                    std::string name)
 {
-  PointCloudPtr cloud(new PointCloudT);
+  CloudPtr cloud(new Cloud);
   cloud->push_back(point);
 
   PointCloudColorHandlerCustom <Point> color(cloud, red, green, blue);

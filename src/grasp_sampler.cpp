@@ -3,14 +3,16 @@
 #include <pcl/common/transforms.h>
 #include <pcl/common/common.h>
 
+#include "bounding_box.h"
+
 using std::vector;
 
 namespace bachelors_final_project
 {
 detection::GraspSampler::GraspSampler()
 {
-  side_grasps_.reset(new PointCloudT);
-  top_grasps_.reset(new PointCloudT);
+  side_grasps_.reset(new Cloud);
+  top_grasps_.reset(new Cloud);
 
   // 2 cm
   side_grasp_height_ = 0.02;
@@ -26,11 +28,11 @@ void detection::GraspSampler::sampleGraspingPoses(BoundingBoxPtr &bounding_box)
   sampleTopGrasps(bounding_box, top_grasps_);
 }
 
-void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, PointCloudPtr &side_grasps)
+void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, CloudPtr &side_grasps)
 {
   // We'll sample the points in the origin and then translate and rotate them
-  double a = (bounding_box->max_pt_.z - bounding_box->min_pt_.z) / 2;
-  double b = (bounding_box->max_pt_.y - bounding_box->min_pt_.y) / 2;
+  double a = (bounding_box->max_point_centroid_.z - bounding_box->min_point_centroid_.z) / 2;
+  double b = (bounding_box->max_point_centroid_.y - bounding_box->min_point_centroid_.y) / 2;
   double height = side_grasp_height_;
 
   ellipse_ops_.setNumberOfPoints(50);
@@ -52,30 +54,39 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Poi
   }
 }
 
-void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, PointCloudPtr &top_grasps)
+void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, CloudPtr &top_grasps)
 {
   Eigen::Affine3f transform = getTransform(bounding_box, false);
 
-  // Compute the number of samples for each axis proportional to the relation of their lengths
-  double mayor_axis_size = bounding_box->max_pt_.z - bounding_box->min_pt_.z;
-  double minor_axis_size = bounding_box->max_pt_.y - bounding_box->min_pt_.y;
-  int minor_axis_samples = (int) floor(top_grasp_samples * minor_axis_size / (minor_axis_size + mayor_axis_size));
-  int mayor_axis_samples = (int) ceil(top_grasp_samples * mayor_axis_size / (minor_axis_size + mayor_axis_size));
+  int minor_axis_samples, mayor_axis_samples;
+  numberOfSamples(bounding_box, minor_axis_samples, mayor_axis_samples);
 
   // Grasping point at the center of the object's bounding box
   float height = (float) (bounding_box->heigth_3D_ / 2.0);
 
-  float minor_axis = bounding_box->mean_diag_[1];
-  float min_mayor_axis = bounding_box->min_pt_.z;
-  float max_mayor_axis = bounding_box->max_pt_.z;
+  float minor_axis = bounding_box->middle_point_[1];
+  float min_mayor_axis = bounding_box->min_point_centroid_.z;
+  float max_mayor_axis = bounding_box->max_point_centroid_.z;
   double mayor_axis_step = (max_mayor_axis - min_mayor_axis) / mayor_axis_samples;
   sampleAxis(top_grasps, transform, minor_axis, height, min_mayor_axis, mayor_axis_samples, mayor_axis_step, true);
 
-  float mayor_axis = bounding_box->mean_diag_[2];
-  float min_minor_axis = bounding_box->min_pt_.y;
-  float max_minor_axis = bounding_box->max_pt_.y;
+  float mayor_axis = bounding_box->middle_point_[2];
+  float min_minor_axis = bounding_box->min_point_centroid_.y;
+  float max_minor_axis = bounding_box->max_point_centroid_.y;
   double minor_axis_step = (max_minor_axis - min_minor_axis) / minor_axis_samples;
   sampleAxis(top_grasps, transform, mayor_axis, height, min_minor_axis, minor_axis_samples, minor_axis_step, false);
+}
+
+/**
+ * Compute the number of samples for each axis proportional to the relation of their lengths
+ */
+void detection::GraspSampler::numberOfSamples(const BoundingBoxPtr &bounding_box, int &minor_axis_samples,
+                                   int &mayor_axis_samples)
+{
+  double mayor_axis_size = bounding_box->max_point_centroid_.z - bounding_box->min_point_centroid_.z;
+  double minor_axis_size = bounding_box->max_point_centroid_.y - bounding_box->min_point_centroid_.y;
+  minor_axis_samples= (int) floor(top_grasp_samples * minor_axis_size / (minor_axis_size + mayor_axis_size));
+  mayor_axis_samples= (int) ceil(top_grasp_samples * mayor_axis_size / (minor_axis_size + mayor_axis_size));
 }
 
 Eigen::Affine3f detection::GraspSampler::getTransform(const BoundingBoxPtr &bounding_box,
@@ -84,14 +95,14 @@ Eigen::Affine3f detection::GraspSampler::getTransform(const BoundingBoxPtr &boun
   // The transformation from 0,0 to the objects coordinate system
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
   if (side_grasp_transform)
-    transform.translate(bounding_box->translation_);
+    transform.translate(bounding_box->obj_to_world_translation_);
   else
-    transform.translate(bounding_box->centroid_.head<3>());
+    transform.translate(bounding_box->world_coords_centroid_.head<3>());
   transform.rotate(bounding_box->eigen_vectors_);
   return transform;
 }
 
-void detection::GraspSampler::sampleAxis(PointCloudPtr &top_grasps, Eigen::Affine3f &transform, float fixed_axis,
+void detection::GraspSampler::sampleAxis(CloudPtr &top_grasps, Eigen::Affine3f &transform, float fixed_axis,
                                          float height, float min_axis, int n_samples, double step, bool is_mayor)
 {
   Point final_point, axis_sample;

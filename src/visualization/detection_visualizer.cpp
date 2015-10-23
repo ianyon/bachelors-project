@@ -3,11 +3,12 @@
 //
 
 #include "detection_visualizer.h"
+#include "grasp_point_detector.h"
 
 #include <string>
 #include <iostream>
 
-#include "grasp_point_detector.h"
+#include "bounding_box.h"
 
 using namespace pcl::visualization;
 using std::string;
@@ -69,12 +70,12 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
     visualizeBox(box, BOUNDING_BOX);
 
     Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-    //transform.translate(bounding_box.translation_);
-    transform.translate(box.translation_);
-    transform.rotate(box.eigen_vectors_);
+    //transform.translate(bounding_box.obj_to_world_translation_);
+    transform.translate(box.obj_to_world_translation_);
+    transform.rotate(box.obj_to_world_rotation_);//eigen_vectors_);
     addCoordinateSystem(0.25, transform);
 
-    visualizeBox(box, ORIGIN_BOUNDING_BOX, -0.5f * box.mean_diag_, Eigen::Quaternionf::Identity());
+    visualizeBox(box, ORIGIN_BOUNDING_BOX, -0.5f * box.middle_point_, Eigen::Quaternionf::Identity());
 
     Point origin(0.0, 0.0, 0.0);
     Point eigen1, eigen2;
@@ -90,7 +91,7 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
 
 void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingBox &box, const string id)
 {
-  visualizeBox(box, id, box.translation_, box.rotation_);
+  visualizeBox(box, id, box.obj_to_world_translation_, box.obj_to_world_rotation_);
 }
 
 
@@ -100,9 +101,9 @@ void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingB
 {
   removeShape(id);
   addCube(translation, rotation,
-          box.max_pt_.x - box.min_pt_.x,
-          box.max_pt_.y - box.min_pt_.y,
-          box.max_pt_.z - box.min_pt_.z,
+          box.max_point_centroid_.x - box.min_point_centroid_.x,
+          box.max_point_centroid_.y - box.min_point_centroid_.y,
+          box.max_point_centroid_.z - box.min_point_centroid_.z,
           id);
 }
 
@@ -111,14 +112,14 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps()
   if (detector_.draw_sampled_grasps_)
   {
     Point middle;
-    middle.getVector4fMap() = detector_.bounding_box_->centroid_;
+    middle.getVector4fMap() = detector_.bounding_box_->world_coords_centroid_;
 
     removeShape(SUPPORT_PLANE);
     addPlane(*(detector_.table_plane_), middle.x, middle.y, middle.z, SUPPORT_PLANE);
 
-    PointCloudPtr side_grasps = detector_.getSampledSideGrasps();
+    CloudPtr side_grasps = detector_.getSampledSideGrasps();
     visualizeCloud(SIDE_GRASPS, side_grasps, 255, 0, 0);
-    PointCloudPtr top_grasps = detector_.getSampledTopGrasps();
+    CloudPtr top_grasps = detector_.getSampledTopGrasps();
     visualizeCloud(TOP_GRASPS, top_grasps, 255, 0, 0);
     visualizePoint(middle, 0, 0, 255, CENTROID);
 

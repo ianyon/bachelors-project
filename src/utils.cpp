@@ -22,7 +22,7 @@ double durationMillis(clock_t &begin)
   return (double(clock() - begin) / CLOCKS_PER_SEC) * 1000;
 }
 
-void setProperties(const PointCloudPtr &coppied_cloud, PointCloudPtr &cloud_out, int width, int height)
+void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width, int height)
 {
   cloud_out->width = (uint32_t) width;
   cloud_out->height = (uint32_t) height;
@@ -41,11 +41,11 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
   try
   {
     if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, TF_DURATION))
-      throw tf::TransformException(str( format("Timeout [%gs]") % TF_TIMEOUT));
+      throw tf::TransformException(str(format("Timeout [%gs]") % TF_TIMEOUT));
 
     tf::StampedTransform stamped_tf;
     tf_listener.lookupTransform(final_frame, init_frame, tf_time, stamped_tf);
-    tf::Vector3 point_final_frame = stamped_tf*point_in;
+    tf::Vector3 point_final_frame = stamped_tf * point_in;
 
     ROS_DEBUG("TF %s to %s [%g,%g,%g]", init_frame.c_str(), final_frame.c_str(),
               point_final_frame.x(), point_final_frame.y(), point_final_frame.z());
@@ -61,8 +61,8 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
   return true;
 }
 
-bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const PointCloudPtr &cloud_in,
-                         const PointCloudPtr &cloud_out, const uint64_t micro_sec_time,
+bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const CloudPtr &cloud_in,
+                         const CloudPtr &cloud_out, const uint64_t micro_sec_time,
                          tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
@@ -71,7 +71,7 @@ bool transformPointCloud(const std::string &init_frame, const std::string &final
   try
   {
     if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, TF_DURATION))
-      throw tf::TransformException(str( format("Timeout [%gs]") % TF_TIMEOUT));
+      throw tf::TransformException(str(format("Timeout [%gs]") % TF_TIMEOUT));
 
     pcl_ros::transformPointCloud(final_frame, tf_time, *cloud_in, init_frame, *cloud_out, tf_listener);
 
@@ -84,6 +84,29 @@ bool transformPointCloud(const std::string &init_frame, const std::string &final
     return false;
   }
   return true;
+}
+
+void projectOnPlane(const CloudPtr &cloud, const pcl::ModelCoefficientsPtr &table,
+                    const pcl::PointIndices::Ptr &indices, CloudPtr &projected_cloud)
+{
+  pcl::ProjectInliers<Point> project_inliers = getProjector(cloud, table);
+  project_inliers.setIndices(indices);
+  project_inliers.filter(*projected_cloud);
+}
+
+void projectOnPlane(const CloudPtr &cloud, const pcl::ModelCoefficientsPtr &table, CloudPtr &projected_cloud)
+{
+  pcl::ProjectInliers<Point> project_inliers = getProjector(cloud, table);
+  project_inliers.filter(*projected_cloud);
+}
+
+pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud, const pcl::ModelCoefficientsPtr &table)
+{
+  pcl::ProjectInliers<Point> project_inliers;
+  project_inliers.setModelType(pcl::SACMODEL_PLANE);
+  project_inliers.setInputCloud(sensor_cloud);
+  project_inliers.setModelCoefficients(table);
+  return project_inliers;
 }
 
 } // namespace bachelors_final_project

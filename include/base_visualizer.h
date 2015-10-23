@@ -38,11 +38,11 @@ public:
   virtual void setParams(VisualizerParams &params)
   { }
 
-  bool visualizeCloud(const std::string &id, PointCloudPtr &cloud, int r, int g, int b, int viewport = 0);
+  bool visualizeCloud(const std::string &id, CloudPtr &cloud, int r, int g, int b, int viewport = 0);
 
   void visualizeArrow(std::string id, Point &point, Point &middle, int viewport = 0);
 
-  bool visualizeArrow(std::string id, Point &point, Point *middle, PointCloudPtr &cloud, int viewport = 0);
+  bool visualizeArrow(std::string id, Point &point, Point *middle, CloudPtr &cloud, int viewport = 0);
 
   void visualizePoint(pcl::PointXYZ point, int red, int green, int blue, std::string name);
 };

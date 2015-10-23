@@ -1,0 +1,12 @@
+<launch>
+  
+  <arg name="moveit_rviz" default="false" />
+  <arg     if="$(arg moveit_rviz)" name="command_args" default="-d $(find pr2_moveit_config)/launch/moveit.rviz" />
+  <arg unless="$(arg moveit_rviz)" name="command_args" default="-d $(find bachelors_final_project)/rviz/pr2_table.rviz" />
+    
+  <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false" args="$(arg command_args)" output="screen">
+    <!-- Don't know why needs these params. It specifies the kinematic solver and their params. -->
+    <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
+  </node>
+
+</launch>

@@ -22,12 +22,12 @@ enum FailedLevel { NORMALS, PLANE, OVER_TABLE, CLUSTERS };
 typedef pcl::PointXYZ Point;
 typedef pcl::Normal Normal;
 
-typedef pcl::PointCloud <pcl::PointXYZ> PointCloudT;
-typedef pcl::PointCloud <pcl::PointXYZ>::Ptr PointCloudPtr;
-typedef pcl::PointCloud <pcl::PointXYZ>::ConstPtr PointCloudConstPtr;
+typedef pcl::PointCloud <pcl::PointXYZ> Cloud;
+typedef pcl::PointCloud <pcl::PointXYZ>::Ptr CloudPtr;
+typedef pcl::PointCloud <pcl::PointXYZ>::ConstPtr CloudConstPtr;
 
-typedef pcl::PointCloud <pcl::Normal> PointCloudNormal;
-typedef pcl::PointCloud <pcl::Normal>::Ptr PointCloudNormalPtr;
+typedef pcl::PointCloud <pcl::Normal> CloudNormal;
+typedef pcl::PointCloud <pcl::Normal>::Ptr CloudNormalPtr;
 
 } // namespace bachelors_final_project
 

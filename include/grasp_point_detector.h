@@ -7,6 +7,7 @@
 
 #include "definitions.h"
 #include "containers.h"
+#include "bounding_box.h"
 #include "grasp_sampler.h"
 #include "grasp_filter.h"
 #include <bachelors_final_project/ParametersConfig.h>
@@ -19,18 +20,23 @@ namespace detection
 class GraspPointDetector
 {
 public:
-  //! Constructor.
   GraspPointDetector(ros::NodeHandle &handle);
+
   void updateConfig(bachelors_final_project::ParametersConfig &config);
 
   bool doProcessing();
 
-  void detect(const PointCloudPtr &cluster, const pcl::ModelCoefficientsPtr &table);
+  void detect(const CloudPtr &cluster, const pcl::ModelCoefficientsPtr &table);
 
-  void computeBoundingBox(PointCloudPtr &obj_cloud, BoundingBoxPtr&);
+  inline CloudPtr getSampledSideGrasps()
+  {
+    return sampler.getSideGrasps();
+  }
 
-  PointCloudPtr getSampledSideGrasps();
-  PointCloudPtr getSampledTopGrasps();
+  inline CloudPtr getSampledTopGrasps()
+  {
+    return sampler.getTopGrasps();
+  }
 
   bool draw_bounding_box_;
   bool draw_sampled_grasps_;
@@ -39,8 +45,10 @@ public:
 
   std::string kinect_frame_id_;
 
-  PointCloudPtr object_cloud_;
-  PointCloudPtr transformed_cloud_;
+  CloudPtr object_cloud_;
+
+  // Object in their own coordinates (centered in the centroid)
+  CloudPtr transformed_cloud_;
 
 
   RankedGrasps ranked_grasps;
@@ -52,7 +60,9 @@ public:
 
   bachelors_final_project::ParametersConfig cfg;
   pcl::ModelCoefficientsPtr table_plane_;
-  PointCloudPtr projected_object_;
+
+  // Planar projection of object in table
+  CloudPtr projected_object_;
 
 };
 

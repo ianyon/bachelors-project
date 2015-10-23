@@ -36,7 +36,7 @@ public:
 
   void visualizeClusters(int viewport);
 
-  std::string generateName(unsigned long i);
+  std::string generateName(size_t i);
 
   virtual void setParams(VisualizerParams &params);
 
@@ -52,7 +52,7 @@ public:
 
   int v1, v2;
 
-  unsigned long last_max_clusters_;
+  size_t last_max_clusters_;
 
   static const std::string ORIGIN_CLOUD;
   static const std::string PLANE_SHAPE;

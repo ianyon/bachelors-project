@@ -94,17 +94,10 @@ int main(int argc, char **argv)
 
     if (segmentator.noNewProcessedData()) continue;
 
-    size_t selected_cluster_index, max_size = 0;
-
-    for (size_t i = 0; i < segmentator.clusters_vector_.size(); i++)
-    {
-      if (segmentator.getCluster(i)->size() > max_size)
-        selected_cluster_index = i;
-    }
-
-    int cluster_size = segmentator.getCluster(selected_cluster_index)->size();
-    ROS_INFO("Using cluster with %d points", cluster_size);
-    detector.detect(segmentator.getCluster(0), segmentator.getTable());
+    std::sort (segmentator.getClusters().begin()+4, segmentator.getClusters().end(), cloudSize);
+    int cluster_index = segmentator.getClusters().size()>1?1:0;
+    ROS_INFO("Using cluster with %lu points", segmentator.getCluster(cluster_index)->size());
+    detector.detect(segmentator.getCluster(cluster_index), segmentator.getTable());
   }
 
   std_srvs::Empty srv2;

@@ -127,18 +127,18 @@ void visualization::SegmentationVisualizer::visualizeClusters(int viewport)
   // Check if cloud was updated
   if (obj().clusters_updated_)
   {
-    unsigned long size = obj().clusters_vector_.size();
+    size_t size = obj().clusters_vector_.size();
 
-    for (unsigned long i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
-      PointCloudPtr cluster = obj().getCluster(i);
-      unsigned long j = i % 10;
+      CloudPtr cluster = obj().getCluster(i);
+      size_t j = i % 10;
       // Visualize cluster i
       visualizeCloud(generateName(i), cluster, colors_[j][0], colors_[j][1], colors_[j][2], viewport);
     }
 
     // Check if there were more clusters than now and remove the older ones
-    for (unsigned long i = size; i < last_max_clusters_; i++)
+    for (size_t i = size; i < last_max_clusters_; i++)
       removePointCloud(generateName(i));
 
     last_max_clusters_ = size;
@@ -146,7 +146,7 @@ void visualization::SegmentationVisualizer::visualizeClusters(int viewport)
   }
 }
 
-std::string visualization::SegmentationVisualizer::generateName(unsigned long i)
+std::string visualization::SegmentationVisualizer::generateName(size_t i)
 {
   return boost::str(boost::format("cluster %lu") % i);
 }
