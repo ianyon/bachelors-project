@@ -14,8 +14,6 @@ detection::GraspSampler::GraspSampler()
   side_grasps_.reset(new Cloud);
   top_grasps_.reset(new Cloud);
 
-  // 2 cm
-  side_grasp_height_ = 0.02;
   top_grasp_samples = 50;
 }
 
@@ -33,7 +31,6 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Clo
   // We'll sample the points in the origin and then translate and rotate them
   double a = (bounding_box->max_pt_planar_centroid_.z - bounding_box->min_pt_planar_centroid_.z) / 2;
   double b = (bounding_box->max_pt_planar_centroid_.y - bounding_box->min_pt_planar_centroid_.y) / 2;
-  double height = side_grasp_height_;
 
   ellipse_ops_.setNumberOfPoints(50);
   ellipse_ops_.prepareComputation(a, b);
@@ -43,7 +40,7 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Clo
   while (ellipse_ops_.ellipsePointsLeft())
   {
     // Check if we found a next point
-    if (!ellipse_ops_.getNewEllipsePoint(-height, &ellipse_point))
+    if (!ellipse_ops_.getNewEllipsePoint(getSideGraspHeight(), &ellipse_point))
       break;
 
     // Now transform to the objects reference system
@@ -62,7 +59,7 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, Clou
   numberOfSamples(bounding_box, minor_axis_samples, mayor_axis_samples);
 
   // Grasping point at the center of the object's bounding box
-  float height = (float) (bounding_box->heigth_3D_ / 2.0);
+  float height = (float) getTopGraspHeight(bounding_box->heigth_3D_);
 
   float minor_axis = bounding_box->planar_shift_[1];
   float min_mayor_axis = bounding_box->min_pt_planar_centroid_.z;
@@ -108,7 +105,7 @@ void detection::GraspSampler::sampleAxis(CloudPtr &top_grasps, Eigen::Affine3f &
   Point final_point, axis_sample;
   for (int i = 0; i < n_samples; ++i)
   {
-    axis_sample.x = -height;
+    axis_sample.x = height;
 
     if (is_mayor)
     {
@@ -126,6 +123,15 @@ void detection::GraspSampler::sampleAxis(CloudPtr &top_grasps, Eigen::Affine3f &
     top_grasps->push_back(final_point);
     //top_grasps->push_back(axis_sample);
   }
+}
+
+double detection::GraspSampler::getSideGraspHeight()
+{
+    return -0.01;
+}
+double detection::GraspSampler::getTopGraspHeight(double obj_height)
+{
+    return -fmax(obj_height-0.03,obj_height/2);
 }
 
 }

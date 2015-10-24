@@ -14,19 +14,15 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle)
+detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle) :
+    grasp_filter_(handle),
+    bounding_box_(new BoundingBox),
+    world_obj_(new Cloud),
+    planar_obj_(new Cloud),
+    world_planar_obj_(new Cloud),
+    draw_bounding_box_(false),
+    draw_sampled_grasps_(false)
 {
-  bounding_box_.reset(new BoundingBox);
-  //grasp_filter_.initializePublisher(handle);
-
-  // Initialize pointers to point clouds
-  world_obj_.reset(new Cloud);
-  planar_obj_.reset(new Cloud);
-  world_planar_obj_.reset(new Cloud);
-
-  draw_bounding_box_ = false;
-  draw_sampled_grasps_ = false;
-
 }  // end GraspPointDetector()
 
 void detection::GraspPointDetector::updateConfig(ParametersConfig &config)
@@ -65,21 +61,19 @@ bool detection::GraspPointDetector::doProcessing()
   bounding_box_->build(world_planar_obj_, world_obj_);
   planar_obj_ = bounding_box_->getPlanarObj();
   draw_bounding_box_ = true;
-  bounding_box_lock.unlock();
 
-  boost::mutex::scoped_lock bounding_box_lock2(update_bounding_box_mutex_);
   // Find all the samples poses
   sampler.sampleGraspingPoses(bounding_box_);
   draw_sampled_grasps_ = true;
-  bounding_box_lock2.unlock();
+  bounding_box_lock.unlock();
   ROS_INFO("Grasping sampling  took %gms", durationMillis(begin));
 
   begin = clock();
   // Configure filter
-  //grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_plane_);
+  grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_plane_);
   // Remove infeasible ones
-  //grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
-  //ROS_INFO("Grasping filtering took %gms", durationMillis(begin));
+  grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
+  ROS_INFO("Grasping filtering took %gms", durationMillis(begin));
 
   return true;
 }

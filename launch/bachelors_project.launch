@@ -43,8 +43,8 @@
   <!--<param name="/move_group/max_range" value="2.5" />-->
   <include file="$(find pr2_moveit_config)/launch/move_group.launch"/>
   <!-- To improve performance -->
-  <rosparam param="/move_group/max_range">2.5</rosparam> <!-- Default 5.0 -->
-  <rosparam param="/move_group/octomap_resolution">0.035</rosparam> <!-- Default 0.025 -->
+  <rosparam param="/move_group/max_range">5.0</rosparam> <!-- Default 5.0 -->
+  <rosparam param="/move_group/octomap_resolution">0.025</rosparam> <!-- Default 0.025 -->
   <!-- Launches planning_context
        Load SRDF, Joint limits, kinematics
        Launches moveit_controller_manager = pr2 -->

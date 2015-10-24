@@ -28,7 +28,8 @@ namespace detection
 
 class GraspFilter
 {
-  moveit_msgs::AllowedCollisionMatrix getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv);
+  moveit_msgs::AllowedCollisionMatrix getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv,
+                                                           bool after);
   ros::Publisher display_publisher;
   ros::Publisher collision_obj_publisher;
   ros::Publisher attached_obj_publisher;
@@ -58,7 +59,7 @@ class GraspFilter
   pcl::ModelCoefficientsPtr table_plane_;
 
 public:
-  GraspFilter();
+  GraspFilter(ros::NodeHandle &handle);
 
   void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, pcl::ModelCoefficientsPtr &table_plane_);
 

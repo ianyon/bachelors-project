@@ -21,6 +21,7 @@ namespace visualization
 class VisualizationThread
 {
 public:
+  VisualizationThread();
 
   void visualizationLoop();
 
@@ -33,6 +34,9 @@ public:
   void start();
 
   std::vector<BaseVisualizerPtr> visualizers;
+  segmentation::CloudSegmentator *segmentator_;
+  detection::GraspPointDetector *detector_;
+  bool create_segmentation, create_detection;
 };
 
 } // namespace visualization

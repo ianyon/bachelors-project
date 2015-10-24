@@ -22,7 +22,9 @@ const std::string visualization::SegmentationVisualizer::CLOUD_OVER_TABLE = "Ove
 visualization::SegmentationVisualizer::SegmentationVisualizer(segmentation::CloudSegmentator &segmentator) :
     BaseVisualizer("Segmentation visualizer"),
     segmentator_(segmentator),
-    v1(0), v2(0)
+    v1(0), v2(0),
+    normals_count_(100),
+    normals_size_(2.0)
 {
   const int colors[10][3] = {{170, 57,  57},
                              {170, 96,  57},

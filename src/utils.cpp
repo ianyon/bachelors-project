@@ -1,3 +1,4 @@
+#include <iostream>
 #include "detection_visualizer.h"
 #include <pcl_ros/transforms.h>
 
@@ -11,6 +12,9 @@ using boost::format;
 
 namespace bachelors_final_project
 {
+int getNBiggerIndex(size_t size, int n)
+{ return  size > n-1? n-1 : size-1; }
+
 
 void publish(const ros::Publisher &pub, const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud)
 {

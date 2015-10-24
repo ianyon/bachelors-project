@@ -54,7 +54,7 @@ public:
   RankedGrasps ranked_grasps;
 
   GraspSampler sampler;
-  //GraspFilter grasp_filter_;
+  GraspFilter grasp_filter_;
 
   BoundingBoxPtr bounding_box_;
 

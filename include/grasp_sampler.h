@@ -25,6 +25,9 @@ public:
 
   void sampleAxis(CloudPtr &, Eigen::Affine3f &, float, float, float, int, double, bool);
 
+  double getSideGraspHeight();
+  double getTopGraspHeight(double obj_height);
+
   Eigen::Affine3f getTransform(const BoundingBoxPtr &bounding_box, bool side_grasp_transform) const;
 
   const CloudPtr getSideGrasps() const
@@ -41,7 +44,6 @@ private:
   void numberOfSamples(const BoundingBoxPtr &bounding_box, int &minor_axis_samples, int &mayor_axis_samples);
 
   CloudPtr side_grasps_, top_grasps_;
-  double side_grasp_height_;
   EllipseOperations ellipse_ops_;
 
   int top_grasp_samples;

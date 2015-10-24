@@ -17,18 +17,30 @@ using std::string;
 namespace bachelors_final_project
 {
 
+visualization::VisualizationThread::VisualizationThread():
+    create_segmentation(false),
+  create_detection(false)
+{}
+
 void visualization::VisualizationThread::addSegmentationVisualizer(segmentation::CloudSegmentator &segmentator)
 {
-  visualizers.push_back(BaseVisualizerPtr(new SegmentationVisualizer(segmentator)));
+  create_segmentation=true;
+  segmentator_ = &segmentator;
 }
 
 void visualization::VisualizationThread::addDetectionVisualizer(detection::GraspPointDetector &detector)
 {
-  visualizers.push_back(BaseVisualizerPtr(new DetectionVisualizer(detector)));
+  create_detection=true;
+  detector_ = &detector;
 }
 
 void visualization::VisualizationThread::visualizationLoop()
 {
+  if (create_segmentation)
+    visualizers.push_back(BaseVisualizerPtr(new SegmentationVisualizer(*segmentator_)));
+  if (create_detection)
+    visualizers.push_back(BaseVisualizerPtr(new DetectionVisualizer(*detector_)));
+
   ROS_INFO("Initiated visualization thread!");
   while (ros::ok() && visualizers.size() > 0)
   {

@@ -17,7 +17,7 @@
 
 namespace bachelors_final_project
 {
-
+int cluster_selector = 2;
 void parameterCallback(ParametersConfig &cfg, uint32_t level,
                        segmentation::CloudSegmentator *data_handler,
                        visualization::VisualizationThread *viz_thread)
@@ -32,6 +32,8 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
 
   // Visualizer
   viz_thread->setParams(cfg.normalsCountParam, (float) cfg.normalsSizeParam);
+
+  cluster_selector = cfg.clusterSelector;
 
   ROS_WARN("Done Reconfigure Request");
 }
@@ -94,8 +96,8 @@ int main(int argc, char **argv)
 
     if (segmentator.noNewProcessedData()) continue;
 
-    std::sort (segmentator.getClusters().begin()+4, segmentator.getClusters().end(), cloudSize);
-    int cluster_index = segmentator.getClusters().size()>1?1:0;
+    std::sort(segmentator.getClusters().begin(), segmentator.getClusters().end(), cloudSizeComparator);
+    int cluster_index = getNBiggerIndex(segmentator.getClusters().size(), cluster_selector);
     ROS_INFO("Using cluster with %lu points", segmentator.getCluster(cluster_index)->size());
     detector.detect(segmentator.getCluster(cluster_index), segmentator.getTable());
   }

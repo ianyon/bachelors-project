@@ -36,9 +36,10 @@ public:
 
   Eigen::Affine3f getWorldToObjectCentroidTransform();
 
+  Eigen::Vector3f worldCoordsBoundingBoxPose();
   inline double getXLength()
   {
-    return max_pt_planar_centroid_.x - min_pt_planar_centroid_.x;
+    return heigth_3D_;
   }
 
   inline double getYLength()
@@ -51,6 +52,21 @@ public:
     return max_pt_planar_centroid_.z - min_pt_planar_centroid_.z;
   }
 
+  inline double getXLengthWorldCoords()
+  {
+    return max_pt_planar_centroid_.z - min_pt_planar_centroid_.z;
+  }
+
+  inline double getYLengthWorldCoords()
+  {
+    return max_pt_planar_centroid_.y - min_pt_planar_centroid_.y;
+  }
+
+  inline double getZLengthWorldCoords()
+  {
+    return heigth_3D_;
+  }
+
   // Minimum and máximum bounding box points
   Point min_pt_planar_centroid_, max_pt_planar_centroid_;
   // obj_to_world_rotation_ represents the eigen vectors as a rotation matrix
@@ -59,8 +75,8 @@ public:
   Eigen::Vector4f world_coords_planar_centroid_;
   Eigen::Matrix3f eigen_vectors_;
   Eigen::Vector3f planar_shift_;
+  Eigen::Vector3f world_coords_3D_pose;
   double heigth_3D_;
-
   CloudPtr planar_obj;
 
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver;

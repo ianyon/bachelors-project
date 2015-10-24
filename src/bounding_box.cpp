@@ -46,6 +46,13 @@ void detection::BoundingBox::build(CloudPtr &world_coords_planar_obj, CloudPtr &
   obj_to_world_translation_ = eigen_vectors_ * planar_shift_ + world_coords_planar_centroid_.head<3>();
 
   computeHeight(world_coords_obj);
+
+  world_coords_3D_pose = obj_to_world_translation_ + eigen_vectors_ * Eigen::Vector3f(heigth_3D_ / 2, 0, 0);
+}
+
+Eigen::Vector3f detection::BoundingBox::worldCoordsBoundingBoxPose()
+{
+  return world_coords_3D_pose;
 }
 
 /**
@@ -100,11 +107,10 @@ Eigen::Vector3f detection::BoundingBox::getBoundingBoxOriginToCentroid()
 
 void detection::BoundingBox::computeHeight(CloudPtr &world_coords_obj)
 {
-  Eigen::Affine3f transform = getWorldToObjectCentroidTransform();
   CloudPtr obj3D(new Cloud);
-  pcl::transformPointCloud(*world_coords_obj, *obj3D, transform);
+  pcl::transformPointCloud(*world_coords_obj, *obj3D, getWorldToObjectCentroidTransform());
   Point min_3d_point, max_3d_point;
-  getMinMax3D(*world_coords_obj, min_3d_point, max_3d_point);
-  heigth_3D_ = (max_3d_point.x - min_3d_point.x) / 2.0;
+  getMinMax3D(*obj3D, min_3d_point, max_3d_point);
+  heigth_3D_ = fabs(max_3d_point.x - min_3d_point.x);
 }
 } // namespace bachelors_final_project

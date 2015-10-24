@@ -37,6 +37,7 @@ public:
 
 
   void visualizeSampledGrasps();
+  detection::GraspPointDetector& obj();
 
   void visualizeBox(const detection::BoundingBox &box, const std::string id,
                     const Eigen::Vector3f &translation=Eigen::Vector3f(0,0,0),

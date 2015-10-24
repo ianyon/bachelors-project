@@ -5,10 +5,6 @@
 #include "detection_visualizer.h"
 #include "grasp_point_detector.h"
 
-#include <string>
-#include <iostream>
-
-#include "bounding_box.h"
 #include "utils.h"
 
 using namespace pcl::visualization;
@@ -39,32 +35,37 @@ visualization::DetectionVisualizer::DetectionVisualizer(detection::GraspPointDet
 void visualization::DetectionVisualizer::configure()
 {
   BaseVisualizer::configure();
-  std::cout << "Init detection visualize!" << std::endl;
+  setCameraPosition(0.414395, -0.134601, 0.669816, 0.190149, 0.0424081, 1.09322, -0.13325, -0.93753, 0.321374);
+  setCameraFieldOfView(0.8575);
+  setCameraClipDistances(0.0067374, 6.7374);
+  setPosition(637, 145);
+  setSize(727, 619);
+  ROS_INFO("Initiated detection visualizer!");
 }
 
 void visualization::DetectionVisualizer::computeSpinOnce()
 {
   spinOnce(100);
-  boost::mutex::scoped_lock bounding_box_lock(detector_.update_bounding_box_mutex_);
+  boost::mutex::scoped_lock bounding_box_lock(obj().update_bounding_box_mutex_);
   visualizeBoundingBox();
-  bounding_box_lock.unlock();
-  boost::mutex::scoped_lock bounding_box_lock2(detector_.update_bounding_box_mutex_);
   visualizeSampledGrasps();
-  bounding_box_lock2.unlock();
+  bounding_box_lock.unlock();
 }
 
 void visualization::DetectionVisualizer::visualizeBoundingBox()
 {
-  if (detector_.draw_bounding_box_)
+  if (obj().draw_bounding_box_)
   {
-    detection::BoundingBox box = *(detector_.bounding_box_);
+    detection::BoundingBox box = *(obj().bounding_box_);
 
     // Draw world coordinate system
+    removeCoordinateSystem();
+    addCoordinateSystem(0.5);
     addCoordinateSystem(0.25, box.getObjectToWorldTransform());
 
-    visualizeCloud(WORLD_OBJ, detector_.world_obj_, 180, 180, 180);
-    visualizeCloud(OBJ, detector_.planar_obj_, 120, 120, 120);
-    visualizeCloud(WORLD_PLANAR_OBJ, detector_.world_planar_obj_, 180, 180, 180);
+    visualizeCloud(WORLD_OBJ, obj().world_obj_, 180, 180, 180);
+    visualizeCloud(OBJ, obj().planar_obj_, 120, 120, 120);
+    visualizeCloud(WORLD_PLANAR_OBJ, obj().world_planar_obj_, 180, 180, 180);
 
     // Draw the box in world coords
     visualizeBox(box, WORLD_BOUNDING_BOX, box.obj_to_world_translation_, box.obj_to_world_rotation_);
@@ -73,7 +74,7 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
 
     //showEigenVectors(box);
 
-    detector_.draw_bounding_box_ = false;
+    obj().draw_bounding_box_ = false;
   }
 }
 
@@ -103,22 +104,27 @@ void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingB
 
 void visualization::DetectionVisualizer::visualizeSampledGrasps()
 {
-  if (detector_.draw_sampled_grasps_)
+  if (obj().draw_sampled_grasps_)
   {
     Point middle;
-    middle.getVector4fMap() = detector_.bounding_box_->world_coords_planar_centroid_;
+    middle.getVector4fMap() = obj().bounding_box_->world_coords_planar_centroid_;
 
     removeShape(SUPPORT_PLANE);
-    addPlane(*(detector_.table_plane_), middle.x, middle.y, middle.z, SUPPORT_PLANE);
+    addPlane(*(obj().table_plane_), middle.x, middle.y, middle.z, SUPPORT_PLANE);
 
-    CloudPtr side_grasps = detector_.getSampledSideGrasps();
+    CloudPtr side_grasps = obj().getSampledSideGrasps();
     visualizeCloud(SIDE_GRASPS, side_grasps, 255, 0, 0);
-    CloudPtr top_grasps = detector_.getSampledTopGrasps();
+    CloudPtr top_grasps = obj().getSampledTopGrasps();
     visualizeCloud(TOP_GRASPS, top_grasps, 255, 0, 0);
     visualizePoint(middle, 0, 0, 255, CENTROID);
 
-    detector_.draw_sampled_grasps_ = false;
+    obj().draw_sampled_grasps_ = false;
   }
+}
+
+detection::GraspPointDetector& visualization::DetectionVisualizer::obj()
+{
+  return detector_;
 }
 
 } // namespace bachelors_final_project

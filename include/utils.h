@@ -11,8 +11,10 @@
 namespace bachelors_final_project
 {
 
-bool cloudSize(CloudPtr i, CloudPtr j)
-{ return (i->size() < j->size()); }
+bool cloudSizeComparator(CloudPtr i, CloudPtr j)
+{ return (i->size() > j->size()); }
+
+int getNBiggerIndex(size_t size, int n);
 
 //! Publish the message.
 void publish(const ros::Publisher &, const CloudPtr &);
