@@ -234,9 +234,9 @@ void detection::GraspFilter::addSupportTable(pcl::ModelCoefficientsPtr &table_pl
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = bounding_box->middle_point_[0];
-  box_pose.position.y = bounding_box->middle_point_[1];
-  box_pose.position.z = bounding_box->middle_point_[2];
+  box_pose.position.x = bounding_box->planar_shift_[0];
+  box_pose.position.y = bounding_box->planar_shift_[1];
+  box_pose.position.z = bounding_box->planar_shift_[2];
   co.primitive_poses.push_back(box_pose);
 
   collision_obj_publisher.publish(co);
@@ -274,9 +274,9 @@ void detection::GraspFilter::addCollisionObject(BoundingBoxPtr &bounding_box)
   /* A pose for the box (specified relative to frame_id) */
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = bounding_box->middle_point_[0];
-  box_pose.position.y = bounding_box->middle_point_[1];
-  box_pose.position.z = bounding_box->middle_point_[2];
+  box_pose.position.x = bounding_box->planar_shift_[0];
+  box_pose.position.y = bounding_box->planar_shift_[1];
+  box_pose.position.z = bounding_box->planar_shift_[2];
   co.primitive_poses.push_back(box_pose);
 
   collision_obj_publisher.publish(co);

@@ -36,6 +36,10 @@ void projectOnPlane(const CloudPtr &cloud, const pcl::ModelCoefficientsPtr &tabl
 
 pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud,
                                         const pcl::ModelCoefficientsPtr &table);
+
+Point fourToPoint(Eigen::Vector4f &vector);
+Point threeToPoint(Eigen::Vector3f &vector);
+
 } // namespace bachelors_final_project
 
 #endif // UTILS

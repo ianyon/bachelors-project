@@ -45,10 +45,10 @@ public:
 
   std::string kinect_frame_id_;
 
-  CloudPtr object_cloud_;
+  CloudPtr world_obj_;
 
   // Object in their own coordinates (centered in the centroid)
-  CloudPtr transformed_cloud_;
+  CloudPtr planar_obj_;
 
 
   RankedGrasps ranked_grasps;
@@ -62,7 +62,7 @@ public:
   pcl::ModelCoefficientsPtr table_plane_;
 
   // Planar projection of object in table
-  CloudPtr projected_object_;
+  CloudPtr world_planar_obj_;
 
 };
 

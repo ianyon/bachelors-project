@@ -84,10 +84,10 @@ void visualization::SegmentationVisualizer::visualizeNormalsCloud(int viewport)
     {
       visualizeCloud(ORIGIN_CLOUD, obj().cropped_cloud_base_frame, 255, 255, 0, viewport);
       Point empty;
-      visualizeArrow(ORIGIN_PLANE_NORMAL, obj().plane_normal_base_frame_, &empty,
-                     obj().cropped_cloud_base_frame, viewport);
-      visualizeArrow(ORIGIN_PLANE_NORMAL_RECONSTRUCTED, obj().normal_base_frame_reconstructed_, &empty,
-                     obj().cropped_cloud_base_frame, viewport);
+      visualizeArrowFromCloudCentroid(ORIGIN_PLANE_NORMAL, obj().plane_normal_base_frame_, &empty,
+                                      obj().cropped_cloud_base_frame, viewport);
+      visualizeArrowFromCloudCentroid(ORIGIN_PLANE_NORMAL_RECONSTRUCTED, obj().normal_base_frame_reconstructed_, &empty,
+                                      obj().cropped_cloud_base_frame, viewport);
     }
 
     obj().point_clouds_updated_ = false;
@@ -105,8 +105,8 @@ void visualization::SegmentationVisualizer::visualizePlaneCloud(int viewport)
     if (visualizeCloud(PLANE_CLOUD, obj().plane_cloud_, 0, 255, 0, viewport))
     {
       Point middle;
-      if (visualizeArrow(PLANE_NORMAL, obj().plane_normal_kinect_frame_, &middle,
-                         obj().plane_cloud_, viewport))
+      if (visualizeArrowFromCloudCentroid(PLANE_NORMAL, obj().plane_normal_kinect_frame_, &middle,
+                                          obj().plane_cloud_, viewport))
         addPlane(*(obj().table_coefficients_), middle.x, middle.y, middle.z, PLANE_SHAPE, viewport);
     }
     obj().plane_updated_ = false;
