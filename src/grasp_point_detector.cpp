@@ -20,9 +20,9 @@ detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle)
   //grasp_filter_.initializePublisher(handle);
 
   // Initialize pointers to point clouds
-  object_cloud_.reset(new Cloud);
-  transformed_cloud_.reset(new Cloud);
-  projected_object_.reset(new Cloud);
+  world_obj_.reset(new Cloud);
+  planar_obj_.reset(new Cloud);
+  world_planar_obj_.reset(new Cloud);
 
   draw_bounding_box_ = false;
   draw_sampled_grasps_ = false;
@@ -41,10 +41,10 @@ void detection::GraspPointDetector::detect(const CloudPtr &input_object, const p
   // If no cloud or no new images since last time, do nothing.
   if (input_object->size() == 0) return;
 
-  object_cloud_ = input_object->makeShared();
+  world_obj_ = input_object->makeShared();
   table_plane_ = boost::make_shared<ModelCoefficients>(*table_plane);
 
-  kinect_frame_id_ = object_cloud_->header.frame_id;
+  kinect_frame_id_ = world_obj_->header.frame_id;
 
   // Check if computation succeeded
   if (doProcessing())
@@ -56,19 +56,22 @@ bool detection::GraspPointDetector::doProcessing()
   ROS_INFO_ONCE("'Do Processing' called!");
 
   // Project to table to obtain object projection
-  projectOnPlane(object_cloud_, table_plane_, projected_object_);
-  // projected_object_ lies in plane YZ with a = blue (z) - b = green (y)
+  projectOnPlane(world_obj_, table_plane_, world_planar_obj_);
+  // world_planar_obj_ lies in plane YZ with a = blue (z) - b = green (y)
 
   clock_t begin = clock();
   boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
   bounding_box_ = BoundingBoxPtr(new BoundingBox());
-  bounding_box_->build(projected_object_, object_cloud_, transformed_cloud_);
+  bounding_box_->build(world_planar_obj_, world_obj_);
+  planar_obj_ = bounding_box_->getPlanarObj();
   draw_bounding_box_ = true;
+  bounding_box_lock.unlock();
 
+  boost::mutex::scoped_lock bounding_box_lock2(update_bounding_box_mutex_);
   // Find all the samples poses
   sampler.sampleGraspingPoses(bounding_box_);
   draw_sampled_grasps_ = true;
-  bounding_box_lock.unlock();
+  bounding_box_lock2.unlock();
   ROS_INFO("Grasping sampling  took %gms", durationMillis(begin));
 
   begin = clock();

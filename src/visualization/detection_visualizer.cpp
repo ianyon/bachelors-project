@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "bounding_box.h"
+#include "utils.h"
 
 using namespace pcl::visualization;
 using std::string;
@@ -16,24 +17,16 @@ using std::string;
 namespace bachelors_final_project
 {
 
-const std::string visualization::DetectionVisualizer::OBJ = "object";
-
-const std::string visualization::DetectionVisualizer::ORIGIN_OBJ = "transformed_object";
-
-const std::string visualization::DetectionVisualizer::BOUNDING_BOX = "bounding box";
-
-const std::string visualization::DetectionVisualizer::ORIGIN_BOUNDING_BOX = "transformed bounding box";
-
+const std::string visualization::DetectionVisualizer::WORLD_OBJ = "object";
+const std::string visualization::DetectionVisualizer::WORLD_PLANAR_OBJ = "world planar object";
+const std::string visualization::DetectionVisualizer::OBJ = "transformed_object";
+const std::string visualization::DetectionVisualizer::WORLD_BOUNDING_BOX = "bounding box";
+const std::string visualization::DetectionVisualizer::BOUNDING_BOX = "transformed bounding box";
 const std::string visualization::DetectionVisualizer::EIGEN_VECTOR1 = "eigen1";
-
 const std::string visualization::DetectionVisualizer::EIGEN_VECTOR2 = "eigen2";
-
 const std::string visualization::DetectionVisualizer::SUPPORT_PLANE = "real plane";
-
 const std::string visualization::DetectionVisualizer::SIDE_GRASPS = "sampled side cloud";
-
 const std::string visualization::DetectionVisualizer::TOP_GRASPS = "sampled top cloud";
-
 const std::string visualization::DetectionVisualizer::CENTROID = "centroid";
 
 visualization::DetectionVisualizer::DetectionVisualizer(detection::GraspPointDetector &detector) :
@@ -54,56 +47,57 @@ void visualization::DetectionVisualizer::computeSpinOnce()
   spinOnce(100);
   boost::mutex::scoped_lock bounding_box_lock(detector_.update_bounding_box_mutex_);
   visualizeBoundingBox();
-  visualizeSampledGrasps();
   bounding_box_lock.unlock();
+  boost::mutex::scoped_lock bounding_box_lock2(detector_.update_bounding_box_mutex_);
+  visualizeSampledGrasps();
+  bounding_box_lock2.unlock();
 }
 
 void visualization::DetectionVisualizer::visualizeBoundingBox()
 {
   if (detector_.draw_bounding_box_)
   {
-    visualizeCloud(OBJ, detector_.object_cloud_, 180, 180, 180);
-    visualizeCloud(ORIGIN_OBJ, detector_.transformed_cloud_, 120, 120, 120);
-
-    // Draw the box
     detection::BoundingBox box = *(detector_.bounding_box_);
+
+    // Draw world coordinate system
+    addCoordinateSystem(0.25, box.getObjectToWorldTransform());
+
+    visualizeCloud(WORLD_OBJ, detector_.world_obj_, 180, 180, 180);
+    visualizeCloud(OBJ, detector_.planar_obj_, 120, 120, 120);
+    visualizeCloud(WORLD_PLANAR_OBJ, detector_.world_planar_obj_, 180, 180, 180);
+
+    // Draw the box in world coords
+    visualizeBox(box, WORLD_BOUNDING_BOX, box.obj_to_world_translation_, box.obj_to_world_rotation_);
+    // Draw the box in the origin (obj coords)
     visualizeBox(box, BOUNDING_BOX);
 
-    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-    //transform.translate(bounding_box.obj_to_world_translation_);
-    transform.translate(box.obj_to_world_translation_);
-    transform.rotate(box.obj_to_world_rotation_);//eigen_vectors_);
-    addCoordinateSystem(0.25, transform);
-
-    visualizeBox(box, ORIGIN_BOUNDING_BOX, -0.5f * box.middle_point_, Eigen::Quaternionf::Identity());
-
-    Point origin(0.0, 0.0, 0.0);
-    Point eigen1, eigen2;
-    eigen1.getVector3fMap() = box.eigen_vectors_.col(0);
-    eigen2.getVector3fMap() = box.eigen_vectors_.col(1);
-
-    visualizeArrow(EIGEN_VECTOR1, origin, eigen1);
-    visualizeArrow(EIGEN_VECTOR2, origin, eigen2);
+    //showEigenVectors(box);
 
     detector_.draw_bounding_box_ = false;
   }
 }
 
-void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingBox &box, const string id)
+void visualization::DetectionVisualizer::showEigenVectors(const detection::BoundingBox &box)
 {
-  visualizeBox(box, id, box.obj_to_world_translation_, box.obj_to_world_rotation_);
+  bachelors_final_project::Point eigen1, eigen2;
+  eigen1.getVector3fMap() = box.eigen_vectors_.col(0);
+  eigen2.getVector3fMap() = box.eigen_vectors_.col(1);
+  visualizeArrow(bachelors_final_project::visualization::DetectionVisualizer::EIGEN_VECTOR1, eigen1);
+  visualizeArrow(bachelors_final_project::visualization::DetectionVisualizer::EIGEN_VECTOR2, eigen2);
 }
 
-
+/**
+ * Draw a bounding box centered at (0,0,0) and translate and rotate it accordingly
+ */
 void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingBox &box, const string id,
                                                       const Eigen::Vector3f &translation,
                                                       const Eigen::Quaternionf &rotation)
 {
   removeShape(id);
   addCube(translation, rotation,
-          box.max_point_centroid_.x - box.min_point_centroid_.x,
-          box.max_point_centroid_.y - box.min_point_centroid_.y,
-          box.max_point_centroid_.z - box.min_point_centroid_.z,
+          box.max_pt_planar_centroid_.x - box.min_pt_planar_centroid_.x,
+          box.max_pt_planar_centroid_.y - box.min_pt_planar_centroid_.y,
+          box.max_pt_planar_centroid_.z - box.min_pt_planar_centroid_.z,
           id);
 }
 
@@ -112,7 +106,7 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps()
   if (detector_.draw_sampled_grasps_)
   {
     Point middle;
-    middle.getVector4fMap() = detector_.bounding_box_->world_coords_centroid_;
+    middle.getVector4fMap() = detector_.bounding_box_->world_coords_planar_centroid_;
 
     removeShape(SUPPORT_PLANE);
     addPlane(*(detector_.table_plane_), middle.x, middle.y, middle.z, SUPPORT_PLANE);

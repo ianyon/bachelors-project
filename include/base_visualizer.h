@@ -40,11 +40,13 @@ public:
 
   bool visualizeCloud(const std::string &id, CloudPtr &cloud, int r, int g, int b, int viewport = 0);
 
-  void visualizeArrow(std::string id, Point &point, Point &middle, int viewport = 0);
+  void visualizeArrowTranslated(std::string id, Point &translation_point, Point &point, int viewport = 0);
 
-  bool visualizeArrow(std::string id, Point &point, Point *middle, CloudPtr &cloud, int viewport = 0);
+  bool visualizeArrowFromCloudCentroid(std::string id, Point &point, Point *middle, CloudPtr &cloud, int viewport = 0);
 
   void visualizePoint(pcl::PointXYZ point, int red, int green, int blue, std::string name);
+
+  void visualizeArrow(std::string id, Point &point, double r=1.0, double g=0.94901961, double b=0.8,int viewport=0);
 };
 
 typedef boost::shared_ptr<BaseVisualizer> BaseVisualizerPtr;

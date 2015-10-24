@@ -46,17 +46,25 @@ bool visualization::BaseVisualizer::visualizeCloud(const std::string &id, CloudP
   return true;
 }
 
-void visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point, Point &middle, int viewport)
+void visualization::BaseVisualizer::visualizeArrowTranslated(std::string id, Point &translation_point, Point &point, int viewport)
 {
   Point translated_point;
-  translated_point.getVector4fMap() = point.getVector4fMap() + middle.getVector4fMap();
+  translated_point.getVector4fMap() = translation_point.getVector4fMap() + point.getVector4fMap();
 
   removeShape(id);
-  addArrow(middle, translated_point, 1.0, 0.94901961, 0.8, id, viewport);
+  addArrow(point, translated_point, 1.0, 0.94901961, 0.8, id, viewport);
 }
 
-bool visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point, Point *middle, CloudPtr &cloud,
-                                                   int viewport)
+void visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point, double r,double g,double b, int
+viewport)
+{
+  removeShape(id);
+  addArrow(Point(0,0,0), point, r,g,b, id, viewport);
+}
+
+bool visualization::BaseVisualizer::visualizeArrowFromCloudCentroid(std::string id, Point &point, Point *middle,
+                                                                    CloudPtr &cloud,
+                                                                    int viewport)
 {
   if (cloud->size() == 0)
   {
@@ -67,7 +75,7 @@ bool visualization::BaseVisualizer::visualizeArrow(std::string id, Point &point,
   Eigen::Vector4f centroid;
   pcl::compute3DCentroid(*cloud, centroid);
   middle->getVector4fMap() = centroid;
-  visualizeArrow(id, point, *middle, viewport);
+  visualizeArrowTranslated(id, point, *middle, viewport);
 
   return true;
 }

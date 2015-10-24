@@ -1,3 +1,4 @@
+#include "detection_visualizer.h"
 #include <pcl_ros/transforms.h>
 
 #include "utils.h"
@@ -7,7 +8,6 @@
 
 using boost::str;
 using boost::format;
-
 
 namespace bachelors_final_project
 {
@@ -108,5 +108,17 @@ pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud, const pcl:
   project_inliers.setModelCoefficients(table);
   return project_inliers;
 }
+
+Point fourToPoint(Eigen::Vector4f &vector)
+{
+  return Point(vector[0], vector[1], vector[2]);
+}
+
+Point threeToPoint(Eigen::Vector3f &vector)
+{
+  return Point(vector[0], vector[1], vector[2]);
+}
+
+
 
 } // namespace bachelors_final_project
