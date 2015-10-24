@@ -14,12 +14,16 @@ endif()
 ##############################################
 
 # Cotire Precompiled headers
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/ian/catkin_ws/src/bachelors_final_project/cmake/Modules")#"${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "~/catkin_ws/src/bachelors_final_project/cmake/Modules")#"${CMAKE_SOURCE_DIR}/cmake/Modules/")
 include(cotire)
 
-set(CATKIN_DEVEL_PREFIX "/home/ian/catkin_ws/devel")
-set(CMAKE_INSTALL_PREFIX "/home/ian/catkin_ws/install")
-
+if(EXISTS "/home/yoko/catkin_ws/devel")
+    set(CATKIN_DEVEL_PREFIX "/home/yoko/catkin_ws/devel")
+    set(CMAKE_INSTALL_PREFIX "/home/yoko/catkin_ws/install")
+else()
+    set(CATKIN_DEVEL_PREFIX "/home/ian/catkin_ws/devel")
+    set(CMAKE_INSTALL_PREFIX "/home/ian/catkin_ws/install")
+endif()
 add_definitions(-Wno-deprecated)
 
 # ccache doesnt support --gsplit-dwarf (DEBUG FISSION)
