@@ -38,8 +38,8 @@ void detection::BoundingBox::build(CloudPtr &world_coords_planar_obj, CloudPtr &
   planar_shift_ = 0.5f * (max_pt_planar_centroid_.getVector3fMap() + min_pt_planar_centroid_.getVector3fMap());
 
   // Correct coordinates centering the object in the center of the bounding box
-  Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  pcl::transformPointCloud(*planar_obj, *planar_obj, transform.translate(-planar_shift_));
+  Eigen::Affine3f t = Eigen::Affine3f::Identity();
+  pcl::transformPointCloud(*planar_obj, *planar_obj, translateCentroidToBoundingBox(t));
 
   // Final transform: back to world coordinates
   obj_to_world_rotation_ = Eigen::Quaternionf(eigen_vectors_);
@@ -48,6 +48,11 @@ void detection::BoundingBox::build(CloudPtr &world_coords_planar_obj, CloudPtr &
   computeHeight(world_coords_obj);
 
   world_coords_3D_pose = obj_to_world_translation_ + eigen_vectors_ * Eigen::Vector3f(heigth_3D_ / 2, 0, 0);
+}
+
+Eigen::Affine3f detection::BoundingBox::translateCentroidToBoundingBox(Eigen::Affine3f transform)
+{
+  return transform.translate(-planar_shift_);
 }
 
 Eigen::Vector3f detection::BoundingBox::worldCoordsBoundingBoxPose()
@@ -74,16 +79,7 @@ Eigen::Affine3f detection::BoundingBox::getWorldToObjectCentroidTransform()
  */
 Eigen::Affine3f detection::BoundingBox::getWorldToObjectTransform()
 {
-  Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-
-  // Translate to object's coordinates: Make the centroid be the origin
-  transform.translate(-world_coords_planar_centroid_.head<3>());
-
-  // Rotate to objects coordinates
-  transform.rotate(eigen_vectors_.transpose());
-
-  // Translate to object's coordinates: Make the centroid be the origin
-  return transform.translate(-min_pt_planar_centroid_.getVector3fMap() + planar_shift_);
+  return translateCentroidToBoundingBox(getWorldToObjectCentroidTransform());
 }
 
 /**
@@ -93,16 +89,6 @@ Eigen::Affine3f detection::BoundingBox::getObjectToWorldTransform()
 {
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
   return transform.translate(world_coords_planar_centroid_.head<3>()).rotate(eigen_vectors_).translate(planar_shift_);
-}
-
-Eigen::Vector3f detection::BoundingBox::getCentroidToBoundingBoxMiddleVector()
-{
-  return -getBoundingBoxOriginToCentroid() + planar_shift_;
-}
-
-Eigen::Vector3f detection::BoundingBox::getBoundingBoxOriginToCentroid()
-{
-  return -min_pt_planar_centroid_.getVector3fMap();
 }
 
 void detection::BoundingBox::computeHeight(CloudPtr &world_coords_obj)

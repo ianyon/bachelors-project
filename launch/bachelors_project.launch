@@ -41,10 +41,12 @@
 
   <!-- MoveIt -->
   <!--<param name="/move_group/max_range" value="2.5" />-->
-  <include file="$(find pr2_moveit_config)/launch/move_group.launch"/>
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch">    
+    <arg name="info" value="true"/>
+  </include>
   <!-- To improve performance -->
   <rosparam param="/move_group/max_range">5.0</rosparam> <!-- Default 5.0 -->
-  <rosparam param="/move_group/octomap_resolution">0.025</rosparam> <!-- Default 0.025 -->
+  <rosparam param="/move_group/octomap_resolution">0.01</rosparam> <!-- Default 0.025 -->
   <!-- Launches planning_context
        Load SRDF, Joint limits, kinematics
        Launches moveit_controller_manager = pr2 -->
@@ -62,4 +64,7 @@
   <node name="sor_pgs_iters" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_iters 50"/>
   <node name="sor_pgs_w" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo sor_pgs_w 1.0"/>
   <node name="time_step" pkg="dynamic_reconfigure" type="dynparam" args="set gazebo time_step 0.001"/>
+
+  <rosparam param="/bachelors_final_project/no_segmentation_visualizer">true</rosparam>
+  <rosparam param="/bachelors_final_project/no_detection_visualizer">true</rosparam>
 </launch>

@@ -71,9 +71,11 @@ catkin_package(
             sensor_msgs
             dynamic_reconfigure
 )
-
+message(STATUS "${CMAKE_SOURCE_DIR}")
+FILE (GLOB_RECURSE all_headers ${PROJECT_SOURCE_DIR}/bachelors_final_project/include/*.h)
 FILE (GLOB_RECURSE all_headers ${CMAKE_SOURCE_DIR}/include/*.h)
 FILE (GLOB_RECURSE all_cfgs ${CMAKE_SOURCE_DIR}/cfg/*.cfg)
+FILE (GLOB_RECURSE all_cfgs ${PROJECT_SOURCE_DIR}/bachelors_final_project/cfg/*.cfg)
 set(sources src/example.cpp
         src/cloud_segmentator.cpp
         src/grasp_point_detector.cpp
@@ -92,6 +94,12 @@ set(sources src/example.cpp
         src/bounding_box.cpp)
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
+
+add_executable(pick_place src/pick_place.cpp)
+target_link_libraries(pick_place
+        ${catkin_LIBRARIES}
+        libvtkCommon.so
+        libvtkFiltering.so )
 
 #Ensures that configuration files are generated before main target
 add_dependencies(example ${PROJECT_NAME}_gencfg)

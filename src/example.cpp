@@ -17,10 +17,11 @@
 
 namespace bachelors_final_project
 {
-int cluster_selector = 2;
+
 void parameterCallback(ParametersConfig &cfg, uint32_t level,
                        segmentation::CloudSegmentator *data_handler,
-                       visualization::VisualizationThread *viz_thread)
+                       visualization::VisualizationThread *viz_thread,
+                       int *cluster_selector)
 {
   if (cfg.defaultParams)
   {
@@ -33,7 +34,7 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
   // Visualizer
   viz_thread->setParams(cfg.normalsCountParam, (float) cfg.normalsSizeParam);
 
-  cluster_selector = cfg.clusterSelector;
+  *cluster_selector = cfg.clusterSelector;
 
   ROS_WARN("Done Reconfigure Request");
 }
@@ -55,24 +56,24 @@ int main(int argc, char **argv)
 
   // Initialize ROS
   ros::init(argc, argv, "bachelors_final_project");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
 
   ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics");
   std_srvs::Empty srv;
   if (client.call(srv)) ROS_INFO("Unpaused physics");
-  else
-    ROS_ERROR("Failed to call service /gazebo/unpause_physics");
-  ros::ServiceClient client2 = nh.serviceClient<std_srvs::Empty>("/gazebo/pause_physics");
-
-  // CloudSegmentator needs to be a pointer because mutex cannot be copied
-  CloudSegmentator segmentator(nh);
-  gpd::GraspPointDetector detector(nh);
+  else ROS_ERROR("Failed to call service /gazebo/unpause_physics");
 
   viz::VisualizationThread viz_thread;
+  tf::TransformListener tf_listener;
 
-  if (!nh.hasParam("no_segmentation_visualizer"))
+  // These objects cannot be copied because they contain a mutex
+  CloudSegmentator segmentator(nh, tf_listener);
+  gpd::GraspPointDetector detector(nh, tf_listener);
+
+  ros::NodeHandle priv_nh("~");
+  if (!priv_nh.hasParam("no_segmentation_visualizer"))
     viz_thread.addSegmentationVisualizer(segmentator);
-  if (!nh.hasParam("no_detection_visualizer"))
+  if (!priv_nh.hasParam("no_detection_visualizer"))
     viz_thread.addDetectionVisualizer(detector);
 
   // Create a ROS subscriber for the input point cloud
@@ -80,18 +81,23 @@ int main(int argc, char **argv)
 
   ROS_INFO("Topic: %s", sub.getTopic().c_str());
 
+  int cluster_selector = 3;
+
   // Create Dynamic reconfigure server
   dynamic_reconfigure::Server<ParametersConfig> server;
   // Bind callback function to update values
-  server.setCallback(boost::bind(&parameterCallback, _1, _2, &segmentator, &viz_thread));
+  server.setCallback(boost::bind(&parameterCallback, _1, _2, &segmentator, &viz_thread, &cluster_selector));
 
   //Start visualization
   viz_thread.start();
 
   ROS_INFO("Escuchando");
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
+  //ros::WallDuration(1.0).sleep();
   while (ros::ok())
   {
-    ros::spinOnce();                // Handle ROS events
+    //ros::spinOnce();                // Handle ROS events
     segmentator.execute();        // Do Heavy processing
 
     if (segmentator.noNewProcessedData()) continue;
@@ -99,12 +105,9 @@ int main(int argc, char **argv)
     std::sort(segmentator.getClusters().begin(), segmentator.getClusters().end(), cloudSizeComparator);
     int cluster_index = getNBiggerIndex(segmentator.getClusters().size(), cluster_selector);
     ROS_INFO("Using cluster with %lu points", segmentator.getCluster(cluster_index)->size());
-    detector.detect(segmentator.getCluster(cluster_index), segmentator.getTable());
+    detector.setTable(segmentator.getTableCloud(), segmentator.getTable());
+    detector.detect(segmentator.getCluster(cluster_index));
+    ROS_INFO("Finished loop\n");
   }
-
-  std_srvs::Empty srv2;
-  if (client2.call(srv2)) ROS_INFO("Paused physics");
-  else
-    ROS_ERROR("Failed to call service /gazebo/pause_physics");
 }
 

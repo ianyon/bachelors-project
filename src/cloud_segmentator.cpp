@@ -17,29 +17,28 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh) :
+segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh, tf::TransformListener &tf_listener) :
     search_(new search::OrganizedNeighbor<Point>),
     processed_cloud_(false),
     plane_updated_(false),
     point_clouds_updated_(false),
     cloud_over_table_updated_(false),
     clusters_updated_(false),
-    last_seen_seq_(0)
+    last_seen_seq_(0),
+    pub_planar_(nh.advertise<Cloud>("table", 1)),
+    pub_objects_(nh.advertise<Cloud>("objects_over_table", 1)),
+    // Initialize pointers to point clouds
+    sensor_cloud_(new Cloud),
+    cropped_cloud_(new Cloud),
+    plane_cloud_(new Cloud),
+    cloud_normals_(new CloudNormal),
+    table_coefficients_(new ModelCoefficients),
+    cloud_over_table_(new Cloud),
+    cropped_cloud_base_frame(new Cloud),
+    indices_over_table_(new PointIndices),
+    tf_listener_(tf_listener),
+    projected_table_cloud_(new Cloud)
 {
-  // Create a ROS publisher
-  pub_planar_ = nh.advertise<Cloud>("planar", 1);
-  pub_objects_ = nh.advertise<Cloud>("objects", 1);
-
-  // Initialize pointers to point clouds
-  sensor_cloud_.reset(new Cloud);
-  cropped_cloud_.reset(new Cloud);
-  plane_cloud_.reset(new Cloud);
-  cloud_normals_.reset(new CloudNormal);
-  table_coefficients_.reset(new ModelCoefficients);
-  cloud_over_table_.reset(new Cloud);
-  cropped_cloud_base_frame.reset(new Cloud);
-  indices_over_table_.reset(new PointIndices);
-
   sac_segmentation_.setModelType(SACMODEL_NORMAL_PARALLEL_PLANE);
   sac_segmentation_.setMethodType(SAC_RANSAC);
 }  // end CloudSegmentator()
@@ -175,8 +174,9 @@ bool segmentation::CloudSegmentator::fitPlaneFromNormals(const CloudPtr &input, 
 
   bool enough_inliers = inliers->indices.size() > 100; // Sometimes there are few inliers and that's bad
   ROS_WARN_COND(!enough_inliers, "No inliers in plane");
-  ROS_DEBUG_COND(enough_inliers, "[%g ms] Plane segmentation (%lu): [%g %g %g %g]", durationMillis(begin), inliers->indices.size(),
-            coefficients->values[0], coefficients->values[1], coefficients->values[2], coefficients->values[3]);
+  ROS_DEBUG_COND(enough_inliers, "[%g ms] Plane segmentation (%lu): [%g %g %g %g]", durationMillis(begin),
+                 inliers->indices.size(),
+                 coefficients->values[0], coefficients->values[1], coefficients->values[2], coefficients->values[3]);
   return enough_inliers;
 }
 
@@ -218,11 +218,11 @@ void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<Poi
 
 }
 
-void segmentation::CloudSegmentator::computeTableConvexHull(const CloudPtr &projectedTableCloud,
+void segmentation::CloudSegmentator::computeTableConvexHull(const CloudPtr &projected_table_cloud,
                                                             CloudPtr &tableConvexHull)
 {
   clock_t begin = clock();
-  convex_hull_.setInputCloud(projectedTableCloud);
+  convex_hull_.setInputCloud(projected_table_cloud);
   convex_hull_.reconstruct(*tableConvexHull);
   tableConvexHull->push_back(tableConvexHull->at(0));
   ROS_DEBUG("[%g ms] Convex hull [%lu points]", durationMillis(begin), tableConvexHull->points.size());
@@ -311,9 +311,9 @@ void segmentation::CloudSegmentator::execute()
 
   // Check if computation updated the clusters
   if (setProcessedCloud(doProcessing(sensor_cloud)))
-    ROS_INFO("[%g ms] Segmentation Success\n", durationMillis(beginCallback));
+    ROS_INFO("[%g ms] Segmentation Success", durationMillis(beginCallback));
   else
-    ROS_ERROR("[%g ms] Segmentation Failed\n", durationMillis(beginCallback));
+    ROS_ERROR("[%g ms] Segmentation Failed", durationMillis(beginCallback));
 }
 
 bool segmentation::CloudSegmentator::doProcessing(const CloudPtr &input)
@@ -343,26 +343,24 @@ bool segmentation::CloudSegmentator::doProcessing(const CloudPtr &input)
   plane_updated_ = true;
 
   // Project plane points (inliers) in model plane
-  CloudPtr projectedTableCloud(new Cloud);
-  projectOnPlane(cropped_cloud_, table_coefficients_, tableInliers, projectedTableCloud);
-  ROS_DEBUG("Project on plane: %lu", projectedTableCloud->size());
-  publish(pub_planar_, projectedTableCloud);
+  projectOnPlane(cropped_cloud_, table_coefficients_, tableInliers, projected_table_cloud_);
+  ROS_DEBUG("Project on plane: %lu", projected_table_cloud_->size());
+  pub_planar_.publish(projected_table_cloud_);
 
   // Create a Convex Hull representation of the projected inliers
   CloudPtr tableConvexHull(new Cloud);
-  computeTableConvexHull(projectedTableCloud, tableConvexHull);
+  computeTableConvexHull(projected_table_cloud_, tableConvexHull);
 
   // Extract points over the table's convex hull
   if (!extractCloudOverTheTable(cropped_cloud_, tableConvexHull, indices_over_table_))
     return clearSegmentation(OVER_TABLE);
   pointCloudFromIndices(cropped_cloud_, indices_over_table_, cloud_over_table_);
-  publish(pub_objects_, cloud_over_table_);
+  pub_objects_.publish(cloud_over_table_);
   cloud_over_table_updated_ = true;
 
   // Clustering objects over the table
   if (!clusterObjects(cropped_cloud_, indices_over_table_))
     return clearSegmentation(CLUSTERS);
-  //publish(pubObjects, );
   clusters_updated_ = true;
   return true;
 }
@@ -399,6 +397,11 @@ CloudPtr segmentation::CloudSegmentator::getCluster(size_t index)
 const ModelCoefficientsPtr segmentation::CloudSegmentator::getTable()
 {
   return table_coefficients_;
+}
+
+const CloudPtr segmentation::CloudSegmentator::getTableCloud()
+{
+  return projected_table_cloud_;
 }
 
 bool segmentation::CloudSegmentator::setProcessedCloud(bool state)

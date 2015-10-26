@@ -16,9 +16,6 @@ bool cloudSizeComparator(CloudPtr i, CloudPtr j)
 
 int getNBiggerIndex(size_t size, int n);
 
-//! Publish the message.
-void publish(const ros::Publisher &, const CloudPtr &);
-
 //! Compute the time since "begin"
 double durationMillis(clock_t &);
 
@@ -41,6 +38,8 @@ pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud,
 
 Point fourToPoint(Eigen::Vector4f &vector);
 Point threeToPoint(Eigen::Vector3f &vector);
+
+void theThing();
 
 } // namespace bachelors_final_project
 

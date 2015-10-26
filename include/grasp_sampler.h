@@ -17,7 +17,7 @@ class GraspSampler
 public:
   GraspSampler();
 
-  void sampleGraspingPoses(BoundingBoxPtr &);
+  void sampleGraspingPoses(BoundingBoxPtr &bounding_box, std::string kinect_frame);
 
   void sampleSideGrasps(BoundingBoxPtr &, CloudPtr &);
 

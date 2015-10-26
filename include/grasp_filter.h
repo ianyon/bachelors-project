@@ -29,7 +29,8 @@ namespace detection
 class GraspFilter
 {
   moveit_msgs::AllowedCollisionMatrix getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv,
-                                                           bool after);
+                                                         bool after);
+
   ros::Publisher display_publisher;
   ros::Publisher collision_obj_publisher;
   ros::Publisher attached_obj_publisher;
@@ -48,7 +49,7 @@ class GraspFilter
 
   typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
 
-  MoveGroupPtr group_;
+  moveit::planning_interface::MoveGroup group_;
 
   //planning_scene::PlanningScene planning_scene;
   static const std::string GRASPABLE_OBJECT;
@@ -56,12 +57,23 @@ class GraspFilter
 
   std::string kinect_frame_id_;
 
-  pcl::ModelCoefficientsPtr table_plane_;
+  CloudPtr table_world_coords_;
 
 public:
-  GraspFilter(ros::NodeHandle &handle);
+  GraspFilter(ros::NodeHandle &handle,tf::TransformListener &tf_listener);
 
-  void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, pcl::ModelCoefficientsPtr &table_plane_);
+  void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, CloudPtr &table_plane);
+
+  void tableCoords(CloudPtr &table_world_coords, BoundingBoxPtr &bounding_box, Point *min,
+                   Point *max, Point *size);
+
+  void addSupportTable(Point &table_min, Point &table_max, Point &size);
+
+  void addCollisionObject(BoundingBoxPtr &bounding_box);
+
+  void updateAllowedCollisionMatrix();
+
+  geometry_msgs::Pose newPose(Eigen::Vector3f &pose);
 
   void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
 
@@ -73,15 +85,11 @@ public:
 
   bool processSample(Point &sample);
 
-  void addSupportTable(pcl::ModelCoefficientsPtr &table_plane, BoundingBoxPtr &bounding_box);
-
-  void addCollisionObject(BoundingBoxPtr &bounding_box);
-
-  void updateAllowedCollisionMatrix();
-
   CloudPtr getSideGrasps();
 
   CloudPtr getTopGrasps();
+
+  tf::TransformListener &tf_listener_;
 };
 
 } // namespace detection

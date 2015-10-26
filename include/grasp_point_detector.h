@@ -20,13 +20,13 @@ namespace detection
 class GraspPointDetector
 {
 public:
-  GraspPointDetector(ros::NodeHandle &handle);
+  GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
 
   void updateConfig(bachelors_final_project::ParametersConfig &config);
 
   bool doProcessing();
 
-  void detect(const CloudPtr &cluster, const pcl::ModelCoefficientsPtr &table);
+  void detect(const CloudPtr &input_object);
 
   inline CloudPtr getSampledSideGrasps()
   {
@@ -38,6 +38,8 @@ public:
     return sampler.getTopGrasps();
   }
 
+  void setTable(const CloudPtr &table_cloud, const pcl::ModelCoefficientsPtr table_plane);
+
   bool draw_bounding_box_;
   bool draw_sampled_grasps_;
 
@@ -47,9 +49,9 @@ public:
 
   CloudPtr world_obj_;
 
+  ros::Publisher pub_cluster_, pub_samples_;
   // Object in their own coordinates (centered in the centroid)
   CloudPtr planar_obj_;
-
 
   RankedGrasps ranked_grasps;
 
@@ -59,11 +61,12 @@ public:
   BoundingBoxPtr bounding_box_;
 
   bachelors_final_project::ParametersConfig cfg;
+  CloudPtr table_cloud_;
   pcl::ModelCoefficientsPtr table_plane_;
 
   // Planar projection of object in table
   CloudPtr world_planar_obj_;
-
+  tf::TransformListener &tf_listener_;
 };
 
 } // namespace detection

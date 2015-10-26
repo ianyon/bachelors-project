@@ -67,6 +67,8 @@ public:
     return heigth_3D_;
   }
 
+  Eigen::Affine3f translateCentroidToBoundingBox(Eigen::Affine3f transform);
+
   // Minimum and máximum bounding box points
   Point min_pt_planar_centroid_, max_pt_planar_centroid_;
   // obj_to_world_rotation_ represents the eigen vectors as a rotation matrix
@@ -91,9 +93,6 @@ public:
 
   Eigen::Affine3f getObjectToWorldTransform();
 
-  Eigen::Vector3f getBoundingBoxOriginToCentroid();
-
-  Eigen::Vector3f getCentroidToBoundingBoxMiddleVector();
 };
 
 typedef boost::shared_ptr <BoundingBox> BoundingBoxPtr;

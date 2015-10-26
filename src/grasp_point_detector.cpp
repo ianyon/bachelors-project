@@ -14,14 +14,17 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle) :
-    grasp_filter_(handle),
+detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener) :
+    grasp_filter_(handle, tf_listener),
     bounding_box_(new BoundingBox),
     world_obj_(new Cloud),
     planar_obj_(new Cloud),
     world_planar_obj_(new Cloud),
     draw_bounding_box_(false),
-    draw_sampled_grasps_(false)
+    draw_sampled_grasps_(false),
+    pub_cluster_(handle.advertise<Cloud>("cluster", 1)),
+    pub_samples_(handle.advertise<Cloud>("samples", 1)),
+    tf_listener_(tf_listener)
 {
 }  // end GraspPointDetector()
 
@@ -30,7 +33,13 @@ void detection::GraspPointDetector::updateConfig(ParametersConfig &config)
   cfg = config;
 }
 
-void detection::GraspPointDetector::detect(const CloudPtr &input_object, const pcl::ModelCoefficientsPtr &table_plane)
+void detection::GraspPointDetector::setTable(const CloudPtr &table_cloud, const pcl::ModelCoefficientsPtr table_plane)
+{
+  table_plane_ = boost::make_shared<ModelCoefficients>(*table_plane);
+  table_cloud_ = table_cloud->makeShared();
+}
+
+void detection::GraspPointDetector::detect(const CloudPtr &input_object)
 {
   clock_t beginCallback = clock();
 
@@ -38,13 +47,14 @@ void detection::GraspPointDetector::detect(const CloudPtr &input_object, const p
   if (input_object->size() == 0) return;
 
   world_obj_ = input_object->makeShared();
-  table_plane_ = boost::make_shared<ModelCoefficients>(*table_plane);
-
   kinect_frame_id_ = world_obj_->header.frame_id;
+  pub_cluster_.publish(world_obj_);
 
   // Check if computation succeeded
   if (doProcessing())
-    ROS_INFO("Detection callback took %gms\n\n", durationMillis(beginCallback));
+    ROS_INFO("[%g ms] Detection Success", durationMillis(beginCallback));
+  else
+    ROS_ERROR("[%g ms] Detection Failed", durationMillis(beginCallback));
 }
 
 bool detection::GraspPointDetector::doProcessing()
@@ -63,17 +73,27 @@ bool detection::GraspPointDetector::doProcessing()
   draw_bounding_box_ = true;
 
   // Find all the samples poses
-  sampler.sampleGraspingPoses(bounding_box_);
+  sampler.sampleGraspingPoses(bounding_box_, kinect_frame_id_);
   draw_sampled_grasps_ = true;
+  Cloud samples = *sampler.getSideGrasps();
+  samples += *sampler.getTopGrasps();
+  pub_samples_.publish(samples);
   bounding_box_lock.unlock();
-  ROS_INFO("Grasping sampling  took %gms", durationMillis(begin));
+  ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
 
-  begin = clock();
-  // Configure filter
-  grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_plane_);
-  // Remove infeasible ones
-  grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
-  ROS_INFO("Grasping filtering took %gms", durationMillis(begin));
+  try
+  {
+    begin = clock();
+    // Configure filter
+    grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_cloud_);
+    // Remove infeasible ones
+    grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
+    ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));
+  }
+  catch (ComputeFailedException ex)
+  {
+    return false;
+  }
 
   return true;
 }

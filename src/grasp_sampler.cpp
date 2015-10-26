@@ -17,13 +17,15 @@ detection::GraspSampler::GraspSampler()
   top_grasp_samples = 50;
 }
 
-void detection::GraspSampler::sampleGraspingPoses(BoundingBoxPtr &bounding_box)
+void detection::GraspSampler::sampleGraspingPoses(BoundingBoxPtr &bounding_box, std::string kinect_frame)
 {
   side_grasps_->clear();
   sampleSideGrasps(bounding_box, side_grasps_);
+  side_grasps_->header.frame_id = kinect_frame;
 
   top_grasps_->clear();
   sampleTopGrasps(bounding_box, top_grasps_);
+  top_grasps_->header.frame_id = kinect_frame;
 }
 
 void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, CloudPtr &side_grasps)
