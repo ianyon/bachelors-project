@@ -56,7 +56,7 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
 {
   if (obj().draw_bounding_box_)
   {
-    detection::BoundingBox box = *(obj().bounding_box_);
+    detection::BoundingBox box = *(obj().obj_bounding_box_);
 
     // Draw world coordinate system
     removeCoordinateSystem();
@@ -107,7 +107,7 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps()
   if (obj().draw_sampled_grasps_)
   {
     Point middle;
-    middle.getVector4fMap() = obj().bounding_box_->world_coords_planar_centroid_;
+    middle.getVector4fMap() = obj().obj_bounding_box_->world_coords_planar_centroid_;
 
     removeShape(SUPPORT_PLANE);
     addPlane(*(obj().table_plane_), middle.x, middle.y, middle.z, SUPPORT_PLANE);

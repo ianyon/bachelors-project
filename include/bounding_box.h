@@ -8,6 +8,9 @@
 #include <Eigen/Eigenvalues>
 #include "definitions.h"
 
+
+#include <pcl/visualization/cloud_viewer.h>
+
 namespace bachelors_final_project
 {
 namespace detection
@@ -32,11 +35,12 @@ public:
    *  max_point_.z - min_point_.z) the transformation you have to apply is
    Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
-  void build(CloudPtr &world_coords_planar_obj, CloudPtr &world_coords_obj);
+  void build(CloudPtr &world_coords_planar_obj);
 
   Eigen::Affine3f getWorldToObjectCentroidTransform();
 
   Eigen::Vector3f worldCoordsBoundingBoxPose();
+
   inline double getXLength()
   {
     return heigth_3D_;
@@ -69,21 +73,38 @@ public:
 
   Eigen::Affine3f translateCentroidToBoundingBox(Eigen::Affine3f transform);
 
-  // Minimum and máximum bounding box points
-  Point min_pt_planar_centroid_, max_pt_planar_centroid_;
+  void createBoundingBoxCenteredMembers();
+
+  void createWorldCenteredMembers();
+
+  void createSize();
+
+  const Eigen::Vector3f &getSizePlanarFootprint();
+
+  const Point getPlanarWorldPose();
+
+  Point computeFootprintPose(tf::TransformListener &tf_listener);
+
+  void visualizeData();
+
+  // Minimum and maximum bounding box points relative to named coordinate system
+  Point min_pt_planar_centroid_, max_pt_planar_centroid_,
+      min_pt_planar_world_, max_pt_planar_world_,
+      min_pt_planar_, max_pt_planar_;
+  Point pose_planar_world_;
+  std::string kinect_frame_;
   // obj_to_world_rotation_ represents the eigen vectors as a rotation matrix
   Eigen::Quaternionf obj_to_world_rotation_;
-  Eigen::Vector3f obj_to_world_translation_;
   Eigen::Vector4f world_coords_planar_centroid_;
   Eigen::Matrix3f eigen_vectors_;
-  Eigen::Vector3f planar_shift_;
-  Eigen::Vector3f world_coords_3D_pose;
+  Eigen::Vector3f planar_shift_, world_coords_3D_pose, obj_to_world_translation_, size_planar_, size_planar_footprint_;
   double heigth_3D_;
   CloudPtr planar_obj;
 
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver;
 
-  CloudPtr & getPlanarObj(){
+  CloudPtr &getPlanarObj()
+  {
     return planar_obj;
   }
 
@@ -95,7 +116,7 @@ public:
 
 };
 
-typedef boost::shared_ptr <BoundingBox> BoundingBoxPtr;
+typedef boost::shared_ptr<BoundingBox> BoundingBoxPtr;
 
 } // namespace detection
 } // namespace bachelors_final_project

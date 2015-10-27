@@ -58,7 +58,7 @@ public:
   GraspSampler sampler;
   GraspFilter grasp_filter_;
 
-  BoundingBoxPtr bounding_box_;
+  BoundingBoxPtr obj_bounding_box_,table_bounding_box_;
 
   bachelors_final_project::ParametersConfig cfg;
   CloudPtr table_cloud_;

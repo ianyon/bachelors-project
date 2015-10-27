@@ -16,7 +16,8 @@ namespace bachelors_final_project
  */
 detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener) :
     grasp_filter_(handle, tf_listener),
-    bounding_box_(new BoundingBox),
+    obj_bounding_box_(new BoundingBox),
+    table_bounding_box_(new BoundingBox()),
     world_obj_(new Cloud),
     planar_obj_(new Cloud),
     world_planar_obj_(new Cloud),
@@ -67,13 +68,14 @@ bool detection::GraspPointDetector::doProcessing()
 
   clock_t begin = clock();
   boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
-  bounding_box_ = BoundingBoxPtr(new BoundingBox());
-  bounding_box_->build(world_planar_obj_, world_obj_);
-  planar_obj_ = bounding_box_->getPlanarObj();
+
+  obj_bounding_box_->build(world_planar_obj_);
+  obj_bounding_box_->computeHeight(world_obj_);
+  planar_obj_ = obj_bounding_box_->getPlanarObj();
   draw_bounding_box_ = true;
 
   // Find all the samples poses
-  sampler.sampleGraspingPoses(bounding_box_, kinect_frame_id_);
+  sampler.sampleGraspingPoses(obj_bounding_box_, kinect_frame_id_);
   draw_sampled_grasps_ = true;
   Cloud samples = *sampler.getSideGrasps();
   samples += *sampler.getTopGrasps();
@@ -81,11 +83,13 @@ bool detection::GraspPointDetector::doProcessing()
   bounding_box_lock.unlock();
   ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
 
+  // We need the table bounding box to create a collision object in moveit
+  table_bounding_box_->build(table_cloud_);
   try
   {
     begin = clock();
     // Configure filter
-    grasp_filter_.configure(kinect_frame_id_, bounding_box_, table_cloud_);
+    grasp_filter_.configure(kinect_frame_id_, obj_bounding_box_, table_bounding_box_);
     // Remove infeasible ones
     grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
     ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));

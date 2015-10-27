@@ -3,9 +3,7 @@ Panels:
     Help Height: 0
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /Global Options1
-        - /Samples1
+      Expanded: ~
       Splitter Ratio: 0.566502
     Tree Height: 198
   - Class: rviz/Help
@@ -1084,5 +1082,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1311
-  X: 41
-  Y: -4
+  X: 42
+  Y: 24

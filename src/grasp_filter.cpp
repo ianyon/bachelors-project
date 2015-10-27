@@ -45,65 +45,61 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
     attached_obj_publisher(nh.advertise<AttachedCollisionObject>("attached_collision_object", 10)),
     client_get_scene(nh.serviceClient<GetPlanningScene>("/get_planning_scene")),
     planning_scene_diff_publisher(nh.advertise<PlanningScene>("planning_scene", 1)),
+    test_pub(nh.advertise<Cloud>("test_cloud", 1)),
+    test_pub2(nh.advertise<Cloud>("test_cloud2", 1)),
     tf_listener_(tf_listener)
 {
   ROS_INFO("Frame de referencia: %s", group_.getPlanningFrame().c_str());
   ROS_INFO("End Effector link: %s", group_.getEndEffectorLink().c_str());
 }
 
-void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &bounding_box,
-                                       CloudPtr &table_world_coords)
+Cloud table;
+
+void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &obj_bounding_box,
+                                       BoundingBoxPtr &table_bounding_box)
 {
   kinect_frame_id_ = kinect_frame_id;
-  bounding_box_ = bounding_box;
-  table_world_coords_ = table_world_coords;
+  //table_world_coords_ = table_world_coords;
 
-  //theThing();
+  test_cloud.reset(new Cloud);
+  test_cloud->header.frame_id = kinect_frame_id;
+  test_cloud2.reset(new Cloud);
+  test_cloud2->header.frame_id = FOOTPRINT_FRAME;
 
-  //return;
-  Point table_min, table_max, size;
-  tableCoords(table_world_coords_, bounding_box_, &table_min, &table_max, &size);
+  Point table_pose = table_bounding_box->computeFootprintPose(tf_listener_);
+  Eigen::Vector3f table_size = table_bounding_box->getSizePlanarFootprint();
+  table_size[2] = table_pose.z;
 
+  //table_bounding_box->visualizeData();
+  //tableCoords(table_world_coords_, table_bounding_box, &table_pose, &table_size);
+  test_cloud2->push_back(table_pose);
+  //test_cloud2->push_back(table_size);
+  test_pub.publish(test_cloud);
+  test_pub2.publish(test_cloud2);
+  CloudPtr cloud(test_cloud);
+  *cloud += *test_cloud2;
+  //*cloud += *table_world_coords;
+  *cloud += table;
+
+  /*pcl::visualization::CloudViewer viewer("asd");
+  viewer.showCloud(cloud);
+  while(!viewer.wasStopped())
+    ros::WallDuration(0.5).sleep();
+
+  viewer.runOnVisualizationThreadOnce(callable);*/
   // Add the table to supress collisions of the object with it
-  addSupportTable(table_min, table_max, size);
+  addSupportTable(table_pose, table_size);
+
+  Point obj_pose = obj_bounding_box->computeFootprintPose(tf_listener_);
+  Eigen::Vector3f obj_size = obj_bounding_box->getSizePlanarFootprint();
+  obj_size[2] = obj_bounding_box->heigth_3D_;
 
   // Add a box to supress collisions with the object
-  addCollisionObject(bounding_box_);
+  addCollisionObject(obj_pose, obj_size);
   updateAllowedCollisionMatrix();
 }
 
-void detection::GraspFilter::tableCoords(CloudPtr &table_world_coords, BoundingBoxPtr &bounding_box, Point *min,
-                                         Point *max, Point *size)
-{
-  Cloud table;
-  pcl::transformPointCloud(*table_world_coords, table, bounding_box->getWorldToObjectTransform());
-  pcl::getMinMax3D(table, *min, *max);
-  size->x = max->z - min->z;
-  size->y = max->y - min->y;
-  Eigen::Affine3f transform = bounding_box->getObjectToWorldTransform();
-  pcl::transformPoint(*min, transform);
-  pcl::transformPoint(*max, transform);
-
-  Point min_footprint_frame,max_footprint_frame;
-
-  CloudPtr min_max_kinect_frame(new Cloud);
-  min_max_kinect_frame->push_back(*min);
-  min_max_kinect_frame->push_back(*max);
-  min_max_kinect_frame->header.frame_id=kinect_frame_id_;
-
-  CloudPtr min_max_footprint_frame(new Cloud);
-  if (transformPointCloud(kinect_frame_id_, FOOTPRINT_FRAME, min_max_kinect_frame, min_max_footprint_frame,
-                     0, tf_listener_))
-  {
-    *min=min_max_footprint_frame->at(0);
-    *max=min_max_footprint_frame->at(1);
-    size->z = max->z;
-  }
-  else
-    throw ComputeFailedException("Without transform can't find horizontal plane coords");
-}
-
-void detection::GraspFilter::addSupportTable(Point &table_min, Point &table_max, Point &size)
+void detection::GraspFilter::addSupportTable(Point &pose_pt, Eigen::Vector3f &size)
 {
   CollisionObject co;
   co.id = SUPPORT_TABLE;
@@ -122,20 +118,20 @@ void detection::GraspFilter::addSupportTable(Point &table_min, Point &table_max,
   SolidPrimitive primitive;
   primitive.type = SolidPrimitive::BOX;
   primitive.dimensions.resize(shape_tools::SolidPrimitiveDimCount<SolidPrimitive::BOX>::value);
-  primitive.dimensions[SolidPrimitive::BOX_X] = size.x;
-  primitive.dimensions[SolidPrimitive::BOX_Y] = size.y;
-  primitive.dimensions[SolidPrimitive::BOX_Z] = size.z;
+  primitive.dimensions[SolidPrimitive::BOX_X] = size[0] * 0.9;
+  primitive.dimensions[SolidPrimitive::BOX_Y] = size[1] * 0.9;
+  primitive.dimensions[SolidPrimitive::BOX_Z] = size[2];
   co.primitives.push_back(primitive);
-  /* A pose for the plane (specified relative to frame_id) */
-  Eigen::Vector3f pose(table_min.x+(table_max.x-table_min.x)/2,
-                       table_min.y+(table_max.y-table_min.y)/2,
-                       (table_max.z-table_min.z)/2); //0.36,-0.41,0.66
+  // A pose for the plane (specified relative to frame_id).
+  // We need to divide z by two because we want the table to ocuppy all the space below the real table
+  // 0.2796  is the border of the robot
+  Eigen::Vector3f pose(fmax(pose_pt.x, 0.2796 + size[0] / 2), pose_pt.y, pose_pt.z * 0.5);
   co.primitive_poses.push_back(newPose(pose));
 
   collision_obj_publisher.publish(co);
 }
 
-void detection::GraspFilter::addCollisionObject(BoundingBoxPtr &bounding_box)
+void detection::GraspFilter::addCollisionObject(Point &pose_pt, Eigen::Vector3f &size)
 {
   CollisionObject co;
   co.id = GRASPABLE_OBJECT;
@@ -161,19 +157,18 @@ void detection::GraspFilter::addCollisionObject(BoundingBoxPtr &bounding_box)
   primitive.type = SolidPrimitive::BOX;
   primitive.dimensions.resize(shape_tools::SolidPrimitiveDimCount<SolidPrimitive::BOX>::value);
   // TODO: Axes may not be right
-  primitive.dimensions[SolidPrimitive::BOX_X] = bounding_box->getXLengthWorldCoords();
-  primitive.dimensions[SolidPrimitive::BOX_Y] = bounding_box->getYLengthWorldCoords();
-  primitive.dimensions[SolidPrimitive::BOX_Z] = bounding_box->getZLengthWorldCoords();
+  primitive.dimensions[SolidPrimitive::BOX_X] = size[0];
+  primitive.dimensions[SolidPrimitive::BOX_Y] = size[1];
+  primitive.dimensions[SolidPrimitive::BOX_Z] = size[2];
   co.primitives.push_back(primitive);
 
   /* A pose for the box (specified relative to frame_id) */
-  Eigen::Vector3f pose(bounding_box->worldCoordsBoundingBoxPose());
-  co.primitive_poses.push_back(newPose(pose));
+  co.primitive_poses.push_back(newPose(newVector3f(pose_pt)));
 
   collision_obj_publisher.publish(co);
 }
 
-geometry_msgs::Pose detection::GraspFilter::newPose(Eigen::Vector3f &pose)
+geometry_msgs::Pose detection::GraspFilter::newPose(Eigen::Vector3f pose)
 {
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;

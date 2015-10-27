@@ -33,6 +33,32 @@ double durationMillis(clock_t &begin)
   return (double(clock() - begin) / CLOCKS_PER_SEC) * 1000;
 }
 
+
+void callable(pcl::visualization::PCLVisualizer &viz)
+{
+  viz.addCoordinateSystem(1.0);
+}
+
+Point newPoint(Eigen::Vector3f v)
+{
+  return Point(v[0],v[1],v[2]);
+}
+
+pcl::PointXYZRGB newPointXYZRGB(Point p, uint8_t r, uint8_t g, uint8_t b)
+{
+  pcl::PointXYZRGB point(r,g,b);
+  point.x = p.x;
+  point.y = p.y;
+  point.z = p.z;
+  return point;
+}
+
+
+Eigen::Vector3f newVector3f(Point p)
+{
+  return Eigen::Vector3f(p.x, p.y, p.z);
+}
+
 void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width, int height)
 {
   cloud_out->width = (uint32_t) width;

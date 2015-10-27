@@ -16,6 +16,13 @@ bool cloudSizeComparator(CloudPtr i, CloudPtr j)
 
 int getNBiggerIndex(size_t size, int n);
 
+void callable(pcl::visualization::PCLVisualizer &viz);
+
+pcl::PointXYZRGB newPointXYZRGB(Point p, uint8_t r, uint8_t g, uint8_t b);
+
+Eigen::Vector3f newVector3f(Point p);
+Point newPoint(Eigen::Vector3f v);
+
 //! Compute the time since "begin"
 double durationMillis(clock_t &);
 

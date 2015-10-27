@@ -21,6 +21,9 @@
 #include "definitions.h"
 #include "containers.h"
 
+
+#include <pcl/visualization/cloud_viewer.h>
+
 namespace bachelors_final_project
 {
 namespace detection
@@ -36,15 +39,16 @@ class GraspFilter
   ros::Publisher attached_obj_publisher;
 
   ros::Publisher planning_scene_diff_publisher;
+  ros::Publisher test_pub,test_pub2;
+  CloudPtr test_cloud;
+  CloudPtr test_cloud2;
 
   ros::ServiceClient client_get_scene;
 
-  tf::TransformListener transform_listener;
-
+  tf::TransformListener &tf_listener_;
   tf::StampedTransform stamped_transform;
-  BoundingBoxPtr bounding_box_;
-  CloudPtr side_grasps_, top_grasps_;
 
+  CloudPtr side_grasps_, top_grasps_;
   CloudPtr feasible_side_grasps_, feasible_top_grasps_;
 
   typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
@@ -57,23 +61,21 @@ class GraspFilter
 
   std::string kinect_frame_id_;
 
-  CloudPtr table_world_coords_;
-
 public:
   GraspFilter(ros::NodeHandle &handle,tf::TransformListener &tf_listener);
 
-  void configure(std::string kinect_frame_id, BoundingBoxPtr &bounding_box, CloudPtr &table_plane);
+  void configure(std::string kinect_frame_id, BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);
 
-  void tableCoords(CloudPtr &table_world_coords, BoundingBoxPtr &bounding_box, Point *min,
-                   Point *max, Point *size);
+  void tableCoords(CloudPtr &table_world_coords, BoundingBoxPtr &bounding_box, Point *pose,
+                   Point *size);
 
-  void addSupportTable(Point &table_min, Point &table_max, Point &size);
+  void addSupportTable(Point &pose, Eigen::Vector3f &size);
 
-  void addCollisionObject(BoundingBoxPtr &bounding_box);
+  void addCollisionObject(Point &pose_pt, Eigen::Vector3f &size);
 
   void updateAllowedCollisionMatrix();
 
-  geometry_msgs::Pose newPose(Eigen::Vector3f &pose);
+  geometry_msgs::Pose newPose(Eigen::Vector3f pose);
 
   void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
 
@@ -88,8 +90,6 @@ public:
   CloudPtr getSideGrasps();
 
   CloudPtr getTopGrasps();
-
-  tf::TransformListener &tf_listener_;
 };
 
 } // namespace detection
