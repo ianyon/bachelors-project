@@ -15,7 +15,7 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf2_ros::TransformListener &tf_listener) :
+detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener) :
     grasp_filter_(handle, tf_listener),
     obj_bounding_box_(new BoundingBox("object_frame")),
     table_bounding_box_(new BoundingBox("table_frame")),

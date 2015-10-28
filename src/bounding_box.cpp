@@ -12,8 +12,7 @@
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 
-#include "tf2_ros/transform_broadcaster.h"
-//#include <tf/transform_broadcaster.h>
+#include <tf/transform_broadcaster.h>
 
 #include "utils.h"
 
@@ -69,7 +68,7 @@ const Point detection::BoundingBox::getPlanarWorldPose()
   return pose_planar_world_;
 }
 
-Point detection::BoundingBox::computeFootprintPosePosition(tf2_ros::TransformListener &tf_listener)
+Point detection::BoundingBox::computeFootprintPosePosition(tf::TransformListener &tf_listener)
 {
   tf::Vector3 pose_kinect_frame(pose_planar_world_.x, pose_planar_world_.y, pose_planar_world_.z);
 
@@ -79,11 +78,11 @@ Point detection::BoundingBox::computeFootprintPosePosition(tf2_ros::TransformLis
   return footprint_pose;
 }
 
-geometry_msgs::Pose detection::BoundingBox::computeFootprintPose(tf2_ros::TransformListener &tf_listener)
+geometry_msgs::Pose detection::BoundingBox::computeFootprintPose(tf::TransformListener &tf_listener)
 {
   // We want the origin of the reference frame
   geometry_msgs::PoseStamped pose_bounding_box_frame;
-
+  pose_bounding_box_frame.pose.orientation.w = 1.0;
   /*Eigen::Quaternionf quat(0.0, rotation_kinect_frame_.x(),
                           rotation_kinect_frame_.y(),
                           rotation_kinect_frame_.z());
@@ -171,7 +170,7 @@ Eigen::Affine3f detection::BoundingBox::getObjectToWorldTransform()
   return transform.translate(world_coords_planar_centroid_.head<3>()).rotate(eigen_vectors_).translate(planar_shift_);
 }
 
-void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, tf2_ros::TransformBroadcaster broadcaster)
+void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, tf::TransformBroadcaster broadcaster)
 {
   CloudPtr obj3D(new Cloud);
   pcl::transformPointCloud(*world_coords_obj, *obj3D, getWorldToObjectCentroidTransform());
@@ -183,41 +182,24 @@ void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, 
   broadcastFrameUpdate(broadcaster, position_3D_kinect_frame_);
 }
 
-void detection::BoundingBox::broadcast2DFrameUpdate(tf2_ros::TransformBroadcaster broadcaster)
+void detection::BoundingBox::broadcast2DFrameUpdate(tf::TransformBroadcaster broadcaster)
 {
   broadcastFrameUpdate(broadcaster, position_2D_kinect_frame_);
 }
 
-void detection::BoundingBox::broadcastFrameUpdate(tf2_ros::TransformBroadcaster broadcaster, Eigen::Vector3f &position)
+void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position)
 {
-  //tf::Transform transform;
   if (ros::ok())
   {
-    geometry_msgs::TransformStamped transform;
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(position[0], position[1], position[2]));
+
     ros::Time tf_time(planar_obj->header.stamp / 1000000.0);
-    transform.header.stamp = tf_time;//ros::Time::now();
-    transform.header.frame_id = kinect_frame_;
-    transform.child_frame_id = OBJ_FRAME;
-    transform.transform.translation.x = position[0];
-    transform.transform.translation.y = position[1];
-    transform.transform.translation.z = position[2];
-    //tf2::Quaternion q;
-    //q.setRPY(0, 0, msg->theta);
     Eigen::Quaternionf q(eigen_vectors_);//.transpose());
-    transform.transform.rotation.x = q.x();
-    transform.transform.rotation.y = q.y();
-    transform.transform.rotation.z = q.z();
-    transform.transform.rotation.w = q.w();
-
-    broadcaster.sendTransform(transform);
-
-    //transform.setOrigin(tf::Vector3(position[0], position[1], position[2]));
-    //tf::Quaternion quaternion(q.x(), q.y(), q.z(), q.w());
-    //Eigen::Quaterniond quat(eigen_quat.w(),eigen_quat.x(),eigen_quat.y(),eigen_quat.z());
-    //tf::quaternionEigenToTF(quat, quaternion);
-    //transform.setRotation(quaternion);
+    tf::Quaternion quaternion(q.x(), q.y(), q.z(), q.w());
+    transform.setRotation(quaternion);
     //broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), kinect_frame_, OBJ_FRAME));
-    //broadcaster.sendTransform(tf::StampedTransform(transform, tf_time, kinect_frame_, OBJ_FRAME));
+    broadcaster.sendTransform(tf::StampedTransform(transform, tf_time, kinect_frame_, OBJ_FRAME));
   }
 }
 

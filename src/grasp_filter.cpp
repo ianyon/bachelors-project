@@ -29,7 +29,7 @@ namespace bachelors_final_project
 const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
 
-detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf2_ros::TransformListener &tf_listener) :
+detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &tf_listener) :
     group_("right_arm"),
     display_pub(nh.advertise<DisplayTrajectory>("/move_group/display_planned_path", 1, true)),
     collision_obj_pub(nh.advertise<CollisionObject>("collision_object", 10)),

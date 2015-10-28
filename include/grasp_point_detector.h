@@ -3,8 +3,7 @@
 
 #include <stdint.h>
 
-#include "tf2_ros/transform_broadcaster.h"
-//#include <tf/transform_broadcaster.h>
+#include "tf/transform_broadcaster.h"
 
 #include <pcl/ModelCoefficients.h>
 
@@ -23,7 +22,7 @@ namespace detection
 class GraspPointDetector
 {
 public:
-  GraspPointDetector(ros::NodeHandle &handle, tf2_ros::TransformListener &tf_listener);
+  GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
 
   void updateConfig(bachelors_final_project::ParametersConfig &config);
 
@@ -43,8 +42,8 @@ public:
 
   void setTable(const CloudPtr &table_cloud, const pcl::ModelCoefficientsPtr table_plane);
 
-  tf2_ros::TransformBroadcaster tf_broadcaster;
-  //tf2_ros::TransformBroadcaster tf_broadcaster;
+  tf::TransformBroadcaster tf_broadcaster;
+  //tf::TransformBroadcaster tf_broadcaster;
 
   bool draw_bounding_box_;
   bool draw_sampled_grasps_;
@@ -72,7 +71,7 @@ public:
 
   // Planar projection of object in table
   CloudPtr world_planar_obj_;
-  tf2_ros::TransformListener &tf_listener_;
+  tf::TransformListener &tf_listener_;
 };
 
 } // namespace detection

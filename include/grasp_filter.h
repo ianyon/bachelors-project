@@ -40,7 +40,7 @@ class GraspFilter
 
   ros::ServiceClient client_get_scene;
 
-  tf2_ros::TransformListener &tf_listener_;
+  tf::TransformListener &tf_listener_;
   tf::StampedTransform stamped_transform;
 
   CloudPtr side_grasps_, top_grasps_;
@@ -57,7 +57,7 @@ class GraspFilter
   std::string kinect_frame_id_;
 
 public:
-  GraspFilter(ros::NodeHandle &handle, tf2_ros::TransformListener &tf_listener);
+  GraspFilter(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
 
   void configure(std::string kinect_frame_id, BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);
 

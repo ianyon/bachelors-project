@@ -61,7 +61,7 @@ void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width
 }
 
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,
-                    Point &point_out, uint64_t micro_sec_time, tf2_ros::TransformListener &tf_listener)
+                    Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
@@ -90,7 +90,7 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
 
 bool transformPose(const std::string &init_frame, const std::string &final_frame,
                     geometry_msgs::PoseStamped pose_in, geometry_msgs::PoseStamped pose_out,
-                    uint64_t micro_sec_time, tf2_ros::TransformListener &tf_listener)
+                    uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
@@ -117,7 +117,7 @@ bool transformPose(const std::string &init_frame, const std::string &final_frame
 
 bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const CloudPtr &cloud_in,
                          const CloudPtr &cloud_out, const uint64_t micro_sec_time,
-                         tf2_ros::TransformListener &tf_listener)
+                         tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);

@@ -8,6 +8,7 @@
 #include <Eigen/Eigenvalues>
 #include "definitions.h"
 
+#include <tf/transform_broadcaster.h>
 
 #include <pcl/visualization/cloud_viewer.h>
 
@@ -83,7 +84,7 @@ public:
 
   const Point getPlanarWorldPose();
 
-  Point computeFootprintPosePosition(tf2_ros::TransformListener &tf_listener);
+  Point computeFootprintPosePosition(tf::TransformListener &tf_listener);
 
   void visualizeData();
 
@@ -109,12 +110,12 @@ public:
     return planar_obj;
   }
 
-  geometry_msgs::Pose computeFootprintPose(tf2_ros::TransformListener &tf_listener);
+  geometry_msgs::Pose computeFootprintPose(tf::TransformListener &tf_listener);
 
-  void broadcastFrameUpdate(tf2_ros::TransformBroadcaster broadcaster, Eigen::Vector3f &position);
-  void broadcast2DFrameUpdate(tf2_ros::TransformBroadcaster broadcaster);
+  void broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position);
+  void broadcast2DFrameUpdate(tf::TransformBroadcaster broadcaster);
 
-  void build3DAndPublishFrame(CloudPtr &world_coords_obj, tf2_ros::TransformBroadcaster broadcaster);
+  void build3DAndPublishFrame(CloudPtr &world_coords_obj, tf::TransformBroadcaster broadcaster);
 
   Eigen::Affine3f getWorldToObjectTransform();
 

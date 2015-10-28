@@ -30,7 +30,7 @@ class CloudSegmentator
 {
 public:
   //! Constructor.
-  CloudSegmentator(ros::NodeHandle nh, tf2_ros::TransformListener &tf_listener);
+  CloudSegmentator(ros::NodeHandle nh, tf::TransformListener &tf_listener);
 
   void updateConfig(ParametersConfig &config);
 
@@ -139,7 +139,7 @@ public:
   Point plane_normal_base_frame_, plane_normal_kinect_frame_;
   Point normal_base_frame_reconstructed_;
 
-  tf2_ros::TransformListener &tf_listener_;
+  tf::TransformListener &tf_listener_;
 
   CloudPtr projected_table_cloud_;
   bool processed_cloud_;
