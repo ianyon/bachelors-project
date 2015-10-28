@@ -64,7 +64,11 @@ int main(int argc, char **argv)
   else ROS_ERROR("Failed to call service /gazebo/unpause_physics");
 
   viz::VisualizationThread viz_thread;
-  tf::TransformListener tf_listener;
+
+  tf2_ros::Buffer buffer;
+  tf2_ros::TransformListener tf_listener(buffer);
+  //tf2_ros::TransformListener tf_listener;
+
 
   // These objects cannot be copied because they contain a mutex
   CloudSegmentator segmentator(nh, tf_listener);

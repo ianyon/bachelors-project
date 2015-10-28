@@ -6,26 +6,17 @@
 
 #include <ros/ros.h>
 
-#include <geometry_msgs/Pose.h>
-#include <shape_tools/solid_primitive_dims.h>
 #include <moveit_msgs/DisplayTrajectory.h>
-#include <moveit_msgs/CollisionObject.h>
-#include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/PlanningScene.h>
 
 #include <moveit/collision_detection/collision_common.h>
 #include <moveit/collision_detection/collision_matrix.h>
 
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
-#include <moveit/planning_interface/planning_interface.h>
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
-
-#include <pcl/common/common.h>
-#include <pcl/exceptions.h>
-#include <pcl/common/transforms.h>
 
 #include "utils.h"
 #include "bounding_box.h"
+#include "grasp_filter_utils.h"
 
 using std::string;
 using namespace moveit_msgs;
@@ -38,13 +29,13 @@ namespace bachelors_final_project
 const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
 
-detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &tf_listener) :
+detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf2_ros::TransformListener &tf_listener) :
     group_("right_arm"),
-    display_publisher(nh.advertise<DisplayTrajectory>("/move_group/display_planned_path", 1, true)),
-    collision_obj_publisher(nh.advertise<CollisionObject>("collision_object", 10)),
-    attached_obj_publisher(nh.advertise<AttachedCollisionObject>("attached_collision_object", 10)),
+    display_pub(nh.advertise<DisplayTrajectory>("/move_group/display_planned_path", 1, true)),
+    collision_obj_pub(nh.advertise<CollisionObject>("collision_object", 10)),
+    attached_obj_pub(nh.advertise<AttachedCollisionObject>("attached_collision_object", 10)),
     client_get_scene(nh.serviceClient<GetPlanningScene>("/get_planning_scene")),
-    planning_scene_diff_publisher(nh.advertise<PlanningScene>("planning_scene", 1)),
+    planning_scene_diff_pub(nh.advertise<PlanningScene>("planning_scene", 1)),
     test_pub(nh.advertise<Cloud>("test_cloud", 1)),
     test_pub2(nh.advertise<Cloud>("test_cloud2", 1)),
     tf_listener_(tf_listener)
@@ -53,20 +44,18 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
   ROS_INFO("End Effector link: %s", group_.getEndEffectorLink().c_str());
 }
 
-Cloud table;
 
 void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &obj_bounding_box,
                                        BoundingBoxPtr &table_bounding_box)
 {
   kinect_frame_id_ = kinect_frame_id;
-  //table_world_coords_ = table_world_coords;
 
   test_cloud.reset(new Cloud);
   test_cloud->header.frame_id = kinect_frame_id;
   test_cloud2.reset(new Cloud);
   test_cloud2->header.frame_id = FOOTPRINT_FRAME;
 
-  Point table_pose = table_bounding_box->computeFootprintPose(tf_listener_);
+  Point table_pose = table_bounding_box->computeFootprintPosePosition(tf_listener_);
   Eigen::Vector3f table_size = table_bounding_box->getSizePlanarFootprint();
   table_size[2] = table_pose.z;
 
@@ -78,8 +67,6 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &o
   test_pub2.publish(test_cloud2);
   CloudPtr cloud(test_cloud);
   *cloud += *test_cloud2;
-  //*cloud += *table_world_coords;
-  *cloud += table;
 
   /*pcl::visualization::CloudViewer viewer("asd");
   viewer.showCloud(cloud);
@@ -90,95 +77,42 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &o
   // Add the table to supress collisions of the object with it
   addSupportTable(table_pose, table_size);
 
-  Point obj_pose = obj_bounding_box->computeFootprintPose(tf_listener_);
-  Eigen::Vector3f obj_size = obj_bounding_box->getSizePlanarFootprint();
-  obj_size[2] = obj_bounding_box->heigth_3D_;
-
   // Add a box to supress collisions with the object
+  //Point obj_pose = obj_bounding_box->computeFootprintPosePosition(tf_listener_);
+  Eigen::Vector3f obj_size = obj_bounding_box->getSizePlanarFootprint();
+  obj_size[2] = (float) obj_bounding_box->heigth_3D_;
+  geometry_msgs::Pose obj_pose = obj_bounding_box->computeFootprintPose(tf_listener_);
   addCollisionObject(obj_pose, obj_size);
-  updateAllowedCollisionMatrix();
+  //updateAllowedCollisionMatrix();
 }
 
 void detection::GraspFilter::addSupportTable(Point &pose_pt, Eigen::Vector3f &size)
 {
-  CollisionObject co;
-  co.id = SUPPORT_TABLE;
-  co.header.stamp = ros::Time::now();
-  // TODO check
-  co.header.frame_id = group_.getPlanningFrame();
-  co.header.frame_id = FOOTPRINT_FRAME;
-  //co.header.frame_id = kinect_frame_id_;
+  CollisionObject co = getCollisionObjUpdated(collision_obj_pub, SUPPORT_TABLE, false, attached_obj_pub);
 
-  // First remove it
-  co.operation = CollisionObject::REMOVE;
-  collision_obj_publisher.publish(co);
-
-  co.operation = CollisionObject::ADD;
   /* Define a plane as a box to add to the world. */
-  SolidPrimitive primitive;
-  primitive.type = SolidPrimitive::BOX;
-  primitive.dimensions.resize(shape_tools::SolidPrimitiveDimCount<SolidPrimitive::BOX>::value);
-  primitive.dimensions[SolidPrimitive::BOX_X] = size[0] * 0.9;
-  primitive.dimensions[SolidPrimitive::BOX_Y] = size[1] * 0.9;
-  primitive.dimensions[SolidPrimitive::BOX_Z] = size[2];
-  co.primitives.push_back(primitive);
+  co.primitives.push_back(constructPrimitive(size[0] * 0.9f, size[1] * 0.9f, size[2]));
   // A pose for the plane (specified relative to frame_id).
   // We need to divide z by two because we want the table to ocuppy all the space below the real table
   // 0.2796  is the border of the robot
   Eigen::Vector3f pose(fmax(pose_pt.x, 0.2796 + size[0] / 2), pose_pt.y, pose_pt.z * 0.5);
   co.primitive_poses.push_back(newPose(pose));
 
-  collision_obj_publisher.publish(co);
+  collision_obj_pub.publish(co);
 }
 
-void detection::GraspFilter::addCollisionObject(Point &pose_pt, Eigen::Vector3f &size)
+void detection::GraspFilter::addCollisionObject(geometry_msgs::Pose &pose_pt, Eigen::Vector3f &size)
 {
-  CollisionObject co;
-  co.id = GRASPABLE_OBJECT;
-  co.header.stamp = ros::Time::now();
-  // TODO check
-  co.header.frame_id = group_.getPlanningFrame();
-  co.header.frame_id = FOOTPRINT_FRAME;
-  co.header.frame_id = kinect_frame_id_;
-
-  // First remove it
-  co.operation = CollisionObject::REMOVE;
-  collision_obj_publisher.publish(co);
-
-  //Is this needed
-  AttachedCollisionObject aco;
-  aco.object = co;
-  attached_obj_publisher.publish(aco);
-
-  co.operation = CollisionObject::ADD;
-
+  CollisionObject co = getCollisionObjUpdated(collision_obj_pub, GRASPABLE_OBJECT, true, attached_obj_pub);
   /* Define a box to add to the world. */
-  SolidPrimitive primitive;
-  primitive.type = SolidPrimitive::BOX;
-  primitive.dimensions.resize(shape_tools::SolidPrimitiveDimCount<SolidPrimitive::BOX>::value);
-  // TODO: Axes may not be right
-  primitive.dimensions[SolidPrimitive::BOX_X] = size[0];
-  primitive.dimensions[SolidPrimitive::BOX_Y] = size[1];
-  primitive.dimensions[SolidPrimitive::BOX_Z] = size[2];
-  co.primitives.push_back(primitive);
-
+  co.primitives.push_back(constructPrimitive(size[0], size[1], size[2]));
   /* A pose for the box (specified relative to frame_id) */
-  co.primitive_poses.push_back(newPose(newVector3f(pose_pt)));
-
-  collision_obj_publisher.publish(co);
-}
-
-geometry_msgs::Pose detection::GraspFilter::newPose(Eigen::Vector3f pose)
-{
-  geometry_msgs::Pose box_pose;
-  box_pose.orientation.w = 1.0;
-  box_pose.position.x = pose[0];
-  box_pose.position.y = pose[1];
-  box_pose.position.z = pose[2];
-  return box_pose;
+  co.primitive_poses.push_back(pose_pt);
+  collision_obj_pub.publish(co);
 }
 
 
+/*
 void detection::GraspFilter::updateAllowedCollisionMatrix()
 {
   GetPlanningScene scene_srv;
@@ -209,7 +143,7 @@ void detection::GraspFilter::updateAllowedCollisionMatrix()
   PlanningScene newSceneDiff;
   newSceneDiff.is_diff = true;
   newSceneDiff.allowed_collision_matrix = currentACM;
-  planning_scene_diff_publisher.publish(newSceneDiff);
+  planning_scene_diff_pub.publish(newSceneDiff);
 
   // To check that the matrix was properly updated
   if (!client_get_scene.call(scene_srv))
@@ -228,6 +162,7 @@ AllowedCollisionMatrix detection::GraspFilter::getCollisionMatrix(GetPlanningSce
            currentACM.entry_values.size(), currentACM.entry_values[0].enabled.size());
   return currentACM;
 }
+*/
 
 void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps)
 {
@@ -244,7 +179,7 @@ void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup
   DisplayTrajectory display_trajectory;
   display_trajectory.trajectory_start = pose_plan.start_state_;
   display_trajectory.trajectory.push_back(pose_plan.trajectory_);
-  display_publisher.publish(display_trajectory);
+  display_pub.publish(display_trajectory);
   sleep(5.0); // Para alcanzar a ver la trayectoria
 }
 
@@ -264,15 +199,8 @@ Cloud detection::GraspFilter::processGraspSamples(CloudPtr samples)
 
 bool detection::GraspFilter::processSample(Point &sample)
 {
-  //TODO: Transform coordinates?
   // Define a goal pose
-  geometry_msgs::Pose goal_pose;
-  goal_pose.position.x = sample.x;
-  goal_pose.position.y = sample.y;
-  goal_pose.position.z = sample.z;
-  goal_pose.orientation.w = 1;
-  group_.setPoseTarget(goal_pose);
-
+  group_.setPoseTarget(newPose(sample));
   group_.setPlanningTime(5.0); // 5s
 
   // Plan trayectory

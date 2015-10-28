@@ -1,23 +1,13 @@
 #include <iostream>
 #include <pcl_ros/transforms.h>
 
-#include "utils.h"
-#include "detection_visualizer.h"
-#include "cloud_segmentator.h"
-
-
-
-
-
-
-#include <ros/ros.h>
-
-// MoveIt!
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/move_group_interface/move_group.h>
 #include <shape_tools/solid_primitive_dims.h>
 
-
+#include "utils.h"
+#include "detection_visualizer.h"
+#include "cloud_segmentator.h"
 
 using boost::str;
 using boost::format;
@@ -25,7 +15,7 @@ using boost::format;
 namespace bachelors_final_project
 {
 int getNBiggerIndex(size_t size, int n)
-{ return  size > n-1? n-1 : size-1; }
+{ return size > n - 1 ? n - 1 : size - 1; }
 
 
 double durationMillis(clock_t &begin)
@@ -41,12 +31,12 @@ void callable(pcl::visualization::PCLVisualizer &viz)
 
 Point newPoint(Eigen::Vector3f v)
 {
-  return Point(v[0],v[1],v[2]);
+  return Point(v[0], v[1], v[2]);
 }
 
 pcl::PointXYZRGB newPointXYZRGB(Point p, uint8_t r, uint8_t g, uint8_t b)
 {
-  pcl::PointXYZRGB point(r,g,b);
+  pcl::PointXYZRGB point(r, g, b);
   point.x = p.x;
   point.y = p.y;
   point.z = p.z;
@@ -71,7 +61,7 @@ void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width
 }
 
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,
-                    Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
+                    Point &point_out, uint64_t micro_sec_time, tf2_ros::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
@@ -98,9 +88,36 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
   return true;
 }
 
+bool transformPose(const std::string &init_frame, const std::string &final_frame,
+                    geometry_msgs::PoseStamped pose_in, geometry_msgs::PoseStamped pose_out,
+                    uint64_t micro_sec_time, tf2_ros::TransformListener &tf_listener)
+{
+  // Constructor requires seconds
+  ros::Time tf_time(micro_sec_time / 1000000.0);
+
+  pose_in.header.frame_id = init_frame;
+  pose_out.header.frame_id = final_frame;
+  try
+  {
+    if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, TF_DURATION))
+      throw tf::TransformException(str(format("Timeout [%gs]") % TF_TIMEOUT));
+
+    tf_listener.transformPose(final_frame,tf_time, pose_in,init_frame, pose_out);
+    ROS_DEBUG("TF %s to %s", init_frame.c_str(), final_frame.c_str());
+  }
+  catch (tf::TransformException ex)
+  {
+    ROS_ERROR("Exception transforming pose from '%s' to '%s': %s", init_frame.c_str(), final_frame.c_str(),
+              ex.what());
+    return false;
+  }
+  return true;
+}
+
+
 bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const CloudPtr &cloud_in,
                          const CloudPtr &cloud_out, const uint64_t micro_sec_time,
-                         tf::TransformListener &tf_listener)
+                         tf2_ros::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);

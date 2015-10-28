@@ -3,6 +3,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/project_inliers.h>
 #include <bounding_box.h>
+#include <tf/transform_broadcaster.h>
 
 #include "utils.h"
 
@@ -14,10 +15,10 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener) :
+detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf2_ros::TransformListener &tf_listener) :
     grasp_filter_(handle, tf_listener),
-    obj_bounding_box_(new BoundingBox),
-    table_bounding_box_(new BoundingBox()),
+    obj_bounding_box_(new BoundingBox("object_frame")),
+    table_bounding_box_(new BoundingBox("table_frame")),
     world_obj_(new Cloud),
     planar_obj_(new Cloud),
     world_planar_obj_(new Cloud),
@@ -69,8 +70,8 @@ bool detection::GraspPointDetector::doProcessing()
   clock_t begin = clock();
   boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
 
-  obj_bounding_box_->build(world_planar_obj_);
-  obj_bounding_box_->computeHeight(world_obj_);
+  obj_bounding_box_->buildPlanar(world_planar_obj_);
+  obj_bounding_box_->build3DAndPublishFrame(world_obj_, tf_broadcaster);
   planar_obj_ = obj_bounding_box_->getPlanarObj();
   draw_bounding_box_ = true;
 
@@ -84,7 +85,8 @@ bool detection::GraspPointDetector::doProcessing()
   ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
 
   // We need the table bounding box to create a collision object in moveit
-  table_bounding_box_->build(table_cloud_);
+  table_bounding_box_->buildPlanar(table_cloud_);
+  table_bounding_box_->broadcast2DFrameUpdate(tf_broadcaster);
   try
   {
     begin = clock();

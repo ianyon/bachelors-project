@@ -22,20 +22,20 @@ namespace detection
 class BoundingBox
 {
 public:
-  BoundingBox();
+  BoundingBox(std::string obj_frame);
 
   /**
  * 1) compute the centroid (c0, c1, c2) and the normalized covariance
  * 2) compute the eigenvectors e0, e1, e2. The reference system will be (e0, e1, e0 X e1) --- note: e0 X e1 = +/- e2
  * 3) move the points in that RF
-   - note: the transformation given by the obj_to_world_rotation_ matrix (e0, e1, e0 X e1) & (c0, c1, c2)
+   - note: the transformation given by the rotation_kinect_frame_ matrix (e0, e1, e0 X e1) & (c0, c1, c2)
      must be inverted
  * 4) compute the max, the min and the center of the diagonal
  * 5) given a box centered at the origin with size (max_point_.x - min_point_.x, max_point_.y - min_point_.y,
    *  max_point_.z - min_point_.z) the transformation you have to apply is
    Rotation = (e0, e1, e0 X e1) & Translation = Rotation * center_diag + (c0, c1, c2)
  */
-  void build(CloudPtr &world_coords_planar_obj);
+  void buildPlanar(CloudPtr &world_coords_planar_obj);
 
   Eigen::Affine3f getWorldToObjectCentroidTransform();
 
@@ -83,7 +83,7 @@ public:
 
   const Point getPlanarWorldPose();
 
-  Point computeFootprintPose(tf::TransformListener &tf_listener);
+  Point computeFootprintPosePosition(tf2_ros::TransformListener &tf_listener);
 
   void visualizeData();
 
@@ -93,13 +93,14 @@ public:
       min_pt_planar_, max_pt_planar_;
   Point pose_planar_world_;
   std::string kinect_frame_;
-  // obj_to_world_rotation_ represents the eigen vectors as a rotation matrix
-  Eigen::Quaternionf obj_to_world_rotation_;
+  // rotation_kinect_frame_ represents the eigen vectors as a rotation matrix
+  Eigen::Quaternionf rotation_kinect_frame_;
   Eigen::Vector4f world_coords_planar_centroid_;
   Eigen::Matrix3f eigen_vectors_;
-  Eigen::Vector3f planar_shift_, world_coords_3D_pose, obj_to_world_translation_, size_planar_, size_planar_footprint_;
+  Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_2D_kinect_frame_, size_planar_, size_planar_footprint_;
   double heigth_3D_;
   CloudPtr planar_obj;
+  const std::string OBJ_FRAME;
 
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver;
 
@@ -108,7 +109,12 @@ public:
     return planar_obj;
   }
 
-  void computeHeight(CloudPtr &world_coords_obj);
+  geometry_msgs::Pose computeFootprintPose(tf2_ros::TransformListener &tf_listener);
+
+  void broadcastFrameUpdate(tf2_ros::TransformBroadcaster broadcaster, Eigen::Vector3f &position);
+  void broadcast2DFrameUpdate(tf2_ros::TransformBroadcaster broadcaster);
+
+  void build3DAndPublishFrame(CloudPtr &world_coords_obj, tf2_ros::TransformBroadcaster broadcaster);
 
   Eigen::Affine3f getWorldToObjectTransform();
 

@@ -17,7 +17,7 @@ namespace bachelors_final_project
 /*
  * Constructor
  */
-segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh, tf::TransformListener &tf_listener) :
+segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh, tf2_ros::TransformListener &tf_listener) :
     search_(new search::OrganizedNeighbor<Point>),
     processed_cloud_(false),
     plane_updated_(false),

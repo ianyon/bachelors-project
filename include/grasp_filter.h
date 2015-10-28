@@ -11,8 +11,6 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
-#include <pcl/ModelCoefficients.h>
-
 #include <moveit/move_group_interface/move_group.h>
 
 #include <moveit_msgs/AllowedCollisionMatrix.h>
@@ -20,9 +18,6 @@
 
 #include "definitions.h"
 #include "containers.h"
-
-
-#include <pcl/visualization/cloud_viewer.h>
 
 namespace bachelors_final_project
 {
@@ -34,18 +29,18 @@ class GraspFilter
   moveit_msgs::AllowedCollisionMatrix getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv,
                                                          bool after);
 
-  ros::Publisher display_publisher;
-  ros::Publisher collision_obj_publisher;
-  ros::Publisher attached_obj_publisher;
+  ros::Publisher display_pub;
+  ros::Publisher collision_obj_pub;
+  ros::Publisher attached_obj_pub;
 
-  ros::Publisher planning_scene_diff_publisher;
-  ros::Publisher test_pub,test_pub2;
+  ros::Publisher planning_scene_diff_pub;
+  ros::Publisher test_pub, test_pub2;
   CloudPtr test_cloud;
   CloudPtr test_cloud2;
 
   ros::ServiceClient client_get_scene;
 
-  tf::TransformListener &tf_listener_;
+  tf2_ros::TransformListener &tf_listener_;
   tf::StampedTransform stamped_transform;
 
   CloudPtr side_grasps_, top_grasps_;
@@ -62,24 +57,17 @@ class GraspFilter
   std::string kinect_frame_id_;
 
 public:
-  GraspFilter(ros::NodeHandle &handle,tf::TransformListener &tf_listener);
+  GraspFilter(ros::NodeHandle &handle, tf2_ros::TransformListener &tf_listener);
 
   void configure(std::string kinect_frame_id, BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);
 
-  void tableCoords(CloudPtr &table_world_coords, BoundingBoxPtr &bounding_box, Point *pose,
-                   Point *size);
-
   void addSupportTable(Point &pose, Eigen::Vector3f &size);
 
-  void addCollisionObject(Point &pose_pt, Eigen::Vector3f &size);
+  void addCollisionObject(geometry_msgs::Pose &pose_pt, Eigen::Vector3f &size);
 
   void updateAllowedCollisionMatrix();
 
-  geometry_msgs::Pose newPose(Eigen::Vector3f pose);
-
   void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
-
-  void initializePublisher(ros::NodeHandle &handle);
 
   void visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan);
 

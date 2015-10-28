@@ -83,6 +83,7 @@ set(sources src/example.cpp
         src/grasp_sampler.cpp
         src/ellipse_operations.cpp
         src/grasp_filter.cpp
+        src/grasp_filter_utils.cpp
 
         src/visualization/visualization_thread.cpp
         src/visualization/base_visualizer.cpp

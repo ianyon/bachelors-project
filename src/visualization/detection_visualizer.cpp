@@ -68,7 +68,7 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
     visualizeCloud(WORLD_PLANAR_OBJ, obj().world_planar_obj_, 180, 180, 180);
 
     // Draw the box in world coords
-    visualizeBox(box, WORLD_BOUNDING_BOX, box.obj_to_world_translation_, box.obj_to_world_rotation_);
+    visualizeBox(box, WORLD_BOUNDING_BOX, box.position_2D_kinect_frame_, box.rotation_kinect_frame_);
     // Draw the box in the origin (obj coords)
     visualizeBox(box, BOUNDING_BOX);
 

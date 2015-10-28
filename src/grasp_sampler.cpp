@@ -94,7 +94,7 @@ Eigen::Affine3f detection::GraspSampler::getTransform(const BoundingBoxPtr &boun
   // The transformation from 0,0 to the objects coordinate system
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
   if (side_grasp_transform)
-    transform.translate(bounding_box->obj_to_world_translation_);
+    transform.translate(bounding_box->position_2D_kinect_frame_);
   else
     transform.translate(bounding_box->world_coords_planar_centroid_.head<3>());
   transform.rotate(bounding_box->eigen_vectors_);
