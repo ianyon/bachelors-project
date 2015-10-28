@@ -61,7 +61,7 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, Clou
   numberOfSamples(bounding_box, minor_axis_samples, mayor_axis_samples);
 
   // Grasping point at the center of the object's bounding box
-  float height = (float) getTopGraspHeight(bounding_box->heigth_3D_);
+  float height = (float) getTopGraspHeight(bounding_box->getHeigth());
 
   float minor_axis = bounding_box->planar_shift_[1];
   float min_mayor_axis = bounding_box->min_pt_planar_centroid_.z;

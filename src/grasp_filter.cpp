@@ -55,13 +55,12 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &o
   test_cloud2.reset(new Cloud);
   test_cloud2->header.frame_id = FOOTPRINT_FRAME;
 
-  Point table_pose = table_bounding_box->computeFootprintPosePosition(tf_listener_);
-  Eigen::Vector3f table_size = table_bounding_box->getSizePlanarFootprint();
-  table_size[2] = table_pose.z;
+  Point table_position = table_bounding_box->computePosition2DRobotFrame(tf_listener_);
+  Eigen::Vector3f table_size = table_bounding_box->getSizeWithExternHeight(table_position.z);
 
   //table_bounding_box->visualizeData();
-  //tableCoords(table_world_coords_, table_bounding_box, &table_pose, &table_size);
-  test_cloud2->push_back(table_pose);
+  //tableCoords(table_world_coords_, table_bounding_box, &table_position, &table_size);
+  test_cloud2->push_back(table_position);
   //test_cloud2->push_back(table_size);
   test_pub.publish(test_cloud);
   test_pub2.publish(test_cloud2);
@@ -75,13 +74,13 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &o
 
   viewer.runOnVisualizationThreadOnce(callable);*/
   // Add the table to supress collisions of the object with it
-  addSupportTable(table_pose, table_size);
+  addSupportTable(table_position, table_size);
 
   // Add a box to supress collisions with the object
-  //Point obj_pose = obj_bounding_box->computeFootprintPosePosition(tf_listener_);
-  Eigen::Vector3f obj_size = obj_bounding_box->getSizePlanarFootprint();
-  obj_size[2] = (float) obj_bounding_box->heigth_3D_;
-  geometry_msgs::Pose obj_pose = obj_bounding_box->computeFootprintPose(tf_listener_);
+  //Point obj_pose = obj_bounding_box->computePosition2DRobotFrame(tf_listener_);
+  Eigen::Vector3f obj_size = obj_bounding_box->getSize3D();
+  //obj_size[2] = (float) obj_bounding_box->getHeigth();
+  geometry_msgs::Pose obj_pose = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
   addCollisionObject(obj_pose, obj_size, obj_bounding_box->OBJ_FRAME);
   //updateAllowedCollisionMatrix();
 }
@@ -89,7 +88,7 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &o
 void detection::GraspFilter::addSupportTable(Point &pose_pt, Eigen::Vector3f &size)
 {
   CollisionObject co = getCollisionObjUpdated(collision_obj_pub, SUPPORT_TABLE, false, attached_obj_pub,
-                                              <#initializer#>);
+                                              FOOTPRINT_FRAME);
 
   /* Define a plane as a box to add to the world. */
   co.primitives.push_back(constructPrimitive(size[0] * 0.9f, size[1] * 0.9f, size[2]));
@@ -110,7 +109,9 @@ void detection::GraspFilter::addCollisionObject(geometry_msgs::Pose &pose_pt, Ei
   /* Define a box to add to the world. */
   co.primitives.push_back(constructPrimitive(size[0], size[1], size[2]));
   /* A pose for the box (specified relative to frame_id) */
-  co.primitive_poses.push_back(pose_pt);
+  geometry_msgs::Pose pose;
+  pose.orientation.w=1.0;
+  co.primitive_poses.push_back(pose);
   collision_obj_pub.publish(co);
 }
 

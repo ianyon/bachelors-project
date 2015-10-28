@@ -60,7 +60,13 @@ void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width
   cloud_out->header = coppied_cloud->header;
 }
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,
+Eigen::Vector3d castVector3d(Eigen::Vector3f v)
+{
+  Eigen::Vector3d v1(v[0],v[1],v[2]);
+  return v1;
+}
+
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
@@ -72,7 +78,8 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
 
     tf::StampedTransform stamped_tf;
     tf_listener.lookupTransform(final_frame, init_frame, tf_time, stamped_tf);
-    tf::Vector3 point_final_frame = stamped_tf * point_in;
+    tf::Vector3 tf_point_in(point_in[0],point_in[1],point_in[2]);
+    tf::Vector3 point_final_frame = stamped_tf * tf_point_in;
 
     ROS_DEBUG("TF %s to %s [%g,%g,%g]", init_frame.c_str(), final_frame.c_str(),
               point_final_frame.x(), point_final_frame.y(), point_final_frame.z());

@@ -40,11 +40,9 @@ public:
 
   Eigen::Affine3f getWorldToObjectCentroidTransform();
 
-  Eigen::Vector3f worldCoordsBoundingBoxPose();
-
   inline double getXLength()
   {
-    return heigth_3D_;
+    return size_3D_[0];
   }
 
   inline double getYLength()
@@ -67,9 +65,9 @@ public:
     return max_pt_planar_centroid_.y - min_pt_planar_centroid_.y;
   }
 
-  inline double getZLengthWorldCoords()
+  inline double getHeigth()
   {
-    return heigth_3D_;
+    return size_3D_[2];//size_3d_robot_frame_[2];
   }
 
   Eigen::Affine3f translateCentroidToBoundingBox(Eigen::Affine3f transform);
@@ -78,11 +76,28 @@ public:
 
   void createWorldCenteredMembers();
 
-  void createSize();
+  void create2DSize();
 
-  const Eigen::Vector3f &getSizePlanarFootprint();
+  void create3DSize(float heigth_3D);
 
-  Point computeFootprintPosePosition(tf::TransformListener &tf_listener);
+ /* inline const Eigen::Vector3f &detection::BoundingBox::getSizePlanarFootprint()
+  {
+    return size_2D_robot_frame_;
+  }*/
+
+  inline const Eigen::Vector3f &getSize3D()
+  {
+    return size_3D_;//size_3d_robot_frame_;
+  }
+
+  inline const Eigen::Vector2f &getSize2D()
+  {
+    return size_2D_;//size_3d_robot_frame_;
+  }
+
+  Eigen::Vector3f getSizeWithExternHeight(float height);
+
+  Point computePosition2DRobotFrame(tf::TransformListener &tf_listener);
 
   void visualizeData();
 
@@ -90,14 +105,16 @@ public:
   Point min_pt_planar_centroid_, max_pt_planar_centroid_,
       min_pt_planar_world_, max_pt_planar_world_,
       min_pt_planar_, max_pt_planar_;
-  Point pose_planar_world_;
   std::string kinect_frame_;
   // rotation_kinect_frame_ represents the eigen vectors as a rotation matrix
   Eigen::Quaternionf rotation_kinect_frame_;
   Eigen::Vector4f world_coords_planar_centroid_;
   Eigen::Matrix3f eigen_vectors_;
-  Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_2D_kinect_frame_, size_planar_, size_planar_footprint_;
-  double heigth_3D_;
+  Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_2D_kinect_frame_;
+
+  // Planar size. Index 0 is 'y' and index 1 is 'z'
+  Eigen::Vector2f size_2D_;
+  Eigen::Vector3f size_3D_;
   CloudPtr planar_obj;
   const std::string OBJ_FRAME;
 
@@ -108,14 +125,12 @@ public:
     return planar_obj;
   }
 
-  geometry_msgs::Pose computeFootprintPose(tf::TransformListener &tf_listener);
+  geometry_msgs::Pose computePose3DRobotFrame(tf::TransformListener &tf_listener);
 
   void broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position);
   void broadcast2DFrameUpdate(tf::TransformBroadcaster broadcaster);
 
   void build3DAndPublishFrame(CloudPtr &world_coords_obj, tf::TransformBroadcaster broadcaster);
-
-  Eigen::Affine3f getWorldToObjectTransform();
 
   Eigen::Affine3f getObjectToWorldTransform();
 

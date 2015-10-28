@@ -1036,6 +1036,13 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz/Axes
+      Enabled: true
+      Length: 0.25
+      Name: Axes
+      Radius: 0.025
+      Reference Frame: object_base_frame
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -1051,22 +1058,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 4.2869
+      Distance: 4.62655
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.263435
-        Y: 0.139252
-        Z: -9.53674e-07
+        X: 0.827845
+        Y: -0.0777912
+        Z: -7.15255e-07
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.315591
+      Pitch: 0.235591
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 5.94591
+      Yaw: 5.02093
     Saved: ~
 Window Geometry:
   Displays:

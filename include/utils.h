@@ -28,7 +28,9 @@ double durationMillis(clock_t &);
 
 void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width, int height);
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const tf::Vector3 &point_in,
+Eigen::Vector3d castVector3d(Eigen::Vector3f v);
+
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
 bool transformPose(const std::string &init_frame, const std::string &final_frame,

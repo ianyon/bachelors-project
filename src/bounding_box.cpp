@@ -10,7 +10,6 @@
 
 #include <tf/LinearMath/Vector3.h>
 #include <tf/transform_listener.h>
-#include <tf_conversions/tf_eigen.h>
 
 #include <tf/transform_broadcaster.h>
 
@@ -49,7 +48,7 @@ void detection::BoundingBox::buildPlanar(CloudPtr &world_coords_planar_obj)
   getMinMax3D(*planar_obj, min_pt_planar_centroid_, max_pt_planar_centroid_);
   planar_shift_ = 0.5f * (max_pt_planar_centroid_.getVector3fMap() + min_pt_planar_centroid_.getVector3fMap());
 
-  createSize();
+  create2DSize();
   createBoundingBoxCenteredMembers();
   createWorldCenteredMembers();
 
@@ -58,39 +57,13 @@ void detection::BoundingBox::buildPlanar(CloudPtr &world_coords_planar_obj)
   position_2D_kinect_frame_ = eigen_vectors_ * planar_shift_ + world_coords_planar_centroid_.head<3>();
 }
 
-const Eigen::Vector3f &detection::BoundingBox::getSizePlanarFootprint()
-{
-  return size_planar_footprint_;
-}
 
-Point detection::BoundingBox::computeFootprintPosePosition(tf::TransformListener &tf_listener)
-{
-  tf::Vector3 pose_kinect_frame(pose_planar_world_.x, pose_planar_world_.y, pose_planar_world_.z);
 
-  Point footprint_pose;
-  if (!transformPoint(kinect_frame_, FOOTPRINT_FRAME, pose_kinect_frame, footprint_pose, 0, tf_listener))
-    throw ComputeFailedException("Without transform can't find horizontal plane coords");
-  return footprint_pose;
-}
-
-geometry_msgs::Pose detection::BoundingBox::computeFootprintPose(tf::TransformListener &tf_listener)
+geometry_msgs::Pose detection::BoundingBox::computePose3DRobotFrame(tf::TransformListener &tf_listener)
 {
   // We want the origin of the reference frame
   geometry_msgs::PoseStamped pose_bounding_box_frame;
   pose_bounding_box_frame.pose.orientation.w = 1.0;
-  /*Eigen::Quaternionf quat(0.0, rotation_kinect_frame_.x(),
-                          rotation_kinect_frame_.y(),
-                          rotation_kinect_frame_.z());
-  quat.normalize();
-
-  pose_bounding_box_frame.pose.position.x = position_2D_kinect_frame_.x();
-  pose_bounding_box_frame.pose.position.y = position_2D_kinect_frame_.y();
-  pose_bounding_box_frame.pose.position.z = position_2D_kinect_frame_.z();
-
-  pose_bounding_box_frame.pose.orientation.x = quat.x();
-  pose_bounding_box_frame.pose.orientation.y = quat.y();
-  pose_bounding_box_frame.pose.orientation.z = quat.z();
-  pose_bounding_box_frame.pose.orientation.w = quat.w();*/
 
   geometry_msgs::PoseStamped pose_robot_frame;
   if (!transformPose(OBJ_FRAME, FOOTPRINT_FRAME, pose_bounding_box_frame, pose_robot_frame, planar_obj->header.stamp,
@@ -100,19 +73,36 @@ geometry_msgs::Pose detection::BoundingBox::computeFootprintPose(tf::TransformLi
   return pose_robot_frame.pose;
 }
 
-void detection::BoundingBox::createSize()
+Point detection::BoundingBox::computePosition2DRobotFrame(tf::TransformListener &tf_listener)
 {
-  size_planar_ = max_pt_planar_centroid_.getVector3fMap() + (-min_pt_planar_centroid_.getVector3fMap());
-  size_planar_footprint_[0] = size_planar_[2];
-  size_planar_footprint_[1] = size_planar_[1];
-  size_planar_footprint_[2] = size_planar_[0]; // This should be 0 or 1 because we used a planar obj
+  Point pose_robot_frame;
+  if (!transformPoint(kinect_frame_, FOOTPRINT_FRAME, position_2D_kinect_frame_, pose_robot_frame, 0, tf_listener))
+    throw ComputeFailedException("Without transform can't find horizontal plane coords");
+  return pose_robot_frame;
+}
+Eigen::Vector3f detection::BoundingBox::getSizeWithExternHeight(float height)
+{
+  return Eigen::Vector3f(size_2D_[0], size_2D_[1], height);
+}
+
+void detection::BoundingBox::create2DSize()
+{
+  Eigen::Vector3f size;
+  size = max_pt_planar_centroid_.getVector3fMap() + (-min_pt_planar_centroid_.getVector3fMap());
+  size_2D_ = Eigen::Vector2f(size[2],size[1]);
+}
+
+void detection::BoundingBox::create3DSize(float heigth_3D)
+{
+  size_3D_[0] = size_2D_[0];
+  size_3D_[1] = size_2D_[1];
+  size_3D_[2] = heigth_3D;
 }
 
 void detection::BoundingBox::createWorldCenteredMembers()
 {
   min_pt_planar_world_ = pcl::transformPoint(min_pt_planar_, getObjectToWorldTransform());
   max_pt_planar_world_ = pcl::transformPoint(max_pt_planar_, getObjectToWorldTransform());
-  pose_planar_world_ = pcl::transformPoint(Point(), getObjectToWorldTransform());
 }
 
 void detection::BoundingBox::createBoundingBoxCenteredMembers()
@@ -129,11 +119,6 @@ Eigen::Affine3f detection::BoundingBox::translateCentroidToBoundingBox(Eigen::Af
   return transform.translate(-planar_shift_);
 }
 
-Eigen::Vector3f detection::BoundingBox::worldCoordsBoundingBoxPose()
-{
-  return position_3D_kinect_frame_;
-}
-
 /**
  * Change coordinates from world's to object's centroid.
  * First translate the object and then rotate it. Transforms are applied like right multiplication
@@ -146,14 +131,6 @@ Eigen::Affine3f detection::BoundingBox::getWorldToObjectCentroidTransform()
   transform.rotate(eigen_vectors_.transpose());
   // Translate to object's coordinates: Make the centroid be the origin
   return transform.translate(-world_coords_planar_centroid_.head<3>());
-}
-
-/**;
- * Change coordinates from world's to object's
- */
-Eigen::Affine3f detection::BoundingBox::getWorldToObjectTransform()
-{
-  return translateCentroidToBoundingBox(getWorldToObjectCentroidTransform());
 }
 
 /**
@@ -171,8 +148,8 @@ void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, 
   pcl::transformPointCloud(*world_coords_obj, *obj3D, getWorldToObjectCentroidTransform());
   Point min_3d_point, max_3d_point;
   getMinMax3D(*obj3D, min_3d_point, max_3d_point);
-  heigth_3D_ = fabs(max_3d_point.x - min_3d_point.x);
-  position_3D_kinect_frame_ = position_2D_kinect_frame_ + eigen_vectors_ * Eigen::Vector3f(heigth_3D_ / 2, 0, 0);
+  create3DSize((float) fabs(max_3d_point.x - min_3d_point.x));
+  position_3D_kinect_frame_ = position_2D_kinect_frame_ - eigen_vectors_ * Eigen::Vector3f(getHeigth() / 2, 0, 0);
 
   broadcastFrameUpdate(broadcaster, position_3D_kinect_frame_);
 }
@@ -188,17 +165,11 @@ void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broad
   if (ros::ok())
   {
     transform.setOrigin(tf::Vector3(position[0], position[1], position[2]));
-    Eigen::Quaternionf q;
-    q = Eigen::AngleAxisf(180.0 * M_PI / 180.0, Eigen::Vector3f(0.0, 0.0, 1.0));
-    q.normalize();
-    q = rotation_kinect_frame_*q;
-    Eigen::Quaternionf b;
-    b = Eigen::AngleAxisf(90.0 * M_PI / 180.0, Eigen::Vector3f(0.0, 1.0, 0.0));
-    b.normalize();
-    b = rotation_kinect_frame_*b;
 
+    Eigen::Quaternionf b;
+    b = Eigen::AngleAxisf(-90.0 * M_PI / 180.0, Eigen::Vector3f(0.0, 1.0, 0.0));
+    b = rotation_kinect_frame_*b;
     tf::Quaternion quaternion(b.x(), b.y(), b.z(), b.w());
-    quaternion.normalize();
     transform.setRotation(quaternion);
     ros::Time tf_time(planar_obj->header.stamp / 1000000.0);
     //broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), kinect_frame_, OBJ_FRAME));
@@ -218,15 +189,15 @@ void things(pcl::visualization::PCLVisualizer &viz, bachelors_final_project::det
 void detection::BoundingBox::visualizeData()
 {
   pcl::PointCloud<pcl::PointXYZRGB> brief;
-  brief.push_back(newPointXYZRGB(newPoint(size_planar_), 255, 0, 0));
-  brief.push_back(newPointXYZRGB(newPoint(size_planar_footprint_), 0, 255, 0));
+  //brief.push_back(newPointXYZRGB(newPoint(size_2D_), 255, 0, 0));
+  //brief.push_back(newPointXYZRGB(newPoint(size_2D_robot_frame_), 0, 255, 0));
   brief.push_back(newPointXYZRGB(min_pt_planar_centroid_, 255, 0, 0));
   brief.push_back(newPointXYZRGB(max_pt_planar_centroid_, 255, 0, 0));
   brief.push_back(newPointXYZRGB(min_pt_planar_world_, 0, 0, 255));
   brief.push_back(newPointXYZRGB(max_pt_planar_world_, 0, 0, 255));
   brief.push_back(newPointXYZRGB(min_pt_planar_, 255, 0, 0));
   brief.push_back(newPointXYZRGB(max_pt_planar_, 255, 0, 0));
-  brief.push_back(newPointXYZRGB(pose_planar_world_, 0, 0, 255));
+  //brief.push_back(newPointXYZRGB(pose_2d_kinect_frame_, 0, 0, 255));
 
   pcl::visualization::CloudViewer viewer("TEST BOUNDING BOX");
   viewer.runOnVisualizationThreadOnce(callable);
