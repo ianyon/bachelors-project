@@ -19,8 +19,8 @@ namespace bachelors_final_project
 namespace detection
 {
 
-moveit_msgs::CollisionObject getCollisionObjUpdated(ros::Publisher pub, const std::string &id,
-                                                    bool detach, ros::Publisher attached_pub);
+moveit_msgs::CollisionObject getCollisionObjUpdated(ros::Publisher pub, const std::string &id, bool detach,
+                                                    ros::Publisher attached_pub, const std::string &frame);
 
 shape_msgs::SolidPrimitive constructPrimitive(float sizeX, float sizeY, float sizeZ);
 

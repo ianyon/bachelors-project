@@ -82,8 +82,6 @@ public:
 
   const Eigen::Vector3f &getSizePlanarFootprint();
 
-  const Point getPlanarWorldPose();
-
   Point computeFootprintPosePosition(tf::TransformListener &tf_listener);
 
   void visualizeData();

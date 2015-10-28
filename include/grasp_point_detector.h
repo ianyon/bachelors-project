@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "tf/transform_broadcaster.h"
+#include <tf/transform_broadcaster.h>
 
 #include <pcl/ModelCoefficients.h>
 
@@ -43,7 +43,6 @@ public:
   void setTable(const CloudPtr &table_cloud, const pcl::ModelCoefficientsPtr table_plane);
 
   tf::TransformBroadcaster tf_broadcaster;
-  //tf::TransformBroadcaster tf_broadcaster;
 
   bool draw_bounding_box_;
   bool draw_sampled_grasps_;

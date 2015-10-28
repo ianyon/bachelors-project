@@ -32,7 +32,7 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
 bool transformPose(const std::string &init_frame, const std::string &final_frame,
-                   geometry_msgs::PoseStamped pose_in, geometry_msgs::PoseStamped pose_out,
+                   geometry_msgs::PoseStamped &pose_in, geometry_msgs::PoseStamped &pose_out,
                    uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
 bool transformPointCloud(const std::string &init_frame, const std::string &final_frame, const CloudPtr &cloud_in,

@@ -63,7 +63,8 @@ public:
 
   void addSupportTable(Point &pose, Eigen::Vector3f &size);
 
-  void addCollisionObject(geometry_msgs::Pose &pose_pt, Eigen::Vector3f &size);
+  void addCollisionObject(geometry_msgs::Pose &pose_pt, Eigen::Vector3f &size,
+                            const std::string &frame);
 
   void updateAllowedCollisionMatrix();
 

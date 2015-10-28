@@ -86,7 +86,7 @@ bool detection::GraspPointDetector::doProcessing()
 
   // We need the table bounding box to create a collision object in moveit
   table_bounding_box_->buildPlanar(table_cloud_);
-  table_bounding_box_->broadcast2DFrameUpdate(tf_broadcaster);
+  //table_bounding_box_->broadcast2DFrameUpdate(tf_broadcaster);
   try
   {
     begin = clock();

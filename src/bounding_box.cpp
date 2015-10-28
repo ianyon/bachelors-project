@@ -63,11 +63,6 @@ const Eigen::Vector3f &detection::BoundingBox::getSizePlanarFootprint()
   return size_planar_footprint_;
 }
 
-const Point detection::BoundingBox::getPlanarWorldPose()
-{
-  return pose_planar_world_;
-}
-
 Point detection::BoundingBox::computeFootprintPosePosition(tf::TransformListener &tf_listener)
 {
   tf::Vector3 pose_kinect_frame(pose_planar_world_.x, pose_planar_world_.y, pose_planar_world_.z);
@@ -189,15 +184,23 @@ void detection::BoundingBox::broadcast2DFrameUpdate(tf::TransformBroadcaster bro
 
 void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position)
 {
+  tf::Transform transform;
   if (ros::ok())
   {
-    tf::Transform transform;
     transform.setOrigin(tf::Vector3(position[0], position[1], position[2]));
+    Eigen::Quaternionf q;
+    q = Eigen::AngleAxisf(180.0 * M_PI / 180.0, Eigen::Vector3f(0.0, 0.0, 1.0));
+    q.normalize();
+    q = rotation_kinect_frame_*q;
+    Eigen::Quaternionf b;
+    b = Eigen::AngleAxisf(90.0 * M_PI / 180.0, Eigen::Vector3f(0.0, 1.0, 0.0));
+    b.normalize();
+    b = rotation_kinect_frame_*b;
 
-    ros::Time tf_time(planar_obj->header.stamp / 1000000.0);
-    Eigen::Quaternionf q(eigen_vectors_);//.transpose());
-    tf::Quaternion quaternion(q.x(), q.y(), q.z(), q.w());
+    tf::Quaternion quaternion(b.x(), b.y(), b.z(), b.w());
+    quaternion.normalize();
     transform.setRotation(quaternion);
+    ros::Time tf_time(planar_obj->header.stamp / 1000000.0);
     //broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), kinect_frame_, OBJ_FRAME));
     broadcaster.sendTransform(tf::StampedTransform(transform, tf_time, kinect_frame_, OBJ_FRAME));
   }

@@ -43,13 +43,13 @@ geometry_msgs::Pose detection::newPose(Point pose, Eigen::Quaternionf rotation)
   return box_pose;
 }
 
-moveit_msgs::CollisionObject detection::getCollisionObjUpdated(ros::Publisher pub, const std::string &id,
-                                          bool detach, ros::Publisher attached_pub)
+moveit_msgs::CollisionObject detection::getCollisionObjUpdated(ros::Publisher pub, const std::string &id, bool detach,
+                                                               ros::Publisher attached_pub, const std::string &frame)
 {
   moveit_msgs::CollisionObject co;
   co.id = id;
   co.header.stamp = ros::Time::now();
-  co.header.frame_id = FOOTPRINT_FRAME;
+  co.header.frame_id = frame;
   // First remove it
   co.operation = moveit_msgs::CollisionObject::REMOVE;
   pub.publish(co);
