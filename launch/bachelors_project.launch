@@ -16,7 +16,7 @@
   <!-- Gazebo -->
   <arg name="paused" default="true"/>
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find bachelors_final_project)/worlds/table_with_objects.world"/>
+    <arg name="world_name" value="$(find bachelors_final_project)/worlds/table_with_objects_closer.world"/>
     <arg name="gui" value="false" />
     <arg name="paused" value="$(arg paused)" />
   </include>  
@@ -41,7 +41,7 @@
 
   <!-- MoveIt -->
   <!--<param name="/move_group/max_range" value="2.5" />-->
-  <include file="$(find pr2_moveit_config)/launch/move_group.launch">    
+  <include file="$(find bachelors_final_project)/launch/my_move_group.launch">    
     <arg name="info" value="true"/>
   </include>
   <!-- To improve performance -->

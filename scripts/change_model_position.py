@@ -67,6 +67,21 @@ class SetModelPosition():
         self.right_arm_ready_to_grasp = [-1.2780958803182516, 0.00979129625067987, 0.2767535259540539, -2.0621385930423557, -3.009094415608935, -0.6072794764131304, -4.783258604066159]
         self.left_arm_tuck_alone = [0.21685427439134308, 1.2614225287545082, 1.7892803096566166, -1.6871467538615672, -1.771813039429885, -0.25594707189242527, -0.045095787736748605]
 
+        self.left_arm_names = ["l_shoulder_pan_joint"
+              , "l_shoulder_lift_joint"
+              , "l_upper_arm_roll_joint"
+              , "l_elbow_flex_joint"
+              , "l_forearm_roll_joint"
+              , "l_wrist_flex_joint"
+              , "l_wrist_roll_joint"]
+        self.right_arm_names = ["r_shoulder_pan_joint"
+              , "r_shoulder_lift_joint"
+              , "r_upper_arm_roll_joint"
+              , "r_elbow_flex_joint"
+              , "r_forearm_roll_joint"
+              , "r_wrist_flex_joint"
+              , "r_wrist_roll_joint"]        
+
     def parseUserInputs(self):
         # get goal from commandline
         for i in range(0,len(sys.argv)):
@@ -148,29 +163,14 @@ class SetModelPosition():
 
         #self.set_configuration(["head_traj_controller"], self.joint_names, self.joint_positions)
 
-        left_arm_names = ["l_shoulder_pan_joint"
-              , "l_shoulder_lift_joint"
-              , "l_upper_arm_roll_joint"
-              , "l_elbow_flex_joint"
-              , "l_forearm_roll_joint"
-              , "l_wrist_flex_joint"
-              , "l_wrist_roll_joint"]
-
         left_arm_joint_positions = self.left_arm_tuck_alone
         #self.set_configuration(["l_arm_controller"], left_arm_names, left_arm_joint_positions)
 
-        right_arm_names = ["r_shoulder_pan_joint"
-              , "r_shoulder_lift_joint"
-              , "r_upper_arm_roll_joint"
-              , "r_elbow_flex_joint"
-              , "r_forearm_roll_joint"
-              , "r_wrist_flex_joint"
-              , "r_wrist_roll_joint"]        
         right_arm_joint_positions = self.right_arm_ready_to_grasp
         #self.set_configuration(["r_arm_controller"], right_arm_names, right_arm_joint_positions)
 
         controllers = ["head_traj_controller", "r_arm_controller","l_arm_controller"]
-        joint_names = self.joint_names + left_arm_names + right_arm_names
+        joint_names = self.joint_names + self.left_arm_names + self.right_arm_names
         joint_positions = self.joint_positions + left_arm_joint_positions + right_arm_joint_positions
 
         self.set_configuration(controllers, joint_names, joint_positions)

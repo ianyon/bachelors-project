@@ -96,12 +96,6 @@ set(sources src/example.cpp
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 
-add_executable(pick_place src/pick_place.cpp)
-target_link_libraries(pick_place
-        ${catkin_LIBRARIES}
-        libvtkCommon.so
-        libvtkFiltering.so )
-
 #Ensures that configuration files are generated before main target
 add_dependencies(example ${PROJECT_NAME}_gencfg)
 
