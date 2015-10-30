@@ -50,6 +50,7 @@ class GraspFilter
   static const std::string SUPPORT_TABLE;
   static const std::string WRIST_LINK;
   static const std::string GRIPPER_JOINT;
+  std::string OBJ_FRAME;
 
   //std::string kinect_frame_id_;
 
@@ -57,15 +58,17 @@ class GraspFilter
 
   // How far from the grasp center should the wrist be: 3 cm
   static const double STANDOFF;
-  tf::Transform STANDOFF_TRANS;
 
   // Pregrasp distance 10 cm
   static const float PREGRASP_DISTANCE;
 
+  Eigen::Vector3d side_grasp_center_, top_grasp_center_;
+
 public:
   GraspFilter(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
 
-  void configure(std::string kinect_frame_id, BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);
+  void configure(float side_grasp_height, float top_graps_height,
+                 BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);
 
   void addSupportTable(Point &pose, Eigen::Vector3f &size);
 

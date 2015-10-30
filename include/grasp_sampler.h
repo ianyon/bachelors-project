@@ -14,6 +14,8 @@ namespace detection
 
 class GraspSampler
 {
+  float side_grasps_height_, top_grasps_height_;
+
 public:
   GraspSampler();
 
@@ -25,18 +27,19 @@ public:
 
   void sampleAxis(CloudPtr &, float, float, int, double, bool);
 
-  double getSideGraspHeight(double obj_height);
-  double getTopGraspHeight(double obj_height);
+  void computeGraspsHeight(double obj_height);
 
-  const CloudPtr getSideGrasps() const
-  {
-    return side_grasps_;
-  }
+  inline const CloudPtr getSideGrasps() const
+  { return side_grasps_; }
 
-  const CloudPtr getTopGrasps() const
-  {
-    return top_grasps_;
-  }
+  inline const CloudPtr getTopGrasps() const
+  { return top_grasps_; }
+
+  inline float getTopGraspHeight()
+  { return top_grasps_height_; } //return -fmax(obj_height - 0.03, obj_height / 2);
+
+  inline float getSideGraspHeight()
+  { return side_grasps_height_; }
 
 private:
   void numberOfSamples(const BoundingBoxPtr &bounding_box, int &minor_axis_samples, int &mayor_axis_samples);

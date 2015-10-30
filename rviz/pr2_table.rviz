@@ -5,12 +5,13 @@ Panels:
     Property Tree Widget:
       Expanded: ~
       Splitter Ratio: 0.566502
-    Tree Height: 198
+    Tree Height: 224
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
     Expanded:
       - /Current View1
+      - /Current View1/Focal Point1
     Name: Views
     Splitter Ratio: 0.5
 Visualization Manager:
@@ -1116,7 +1117,7 @@ Visualization Manager:
       Marker Topic: /grasps_marker
       Name: Grasps
       Namespaces:
-        {}
+        graspmarker: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -1134,22 +1135,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 1.75792
+      Distance: 0.446791
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.432871
-        Y: -0.407423
-        Z: -2.80142e-06
+        X: 0.538551
+        Y: 0.038873
+        Z: 0.6
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.345591
+      Pitch: 0.570398
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 0.449599
+      Yaw: 0.185399
     Saved: ~
 Window Geometry:
   Displays:
@@ -1158,12 +1159,12 @@ Window Geometry:
   Help:
     collapsed: false
   Hide Left Dock: false
-  Hide Right Dock: false
+  Hide Right Dock: true
   Motion Planning:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd000000010000000000000346000002a2fc0200000005fb000000100044006900730070006c006100790073010000002800000107000000dd00fffffffb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000135000001950000017400fffffffb0000000800480065006c00700000000342000000bb0000007600fffffffb0000000a0056006900650077007300000003b0000000b0000000b000fffffffb0000000c00430061006d00650072006100000002ff00000161000000000000000000000204000002a200000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000020000000000000346000002a2fc0200000004fb000000100044006900730070006c006100790073010000002800000121000000dd00fffffffb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e0067010000014f0000017b0000017400fffffffb0000000800480065006c00700000000342000000bb0000007600fffffffb0000000c00430061006d00650072006100000002ff0000016100000000000000000000000100000134000002a2fc0200000001fb0000000a005600690065007700730000000028000002a2000000b000ffffff00000204000002a200000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
-    collapsed: false
+    collapsed: true
   Width: 1360
-  X: -7
-  Y: 24
+  X: -8
+  Y: -4

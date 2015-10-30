@@ -65,7 +65,7 @@ bool detection::GraspPointDetector::doProcessing()
 
   /**    COMPUTE BOUNDINGBOX AND PUBLISH A TF FRAME    **/
   boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
-  obj_bounding_box_->computeAndPublish(world_obj_,table_plane_,tf_broadcaster);
+  obj_bounding_box_->computeAndPublish(world_obj_, table_plane_, tf_broadcaster);
   planar_obj_ = obj_bounding_box_->getPlanarObj();
   draw_bounding_box_ = true;
 
@@ -78,9 +78,8 @@ bool detection::GraspPointDetector::doProcessing()
 
   CloudPtr side_samples = sampler.getSideGrasps();
   CloudPtr top_samples = sampler.getTopGrasps();
-
-  transformToRobotFrame(&side_samples);
-  transformToRobotFrame(&top_samples);
+  //transformToRobotFrame(&side_samples);
+  //transformToRobotFrame(&top_samples);
   Cloud samples = *side_samples + *top_samples;
   pub_samples_.publish(samples);
   ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
@@ -93,7 +92,8 @@ bool detection::GraspPointDetector::doProcessing()
   {
     begin = clock();
     // Configure filter
-    grasp_filter_.configure(kinect_frame_id_, obj_bounding_box_, table_bounding_box_);
+    grasp_filter_.configure(sampler.getSideGraspHeight(), sampler.getTopGraspHeight(), obj_bounding_box_,
+                            table_bounding_box_);
     // Remove infeasible ones
     grasp_filter_.filterGraspingPoses(side_samples, top_samples);
     ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));
@@ -107,7 +107,8 @@ bool detection::GraspPointDetector::doProcessing()
 
 void detection::GraspPointDetector::transformToRobotFrame(CloudPtr *cloud)
 {
-transformPointCloud(obj_bounding_box_->OBJ_FRAME, FOOTPRINT_FRAME, *cloud, *cloud, world_obj_->header.stamp, tf_listener_);
+  transformPointCloud(obj_bounding_box_->OBJ_FRAME, FOOTPRINT_FRAME, *cloud, *cloud, world_obj_->header.stamp,
+                      tf_listener_);
   (*cloud)->header.stamp = world_obj_->header.stamp;
   (*cloud)->header.frame_id = FOOTPRINT_FRAME;
 }

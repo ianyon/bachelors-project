@@ -23,13 +23,17 @@ detection::GraspSampler::GraspSampler()
  */
 void detection::GraspSampler::sampleGraspingPoses(BoundingBoxPtr &bounding_box)
 {
+  computeGraspsHeight(bounding_box->getHeight());
+
   side_grasps_->clear();
   sampleSideGrasps(bounding_box, side_grasps_);
   side_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
+  side_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
 
   top_grasps_->clear();
   sampleTopGrasps(bounding_box, top_grasps_);
   top_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
+  top_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
 }
 
 void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, CloudPtr &side_grasps)
@@ -46,7 +50,7 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Clo
   while (ellipse_ops_.ellipsePointsLeft())
   {
     // Check if we found a next point
-    if (!ellipse_ops_.getNewEllipsePoint(getSideGraspHeight(bounding_box->getHeight()), &ellipse_point))
+    if (!ellipse_ops_.getNewEllipsePoint(getSideGraspHeight(), &ellipse_point))
       break;
 
     side_grasps->push_back(ellipse_point);
@@ -59,7 +63,7 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, Clou
   numberOfSamples(bounding_box, minor_axis_samples, mayor_axis_samples);
 
   // Grasping point at the center of the object's bounding box
-  float height = (float) getTopGraspHeight(bounding_box->getHeight());
+  float height = getTopGraspHeight();
 
   pcl::PointXY bounding_box_min = bounding_box->getMin2D();
   double mayor_axis_step = bounding_box->getMayorAxisSize2D() / mayor_axis_samples;
@@ -96,21 +100,13 @@ void detection::GraspSampler::sampleAxis(CloudPtr &top_grasps, float height, flo
 
 /**
  * Grasp height returned is relative to the objects bounding box center.
- * The desired height is 2 cm above the table height
+ * Side grasps: The desired height is 2 cm above the table height
+ * Top grasps: The desired height is the objects height
  */
-double detection::GraspSampler::getSideGraspHeight(double obj_height)
+void detection::GraspSampler::computeGraspsHeight(double obj_height)
 {
-  return 0.02 - (obj_height / 2);
-}
-
-/**
- * Grasp height returned is relative to the objects bounding box center.
- * The desired height is the objects height
- */
-double detection::GraspSampler::getTopGraspHeight(double obj_height)
-{
-  return obj_height / 2;
-  //return -fmax(obj_height - 0.03, obj_height / 2);
+  side_grasps_height_ = (float) (0.02 - (obj_height / 2));
+  top_grasps_height_ = (float) (obj_height / 2);
 }
 
 }

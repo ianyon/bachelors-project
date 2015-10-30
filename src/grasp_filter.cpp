@@ -17,6 +17,7 @@
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
 #include <tf/transform_datatypes.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include "utils.h"
 #include "bounding_box.h"
@@ -34,7 +35,7 @@ const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
 const std::string detection::GraspFilter::WRIST_LINK = "r_wrist_roll_link";
 const std::string detection::GraspFilter::GRIPPER_JOINT = "r_gripper_joint";
-const double detection::GraspFilter::STANDOFF = -0.03;
+const double detection::GraspFilter::STANDOFF = 0.03;
 const float detection::GraspFilter::PREGRASP_DISTANCE = 0.1;
 
 detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &tf_listener) :
@@ -49,21 +50,13 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
 {
   ROS_INFO("Frame de referencia: %s", group_.getPlanningFrame().c_str());
   ROS_INFO("End Effector link: %s", group_.getEndEffectorLink().c_str());
-
-  // How far from the grasp center should the wrist be. X is pointing toward the grasping point
-  STANDOFF_TRANS.setOrigin(tf::Vector3(STANDOFF, 0.0, 0.0));
-  // Rotate 90° downwards
-  tf::Quaternion q = tf::createQuaternionFromRPY(0.0, pcl::deg2rad(90.0), 0.0);
-  STANDOFF_TRANS.setRotation(q);
-  //STANDOFF_TRANS.setOrigin(tf::Vector3(position.getX(), position.getY(), 0).normalize()* STANDOFF);
-  //STANDOFF_TRANS.setRotation(tf::createIdentityQuaternion());
 }
 
 
-void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &obj_bounding_box,
-                                       BoundingBoxPtr &table_bounding_box)
+void detection::GraspFilter::configure(float side_grasp_height, float top_graps_height,
+                                       BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box)
 {
-  //kinect_frame_id_ = kinect_frame_id;
+  OBJ_FRAME = obj_bounding_box->OBJ_FRAME;
 
   Point table_position = table_bounding_box->computePosition2DRobotFrame(tf_listener_);
   Eigen::Vector3f table_size = table_bounding_box->getSizeWithExternHeight(table_position.z);
@@ -73,8 +66,11 @@ void detection::GraspFilter::configure(string kinect_frame_id, BoundingBoxPtr &o
 
   // Add a box to supress collisions with the object
   Eigen::Vector3f obj_size = obj_bounding_box->getSize3D();
-  addCollisionObject(obj_size, obj_bounding_box->OBJ_FRAME);
+  //addCollisionObject(obj_size, OBJ_FRAME);
+
   obj_pose_ = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
+  side_grasp_center_ = Eigen::Vector3d(0, 0, side_grasp_height);
+  top_grasp_center_ = Eigen::Vector3d(0, 0, top_graps_height);
 
   //updateAllowedCollisionMatrix();
 }
@@ -166,21 +162,21 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   side_grasps_ = side_grasps;
   top_grasps_ = top_grasps;
 
-  ROS_INFO("Filtering %lu side grasps", side_grasps_->size());
+  /*ROS_INFO("Filtering %lu side grasps", side_grasps_->size());
   feasible_side_grasps_.reset(new Cloud);
   BOOST_FOREACH(Point &point, side_grasps_->points)
         {
           if (processSample(point, true))
             feasible_side_grasps_->push_back(point);
-        }
+        }*/
 
   ROS_INFO("Filtering %lu top grasps", top_grasps_->size());
   feasible_top_grasps_.reset(new Cloud);
   BOOST_FOREACH(Point &point, top_grasps_->points)
-        {
-          if (processSample(point, false))
-            feasible_top_grasps_->push_back(point);
-        }
+  {
+    if (processSample(point, false))
+      feasible_top_grasps_->push_back(point);
+  }
 }
 
 /*void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan)
@@ -197,7 +193,6 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
 {
   /*// Define a goal pose
   group_.setPoseTarget(newPose(sample));
-  group_.setPlanningTime(5.0); // 5s
 
   // Plan trayectory
   moveit::planning_interface::MoveGroup::Plan pose_plan;
@@ -210,7 +205,7 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
   /*double x = obj_pose_.position.x;
   double y = obj_pose_.position.y;
   double z = obj_pose_.position.z;*/
-
+  group_.setPlanningTime(10.0);
   //TODO: switch r_arm_controllers of call action client directly
   bool success;
   ROS_INFO("Trying to pick");
@@ -223,11 +218,6 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
 
   if (success)
     ROS_INFO("Pick was successful.");
-  else
-  {
-    ROS_FATAL("Pick failed.");
-    return success;
-  }
 
   /* Actual movement
 
@@ -262,9 +252,9 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
 
 std::vector<moveit_msgs::Grasp> detection::GraspFilter::generateTopGrasps(double x, double y, double z)
 {
-  static const double ANGLE_INC = pcl::deg2rad(11.25);
-  static const double STRAIGHT_ANGLE_MIN = 0.0 + ANGLE_INC;  // + ANGLE_INC, because 0 is already covered by side grasps
-  static const double ANGLE_MAX = pcl::deg2rad(90.0);
+  const double STRAIGHT_ANGLE_MIN = pcl::deg2rad(-45.0);
+  const double ANGLE_MAX = pcl::deg2rad(45.0);
+  const double ANGLE_INC = pcl::deg2rad(11.25);
 
   std::vector<moveit_msgs::Grasp> grasps;
 
@@ -275,11 +265,11 @@ std::vector<moveit_msgs::Grasp> detection::GraspFilter::generateTopGrasps(double
    *   - overhead: `rpy = (pi, *, atan2(y_w, x_w))` */
   tf::Transform transform;
   transform.setOrigin(tf::Vector3(x, y, z));
+  double yaw = atan2(y, x);
   for (double roll = 0.0; roll <= M_PI; roll += M_PI)
   {
     for (double pitch = STRAIGHT_ANGLE_MIN; pitch <= ANGLE_MAX; pitch += ANGLE_INC)
     {
-      double yaw = atan2(y, x);
       transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, yaw));
       grasps.push_back(tfTransformToGrasp(transform * STANDOFF_TRANS));
     }
@@ -294,38 +284,19 @@ std::vector<moveit_msgs::Grasp> detection::GraspFilter::generateTopGrasps(double
  */
 std::vector<moveit_msgs::Grasp> detection::GraspFilter::generateSideGrasps(double x, double y, double z)
 {
-  // We sample yaw in [-45°, 45°]
-  const double ANGLE_MAX = pcl::deg2rad(45.0);
-  // This value will give us 8 yaw samples
-  //const double ANGLE_INC = pcl::deg2rad(11.25);
-  const double ANGLE_INC = pcl::deg2rad(22.5);
+  // How far from the grasp center should the wrist be. X is pointing toward the grasping point
+  tf::Transform standoff_trans;
+  standoff_trans.setOrigin(tf::Vector3(x, y, 0).normalize() * STANDOFF);
+  Eigen::Quaterniond eigen_q;
+  // Get the rotation from the standard direction (no rotation), to the oposite grasp point
+  eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), Eigen::Vector3d(-x, -y, 0.0));
+  standoff_trans.setRotation(tf::Quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w()).normalize());
 
-  /* Computation: xy-planes of 'r_wrist_roll_link' and 'base_link' are parallel:
-   *   - standard: 'rpy = (0, 0, *)' (orientation of 'r_wrist_roll_link' in 'base_link' frame)
-   *   - overhead: 'rpy = (pi, 0, *)' (invert gripper orientation) */
-  tf::Transform transform;
-  transform.setOrigin(tf::Vector3(x, y, z));
+  /* Computation: xy-planes of 'r_wrist_roll_link' and 'base_link' are parallel */
+  tf::Transform transform(tf::createIdentityQuaternion(), tf::Vector3(x, y, z));
   std::vector<moveit_msgs::Grasp> grasps;
-  const double BASE_YAW = atan2(y, x);
-  for (double roll = 0.0; roll <= M_PI; roll += M_PI)
-  {
-    double pitch = 0.0;
-    /* Add yaw = 0 first, then +ANGLE_INC, -ANGLE_INC, 2*ANGLE_INC, ...
-     * reason: grasps with yaw near 0 mean that the approach is from the direction of the arm;
-     * it is usually easier to place the object back like this */
-    for (double delta_yaw = 0; delta_yaw <= ANGLE_MAX; delta_yaw += ANGLE_INC)
-    {
-      // + atan2 to center the grasps around the vector from arm to object
-      transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, delta_yaw + BASE_YAW));
-      grasps.push_back(tfTransformToGrasp(transform * STANDOFF_TRANS));
+  grasps.push_back(tfTransformToGrasp(transform * standoff_trans));
 
-      if (delta_yaw != 0.0)
-      {
-        transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, -delta_yaw + BASE_YAW));
-        grasps.push_back(tfTransformToGrasp(transform * STANDOFF_TRANS));
-      }
-    }
-  }
   publishGraspsAsMarkerarray(grasps);
   return grasps;
 }
@@ -339,12 +310,12 @@ moveit_msgs::Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
   grasp.id = boost::lexical_cast<std::string>(i++);
 
   tf::Vector3 &origin = t.getOrigin();
-  tf::Quaternion rotation = t.getRotation();
+  tf::Quaternion rotation = t.getRotation().normalize();
 
   // The pose of the grasping point
   geometry_msgs::PoseStamped pose;
-  pose.header.frame_id = FOOTPRINT_FRAME;
-  pose.header.stamp = ros::Time::now();
+  pose.header.frame_id = OBJ_FRAME;
+  pose.header.stamp = ros::Time(0);
   pose.pose.position.x = origin.m_floats[0];
   pose.pose.position.y = origin.m_floats[1];
   pose.pose.position.z = origin.m_floats[2];
@@ -356,14 +327,14 @@ moveit_msgs::Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
   grasp.pre_grasp_approach.direction.header.frame_id = WRIST_LINK;
   grasp.pre_grasp_approach.min_distance = 0.05;
   grasp.pre_grasp_approach.desired_distance = PREGRASP_DISTANCE;
-  grasp.pre_grasp_approach.direction.header.stamp = ros::Time::now();
+  grasp.pre_grasp_approach.direction.header.stamp = ros::Time(0);
 
   // Walk away in z direction (footprint frame)
   grasp.post_grasp_retreat.direction.vector.z = 1.0;
   grasp.post_grasp_retreat.min_distance = 0.05;
   grasp.post_grasp_retreat.desired_distance = PREGRASP_DISTANCE;
   grasp.post_grasp_retreat.direction.header.frame_id = FOOTPRINT_FRAME;
-  grasp.post_grasp_retreat.direction.header.stamp = ros::Time::now();
+  grasp.post_grasp_retreat.direction.header.stamp = ros::Time(0);
 
   // Walk away in z direction (footprint frame)
   grasp.post_place_retreat = grasp.post_grasp_retreat;
@@ -387,23 +358,23 @@ void detection::GraspFilter::publishGraspsAsMarkerarray(std::vector<moveit_msgs:
   visualization_msgs::MarkerArray markers;
   visualization_msgs::Marker marker;
   marker.action = visualization_msgs::Marker::ADD;
-  marker.header.stamp = ros::Time::now();
-  marker.header.frame_id = FOOTPRINT_FRAME;
+  marker.header.stamp = ros::Time(0);
+  marker.header.frame_id = OBJ_FRAME;
   marker.type = visualization_msgs::Marker::ARROW;
   marker.ns = "graspmarker";
-  marker.scale.x = 0.0025;
-  marker.scale.y = 0.001;
-  marker.scale.z = 0.0025;
+  marker.scale.x = 0.025;
+  marker.scale.y = 0.0015;
+  marker.scale.z = 0.003;
   marker.color.b = 1.0;
   marker.color.a = 1.0;
 
   int i = 0;
   BOOST_FOREACH(moveit_msgs::Grasp &grasp, grasps)
-  {
-    marker.id = i++;
-    marker.pose = grasp.grasp_pose.pose;
-    markers.markers.push_back(marker);
-  }
+        {
+          marker.id = i++;
+          marker.pose = grasp.grasp_pose.pose;
+          markers.markers.push_back(marker);
+        }
 
   grasps_marker_.publish(markers);
 }
