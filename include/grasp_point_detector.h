@@ -42,6 +42,8 @@ public:
 
   void setTable(const CloudPtr &table_cloud, const pcl::ModelCoefficientsPtr table_plane);
 
+  void transformToRobotFrame(CloudPtr *side);
+
   tf::TransformBroadcaster tf_broadcaster;
 
   bool draw_bounding_box_;
@@ -54,7 +56,7 @@ public:
   CloudPtr world_obj_;
 
   ros::Publisher pub_cluster_, pub_samples_;
-  // Object in their own coordinates (centered in the centroid)
+
   CloudPtr planar_obj_;
 
   RankedGrasps ranked_grasps;
@@ -68,8 +70,6 @@ public:
   CloudPtr table_cloud_;
   pcl::ModelCoefficientsPtr table_plane_;
 
-  // Planar projection of object in table
-  CloudPtr world_planar_obj_;
   tf::TransformListener &tf_listener_;
 };
 

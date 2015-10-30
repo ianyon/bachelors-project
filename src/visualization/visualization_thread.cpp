@@ -17,7 +17,8 @@ using std::string;
 namespace bachelors_final_project
 {
 
-visualization::VisualizationThread::VisualizationThread():
+visualization::VisualizationThread::VisualizationThread(tf::TransformListener &tf_listener):
+    tf_listener_(tf_listener),
     create_segmentation(false),
   create_detection(false)
 {}
@@ -39,7 +40,7 @@ void visualization::VisualizationThread::visualizationLoop()
   if (create_segmentation)
     visualizers.push_back(BaseVisualizerPtr(new SegmentationVisualizer(*segmentator_)));
   if (create_detection)
-    visualizers.push_back(BaseVisualizerPtr(new DetectionVisualizer(*detector_)));
+    visualizers.push_back(BaseVisualizerPtr(new DetectionVisualizer(*detector_, tf_listener_)));
 
   ROS_INFO("Initiated visualization thread!");
   while (ros::ok() && visualizers.size() > 0)

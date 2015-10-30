@@ -17,18 +17,16 @@ class GraspSampler
 public:
   GraspSampler();
 
-  void sampleGraspingPoses(BoundingBoxPtr &bounding_box, std::string kinect_frame);
+  void sampleGraspingPoses(BoundingBoxPtr &bounding_box);
 
   void sampleSideGrasps(BoundingBoxPtr &, CloudPtr &);
 
   void sampleTopGrasps(BoundingBoxPtr &, CloudPtr &);
 
-  void sampleAxis(CloudPtr &, Eigen::Affine3f &, float, float, float, int, double, bool);
+  void sampleAxis(CloudPtr &, float, float, int, double, bool);
 
-  double getSideGraspHeight();
+  double getSideGraspHeight(double obj_height);
   double getTopGraspHeight(double obj_height);
-
-  Eigen::Affine3f getTransform(const BoundingBoxPtr &bounding_box, bool side_grasp_transform) const;
 
   const CloudPtr getSideGrasps() const
   {

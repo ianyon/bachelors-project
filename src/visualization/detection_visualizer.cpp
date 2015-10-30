@@ -13,9 +13,10 @@ using std::string;
 namespace bachelors_final_project
 {
 
-const std::string visualization::DetectionVisualizer::WORLD_OBJ = "object";
+const std::string visualization::DetectionVisualizer::OBJ_KINECT_FRAME = "object";
 const std::string visualization::DetectionVisualizer::WORLD_PLANAR_OBJ = "world planar object";
-const std::string visualization::DetectionVisualizer::OBJ = "transformed_object";
+const std::string visualization::DetectionVisualizer::OBJ_2D = "transformed_object";
+const std::string visualization::DetectionVisualizer::OBJ_3D = "transformed_object 3d";
 const std::string visualization::DetectionVisualizer::WORLD_BOUNDING_BOX = "bounding box";
 const std::string visualization::DetectionVisualizer::BOUNDING_BOX = "transformed bounding box";
 const std::string visualization::DetectionVisualizer::EIGEN_VECTOR1 = "eigen1";
@@ -25,9 +26,11 @@ const std::string visualization::DetectionVisualizer::SIDE_GRASPS = "sampled sid
 const std::string visualization::DetectionVisualizer::TOP_GRASPS = "sampled top cloud";
 const std::string visualization::DetectionVisualizer::CENTROID = "centroid";
 
-visualization::DetectionVisualizer::DetectionVisualizer(detection::GraspPointDetector &detector) :
+visualization::DetectionVisualizer::DetectionVisualizer(detection::GraspPointDetector &detector,
+                                                        tf::TransformListener &tf_listener) :
     BaseVisualizer("Detection visualizer"),
-    detector_(detector)
+    detector_(detector),
+    tf_listener_(tf_listener)
 {
   configure();
 }
@@ -35,7 +38,7 @@ visualization::DetectionVisualizer::DetectionVisualizer(detection::GraspPointDet
 void visualization::DetectionVisualizer::configure()
 {
   BaseVisualizer::configure();
-  setCameraPosition(0.414395, -0.134601, 0.669816, 0.190149, 0.0424081, 1.09322, -0.13325, -0.93753, 0.321374);
+  setCameraPosition(0.214395, 0.134601, 0.369816, 0.190149, 0.0424081, 1.09322, -0.13325, -0.93753, 0.321374);
   setCameraFieldOfView(0.8575);
   setCameraClipDistances(0.0067374, 6.7374);
   setPosition(637, 145);
@@ -61,14 +64,19 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
     // Draw world coordinate system
     removeCoordinateSystem();
     addCoordinateSystem(0.5);
-    addCoordinateSystem(0.25, box.getObjectToWorldTransform());
+    addCoordinateSystem(0.25, box.getObjToKinectTransform());
 
-    visualizeCloud(WORLD_OBJ, obj().world_obj_, 180, 180, 180);
-    visualizeCloud(OBJ, obj().planar_obj_, 120, 120, 120);
-    visualizeCloud(WORLD_PLANAR_OBJ, obj().world_planar_obj_, 180, 180, 180);
+    CloudPtr &obj_kinect_frame = obj().world_obj_;
+    visualizeCloud(OBJ_KINECT_FRAME, obj_kinect_frame, 180, 180, 180);
+    visualizeCloud(OBJ_2D, obj().planar_obj_, 120, 120, 120);
+    CloudPtr obj_frame(new Cloud);
+    transformPointCloud(obj_kinect_frame->header.frame_id, obj().obj_bounding_box_->OBJ_FRAME, obj_kinect_frame, obj_frame,
+                        obj_kinect_frame->header.stamp, tf_listener_);
+    visualizeCloud(OBJ_3D, obj_frame, 180, 180, 180);
+    //visualizeCloud(WORLD_PLANAR_OBJ, obj().world_planar_obj_, 180, 180, 180);
 
     // Draw the box in world coords
-    visualizeBox(box, WORLD_BOUNDING_BOX, box.position_2D_kinect_frame_, box.rotation_kinect_frame_);
+    visualizeBox(box, WORLD_BOUNDING_BOX, box.position_3D_kinect_frame_, box.getRotationQuaternion());
     // Draw the box in the origin (obj coords)
     visualizeBox(box, BOUNDING_BOX);
 
@@ -96,9 +104,9 @@ void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingB
 {
   removeShape(id);
   addCube(translation, rotation,
-          box.max_pt_planar_centroid_.x - box.min_pt_planar_centroid_.x,
-          box.max_pt_planar_centroid_.y - box.min_pt_planar_centroid_.y,
-          box.max_pt_planar_centroid_.z - box.min_pt_planar_centroid_.z,
+          box.getSize3D()[0],
+          box.getSize3D()[1],
+          box.getSize3D()[2],
           id);
 }
 
@@ -107,22 +115,25 @@ void visualization::DetectionVisualizer::visualizeSampledGrasps()
   if (obj().draw_sampled_grasps_)
   {
     Point middle;
-    middle.getVector4fMap() = obj().obj_bounding_box_->world_coords_planar_centroid_;
+    middle.getVector3fMap() = obj().obj_bounding_box_->position_base_kinect_frame_;
 
     removeShape(SUPPORT_PLANE);
     addPlane(*(obj().table_plane_), middle.x, middle.y, middle.z, SUPPORT_PLANE);
 
     CloudPtr side_grasps = obj().getSampledSideGrasps();
+    const pcl::PCLHeader &header = obj().world_obj_->header;
+    transformPointCloud(FOOTPRINT_FRAME, header.frame_id, side_grasps, side_grasps,header.stamp,tf_listener_);
     visualizeCloud(SIDE_GRASPS, side_grasps, 255, 0, 0);
     CloudPtr top_grasps = obj().getSampledTopGrasps();
+    transformPointCloud(FOOTPRINT_FRAME, header.frame_id, top_grasps, top_grasps,header.stamp,tf_listener_);
     visualizeCloud(TOP_GRASPS, top_grasps, 255, 0, 0);
-    visualizePoint(middle, 0, 0, 255, CENTROID);
+    //visualizePoint(middle, 0, 0, 255, CENTROID);
 
     obj().draw_sampled_grasps_ = false;
   }
 }
 
-detection::GraspPointDetector& visualization::DetectionVisualizer::obj()
+detection::GraspPointDetector &visualization::DetectionVisualizer::obj()
 {
   return detector_;
 }

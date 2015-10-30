@@ -55,9 +55,9 @@ bool detection::EllipseOperations::getNewEllipsePoint(double height, Point *poin
     double sub_integral = number_of_points_ * run / circumference;
     if ((int) sub_integral >= nextPoint)
     {
-      point->x = (float) height;
+      point->x = (float) (a_ * cos(theta));
       point->y = (float) (b_ * sin(theta));
-      point->z = (float) (a_ * cos(theta));
+      point->z = (float) height;
       nextPoint++;
       found = true;
     }

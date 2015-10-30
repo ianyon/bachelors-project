@@ -21,7 +21,6 @@ detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf::T
     table_bounding_box_(new BoundingBox("table_base_frame")),
     world_obj_(new Cloud),
     planar_obj_(new Cloud),
-    world_planar_obj_(new Cloud),
     draw_bounding_box_(false),
     draw_sampled_grasps_(false),
     pub_cluster_(handle.advertise<Cloud>("cluster", 1)),
@@ -62,46 +61,55 @@ void detection::GraspPointDetector::detect(const CloudPtr &input_object)
 bool detection::GraspPointDetector::doProcessing()
 {
   ROS_INFO_ONCE("'Do Processing' called!");
-
-  // Project to table to obtain object projection
-  projectOnPlane(world_obj_, table_plane_, world_planar_obj_);
-  // world_planar_obj_ lies in plane YZ with a = blue (z) - b = green (y)
-
   clock_t begin = clock();
-  boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
 
-  obj_bounding_box_->buildPlanar(world_planar_obj_);
-  obj_bounding_box_->build3DAndPublishFrame(world_obj_, tf_broadcaster);
+  /**    COMPUTE BOUNDINGBOX AND PUBLISH A TF FRAME    **/
+  boost::mutex::scoped_lock bounding_box_lock(update_bounding_box_mutex_);
+  obj_bounding_box_->computeAndPublish(world_obj_,table_plane_,tf_broadcaster);
   planar_obj_ = obj_bounding_box_->getPlanarObj();
   draw_bounding_box_ = true;
 
-  // Find all the samples poses
-  sampler.sampleGraspingPoses(obj_bounding_box_, kinect_frame_id_);
+
+  /**    SAMPLING GRASP POSITIONS    **/
+  // Find all the samples positions
+  sampler.sampleGraspingPoses(obj_bounding_box_);
   draw_sampled_grasps_ = true;
-  Cloud samples = *sampler.getSideGrasps();
-  samples += *sampler.getTopGrasps();
-  pub_samples_.publish(samples);
   bounding_box_lock.unlock();
+
+  CloudPtr side_samples = sampler.getSideGrasps();
+  CloudPtr top_samples = sampler.getTopGrasps();
+
+  transformToRobotFrame(&side_samples);
+  transformToRobotFrame(&top_samples);
+  Cloud samples = *side_samples + *top_samples;
+  pub_samples_.publish(samples);
   ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
 
+
+  /**    FILTERING UNFEASIBLE GRASPS    **/
   // We need the table bounding box to create a collision object in moveit
   table_bounding_box_->buildPlanar(table_cloud_);
-  //table_bounding_box_->broadcast2DFrameUpdate(tf_broadcaster);
   try
   {
     begin = clock();
     // Configure filter
     grasp_filter_.configure(kinect_frame_id_, obj_bounding_box_, table_bounding_box_);
     // Remove infeasible ones
-    grasp_filter_.filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
+    grasp_filter_.filterGraspingPoses(side_samples, top_samples);
     ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));
   }
   catch (ComputeFailedException ex)
   {
     return false;
   }
-
   return true;
+}
+
+void detection::GraspPointDetector::transformToRobotFrame(CloudPtr *cloud)
+{
+transformPointCloud(obj_bounding_box_->OBJ_FRAME, FOOTPRINT_FRAME, *cloud, *cloud, world_obj_->header.stamp, tf_listener_);
+  (*cloud)->header.stamp = world_obj_->header.stamp;
+  (*cloud)->header.frame_id = FOOTPRINT_FRAME;
 }
 
 

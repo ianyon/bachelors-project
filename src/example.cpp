@@ -63,8 +63,8 @@ int main(int argc, char **argv)
   if (client.call(srv)) ROS_INFO("Unpaused physics");
   else ROS_ERROR("Failed to call service /gazebo/unpause_physics");
 
-  viz::VisualizationThread viz_thread;
   tf::TransformListener tf_listener;
+  viz::VisualizationThread viz_thread(tf_listener);
 
   // These objects cannot be copied because they contain a mutex
   CloudSegmentator segmentator(nh, tf_listener);

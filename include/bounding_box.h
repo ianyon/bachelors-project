@@ -22,8 +22,21 @@ namespace detection
  */
 class BoundingBox
 {
+  // Minimum and maximum bounding box points relative to named coordinate system
+  Point min_pt_planar_centroid_, max_pt_planar_centroid_,
+      min_pt_planar_world_, max_pt_planar_world_,
+      min_pt_planar_, max_pt_planar_;
+
+  // rotation_kinect_frame_ represents the eigen vectors as a rotation matrix
+  Eigen::Quaternionf rotation_kinect_frame_;
+
+  Eigen::Affine3f getKinectToCentroidTransform();
+
 public:
   BoundingBox(std::string obj_frame);
+
+  void computeAndPublish(CloudPtr &world_obj_, pcl::ModelCoefficientsPtr table_plane_,
+                         tf::TransformBroadcaster tf_broadcaster);
 
   /**
  * 1) compute the centroid (c0, c1, c2) and the normalized covariance
@@ -38,81 +51,92 @@ public:
  */
   void buildPlanar(CloudPtr &world_coords_planar_obj);
 
-  Eigen::Affine3f getWorldToObjectCentroidTransform();
-
   inline double getXLength()
-  {
-    return size_3D_[0];
-  }
+  { return size_3D_[0]; }
 
   inline double getYLength()
-  {
-    return max_pt_planar_centroid_.y - min_pt_planar_centroid_.y;
-  }
+  { return max_pt_planar_centroid_.y - min_pt_planar_centroid_.y; }
 
   inline double getZLength()
-  {
-    return max_pt_planar_centroid_.z - min_pt_planar_centroid_.z;
-  }
+  { return max_pt_planar_centroid_.z - min_pt_planar_centroid_.z; }
 
   inline double getXLengthWorldCoords()
-  {
-    return max_pt_planar_centroid_.z - min_pt_planar_centroid_.z;
-  }
+  { return max_pt_planar_centroid_.z - min_pt_planar_centroid_.z; }
 
   inline double getYLengthWorldCoords()
+  { return max_pt_planar_centroid_.y - min_pt_planar_centroid_.y; }
+
+  inline double getHeight()
+  { return size_3D_[2]; }
+
+  inline Eigen::Vector3f getSize3D() const
+  { return size_3D_; }
+
+  inline Eigen::Vector2f getSize2D() const
+  { return size_2D_; }
+
+  inline float getMayorAxisSize2D()
+  { return size_2D_[0]; }
+
+  inline float getMinorAxisSize2D()
+  { return size_2D_[1]; }
+
+  inline pcl::PointXY getMin2D()
   {
-    return max_pt_planar_centroid_.y - min_pt_planar_centroid_.y;
+    pcl::PointXY p;
+    p.x = min_pt_planar_.z;
+    p.y = min_pt_planar_.y;
+    return p;
   }
 
-  inline double getHeigth()
+  inline pcl::PointXY getMax2D()
   {
-    return size_3D_[2];//size_3d_robot_frame_[2];
+    pcl::PointXY p;
+    p.x = max_pt_planar_.z;
+    p.y = max_pt_planar_.y;
+    return p;
   }
+
+  inline Point getMin3D()
+  { return Point(getMin2D().x, getMin2D().y, -(float)getHeight()/2); }
+
+  inline Point getMax3D()
+  { return Point(getMax2D().x, getMax2D().y, (float)getHeight()/2); }
+
+  inline Eigen::Quaternionf getRotationQuaternion()
+  { return rotation_kinect_frame_; }
+
+  inline tf::Quaternion getRotationQuaternionTF()
+  { return tf::Quaternion(rotation_kinect_frame_.x(), rotation_kinect_frame_.y(),
+                          rotation_kinect_frame_.z(), rotation_kinect_frame_.w()); }
+
+  inline CloudPtr &getPlanarObj()
+  { return planar_obj; }
 
   Eigen::Affine3f translateCentroidToBoundingBox(Eigen::Affine3f transform);
 
-  void createBoundingBoxCenteredMembers();
+  void createObjCenteredMembers();
 
-  void createWorldCenteredMembers();
+  void createKinectCenteredMembers();
 
   void create2DSize();
 
-  void create3DSize(float heigth_3D);
-
- /* inline const Eigen::Vector3f &detection::BoundingBox::getSizePlanarFootprint()
-  {
-    return size_2D_robot_frame_;
-  }*/
-
-  inline const Eigen::Vector3f &getSize3D()
-  {
-    return size_3D_;//size_3d_robot_frame_;
-  }
-
-  inline const Eigen::Vector2f &getSize2D()
-  {
-    return size_2D_;//size_3d_robot_frame_;
-  }
+  Eigen::Quaternionf getInverseRotationQuaternion();
 
   Eigen::Vector3f getSizeWithExternHeight(float height);
 
   Point computePosition2DRobotFrame(tf::TransformListener &tf_listener);
 
+  Eigen::Quaternionf createRotationQuaternion(Eigen::Matrix3f eigen_vectors);
+
   void visualizeData();
 
-  // Minimum and maximum bounding box points relative to named coordinate system
-  Point min_pt_planar_centroid_, max_pt_planar_centroid_,
-      min_pt_planar_world_, max_pt_planar_world_,
-      min_pt_planar_, max_pt_planar_;
   std::string kinect_frame_;
-  // rotation_kinect_frame_ represents the eigen vectors as a rotation matrix
-  Eigen::Quaternionf rotation_kinect_frame_;
-  Eigen::Vector4f world_coords_planar_centroid_;
+  Eigen::Vector4f centroid_2D_kinect_frame_;
   Eigen::Matrix3f eigen_vectors_;
-  Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_2D_kinect_frame_;
+  Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_base_kinect_frame_;
 
-  // Planar size. Index 0 is 'y' and index 1 is 'z'
+  // Planar size. Index 0 is 'z' and index 1 is 'y'
   Eigen::Vector2f size_2D_;
   Eigen::Vector3f size_3D_;
   CloudPtr planar_obj;
@@ -120,20 +144,17 @@ public:
 
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver;
 
-  CloudPtr &getPlanarObj()
-  {
-    return planar_obj;
-  }
-
   geometry_msgs::Pose computePose3DRobotFrame(tf::TransformListener &tf_listener);
 
   void broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position);
+
   void broadcast2DFrameUpdate(tf::TransformBroadcaster broadcaster);
 
   void build3DAndPublishFrame(CloudPtr &world_coords_obj, tf::TransformBroadcaster broadcaster);
 
-  Eigen::Affine3f getObjectToWorldTransform();
+  Eigen::Affine3f getObjToKinectBaseTransform();
 
+  Eigen::Affine3f getObjToKinectTransform();
 };
 
 typedef boost::shared_ptr<BoundingBox> BoundingBoxPtr;

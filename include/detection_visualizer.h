@@ -22,12 +22,13 @@ class GraspPointDetector;
 
 namespace visualization
 {
-class DetectionVisualizer
-    : public BaseVisualizer
+class DetectionVisualizer : public BaseVisualizer
 {
+  tf::TransformListener &tf_listener_;
 
 public:
-  DetectionVisualizer(detection::GraspPointDetector &);
+  DetectionVisualizer(detection::GraspPointDetector &detector,
+                      tf::TransformListener &tf_listener);
 
   void computeSpinOnce();
 
@@ -37,19 +38,21 @@ public:
 
 
   void visualizeSampledGrasps();
-  detection::GraspPointDetector& obj();
+
+  detection::GraspPointDetector &obj();
 
   void visualizeBox(const detection::BoundingBox &box, const std::string id,
-                    const Eigen::Vector3f &translation=Eigen::Vector3f(0,0,0),
-                    const Eigen::Quaternionf &rotation=Eigen::Quaternionf::Identity());
+                    const Eigen::Vector3f &translation = Eigen::Vector3f(0, 0, 0),
+                    const Eigen::Quaternionf &rotation = Eigen::Quaternionf::Identity());
 
   void showEigenVectors(const detection::BoundingBox &box);
 
   detection::GraspPointDetector &detector_;
 
-  static const std::string WORLD_OBJ;
+  static const std::string OBJ_KINECT_FRAME;
   static const std::string WORLD_PLANAR_OBJ;
-  static const std::string OBJ;
+  static const std::string OBJ_2D;
+  static const std::string OBJ_3D;
   static const std::string WORLD_BOUNDING_BOX;
   static const std::string BOUNDING_BOX;
   static const std::string EIGEN_VECTOR1;

@@ -21,7 +21,7 @@ namespace visualization
 class VisualizationThread
 {
 public:
-  VisualizationThread();
+  VisualizationThread(tf::TransformListener &tf_listener);
 
   void visualizationLoop();
 
@@ -33,6 +33,7 @@ public:
 
   void start();
 
+  tf::TransformListener &tf_listener_;
   std::vector<BaseVisualizerPtr> visualizers;
   segmentation::CloudSegmentator *segmentator_;
   detection::GraspPointDetector *detector_;
