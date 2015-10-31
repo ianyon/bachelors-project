@@ -105,7 +105,7 @@ void detection::GraspSampler::sampleAxis(CloudPtr &top_grasps, float height, flo
  */
 void detection::GraspSampler::computeGraspsHeight(double obj_height)
 {
-  side_grasps_height_ = (float) (0.02 - (obj_height / 2));
+  side_grasps_height_ = (float) (0.04 - (obj_height / 2));
   top_grasps_height_ = (float) (obj_height / 2);
 }
 

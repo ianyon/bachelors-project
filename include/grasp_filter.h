@@ -29,7 +29,7 @@ class GraspFilter
   moveit_msgs::AllowedCollisionMatrix getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv,
                                                          bool after);
 
-  ros::Publisher display_pub, collision_obj_pub, attached_obj_pub, grasps_marker_;
+  ros::Publisher display_pub, collision_obj_pub, attached_obj_pub, grasps_marker_, pose_pub_;
 
   ros::Publisher planning_scene_diff_pub;
 

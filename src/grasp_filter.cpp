@@ -44,6 +44,7 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
     collision_obj_pub(nh.advertise<CollisionObject>("/collision_object", 10)),
     attached_obj_pub(nh.advertise<AttachedCollisionObject>("/attached_collision_object", 10)),
     grasps_marker_(nh.advertise<visualization_msgs::MarkerArray>("grasps_marker", 10)),
+    pose_pub_(nh.advertise<geometry_msgs::PoseStamped>("sampled_poses", 10)),
     planning_scene_diff_pub(nh.advertise<PlanningScene>("/planning_scene", 1)),
     client_get_scene(nh.serviceClient<GetPlanningScene>("/get_planning_scene")),
     tf_listener_(tf_listener)
@@ -66,7 +67,7 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
 
   // Add a box to supress collisions with the object
   Eigen::Vector3f obj_size = obj_bounding_box->getSize3D();
-  //addCollisionObject(obj_size, OBJ_FRAME);
+  addCollisionObject(obj_size, OBJ_FRAME);
 
   obj_pose_ = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
   side_grasp_center_ = Eigen::Vector3d(0, 0, side_grasp_height);
@@ -162,7 +163,7 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   side_grasps_ = side_grasps;
   top_grasps_ = top_grasps;
 
-  /*ROS_INFO("Filtering %lu side grasps", side_grasps_->size());
+/*  ROS_INFO("Filtering %lu side grasps", side_grasps_->size());
   feasible_side_grasps_.reset(new Cloud);
   BOOST_FOREACH(Point &point, side_grasps_->points)
         {
@@ -173,10 +174,10 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   ROS_INFO("Filtering %lu top grasps", top_grasps_->size());
   feasible_top_grasps_.reset(new Cloud);
   BOOST_FOREACH(Point &point, top_grasps_->points)
-  {
-    if (processSample(point, false))
-      feasible_top_grasps_->push_back(point);
-  }
+        {
+          if (processSample(point, false))
+            feasible_top_grasps_->push_back(point);
+        }
 }
 
 /*void detection::GraspFilter::visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan)
@@ -202,9 +203,6 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
   //sleep(5.0);
   //if (success) visualizePlan(pose_plan);*/
 
-  /*double x = obj_pose_.position.x;
-  double y = obj_pose_.position.y;
-  double z = obj_pose_.position.z;*/
   group_.setPlanningTime(10.0);
   //TODO: switch r_arm_controllers of call action client directly
   bool success;
@@ -252,28 +250,32 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
 
 std::vector<moveit_msgs::Grasp> detection::GraspFilter::generateTopGrasps(double x, double y, double z)
 {
-  const double STRAIGHT_ANGLE_MIN = pcl::deg2rad(-45.0);
-  const double ANGLE_MAX = pcl::deg2rad(45.0);
-  const double ANGLE_INC = pcl::deg2rad(11.25);
-
   std::vector<moveit_msgs::Grasp> grasps;
 
-  /* ----- Straight grasps
-   * 2. straight grasp (xz-plane of `r_wrist_roll_link` contains z axis of `base_link`):
-   *      (x_w, y_w) = position of `r_wrist_roll_link` in `base_link` frame)
-   *   - standard: `rpy = (0, *, atan2(y_w, x_w))`
-   *   - overhead: `rpy = (pi, *, atan2(y_w, x_w))` */
-  tf::Transform transform;
-  transform.setOrigin(tf::Vector3(x, y, z));
-  double yaw = atan2(y, x);
-  for (double roll = 0.0; roll <= M_PI; roll += M_PI)
+  // How far from the grasp center should the wrist be. X is pointing toward the grasping point
+  tf::Transform standoff_trans;
+  standoff_trans.setOrigin(tf::Vector3(x, y, z).normalize() * STANDOFF);
+  Eigen::Quaterniond eigen_q;
+
+  // Special case for the short axis
+  if (x == 0.0 && y != 0.0)
   {
-    for (double pitch = STRAIGHT_ANGLE_MIN; pitch <= ANGLE_MAX; pitch += ANGLE_INC)
-    {
-      transform.setRotation(tf::createQuaternionFromRPY(roll, pitch, yaw));
-      grasps.push_back(tfTransformToGrasp(transform * STANDOFF_TRANS));
-    }
+    Eigen::Quaterniond eigen_aux;
+    // Get the rotation from the standard direction (no rotation), to the oposite grasp point
+    eigen_aux.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), Eigen::Vector3d(0.0, 1.0, 0.0));
+    eigen_q.setFromTwoVectors(Eigen::Vector3d(0.0, 1.0, 0.0), Eigen::Vector3d(-x, -y, -z));
+    eigen_q *= eigen_aux;
   }
+  else
+  {
+    // Get the rotation from the standard direction (no rotation), to the oposite grasp point
+    eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), Eigen::Vector3d(-x, -y, -z));
+  }
+
+  standoff_trans.setRotation(tf::Quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w()));
+
+  tf::Transform transform(tf::createIdentityQuaternion(), tf::Vector3(x, y, z));
+  grasps.push_back(tfTransformToGrasp(transform * standoff_trans));
 
   publishGraspsAsMarkerarray(grasps);
   return grasps;
@@ -288,8 +290,10 @@ std::vector<moveit_msgs::Grasp> detection::GraspFilter::generateSideGrasps(doubl
   tf::Transform standoff_trans;
   standoff_trans.setOrigin(tf::Vector3(x, y, 0).normalize() * STANDOFF);
   Eigen::Quaterniond eigen_q;
-  // Get the rotation from the standard direction (no rotation), to the oposite grasp point
-  eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), Eigen::Vector3d(-x, -y, 0.0));
+  // Get the rotation from the standard direction (no rotation), to the oposite grasp point in the plane
+  eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0),
+                            Eigen::Vector3d(-x, -y, 0.0));
+  //-(top_grasp_center_[2] + side_grasp_center_[2])));
   standoff_trans.setRotation(tf::Quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w()).normalize());
 
   /* Computation: xy-planes of 'r_wrist_roll_link' and 'base_link' are parallel */
@@ -342,7 +346,7 @@ moveit_msgs::Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
   // Start with open gripper
   grasp.pre_grasp_posture.joint_names.push_back(GRIPPER_JOINT);
   grasp.pre_grasp_posture.points.resize(1);
-  grasp.pre_grasp_posture.points[0].positions.push_back(0.08); // Hard limit 0.086
+  grasp.pre_grasp_posture.points[0].positions.push_back(1.0); // Hard limit 0.086?
 
   // Close the gripper in the grasp
   grasp.grasp_posture = grasp.pre_grasp_posture;
@@ -357,6 +361,7 @@ void detection::GraspFilter::publishGraspsAsMarkerarray(std::vector<moveit_msgs:
 {
   visualization_msgs::MarkerArray markers;
   visualization_msgs::Marker marker;
+
   marker.action = visualization_msgs::Marker::ADD;
   marker.header.stamp = ros::Time(0);
   marker.header.frame_id = OBJ_FRAME;
@@ -369,14 +374,16 @@ void detection::GraspFilter::publishGraspsAsMarkerarray(std::vector<moveit_msgs:
   marker.color.a = 1.0;
 
   int i = 0;
-  BOOST_FOREACH(moveit_msgs::Grasp &grasp, grasps)
+  BOOST_FOREACH(moveit_msgs::Grasp & grasp, grasps)
         {
+          pose_pub_.publish(grasp.grasp_pose);
+
           marker.id = i++;
           marker.pose = grasp.grasp_pose.pose;
           markers.markers.push_back(marker);
         }
 
-  grasps_marker_.publish(markers);
+  //grasps_marker_.publish(markers);
 }
 
 CloudPtr detection::GraspFilter::getSideGrasps()
