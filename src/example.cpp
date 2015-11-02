@@ -4,6 +4,8 @@
 #pragma message "\n\n\nNOT CLANG\n\n\n"
 #endif
 
+#include <string>
+#include <stdio.h>
 #include <iostream>
 
 #include <dynamic_reconfigure/server.h>
@@ -21,6 +23,7 @@ namespace bachelors_final_project
 void parameterCallback(ParametersConfig &cfg, uint32_t level,
                        segmentation::CloudSegmentator *data_handler,
                        visualization::VisualizationThread *viz_thread,
+                       detection::GraspPointDetector *detector,
                        int *cluster_selector)
 {
   if (cfg.defaultParams)
@@ -34,12 +37,16 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
   // Visualizer
   viz_thread->setParams(cfg.normalsCountParam, (float) cfg.normalsSizeParam);
 
+  detector->setParams(cfg.standoff);
+
   *cluster_selector = cfg.clusterSelector;
+
+  // Always abort computation and reconfigure things
+  ros::param::set("/bachelors_final_project/reconfigure", true);
 
   ROS_WARN("Done Reconfigure Request");
 }
-
-}
+} // namespace bachelors_final_project
 
 int main(int argc, char **argv)
 {
@@ -56,12 +63,13 @@ int main(int argc, char **argv)
 
   // Initialize ROS
   ros::init(argc, argv, "bachelors_final_project");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh, priv_nh("~");
 
   ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics");
   std_srvs::Empty srv;
   if (client.call(srv)) ROS_INFO("Unpaused physics");
-  else ROS_ERROR("Failed to call service /gazebo/unpause_physics");
+  else
+    ROS_ERROR("Failed to call service /gazebo/unpause_physics");
 
   tf::TransformListener tf_listener;
   viz::VisualizationThread viz_thread(tf_listener);
@@ -70,7 +78,6 @@ int main(int argc, char **argv)
   CloudSegmentator segmentator(nh, tf_listener);
   gpd::GraspPointDetector detector(nh, tf_listener);
 
-  ros::NodeHandle priv_nh("~");
   if (!priv_nh.hasParam("no_segmentation_visualizer"))
     viz_thread.addSegmentationVisualizer(segmentator);
   if (!priv_nh.hasParam("no_detection_visualizer"))
@@ -86,19 +93,20 @@ int main(int argc, char **argv)
   // Create Dynamic reconfigure server
   dynamic_reconfigure::Server<ParametersConfig> server;
   // Bind callback function to update values
-  server.setCallback(boost::bind(&parameterCallback, _1, _2, &segmentator, &viz_thread, &cluster_selector));
+  server.setCallback(boost::bind(&parameterCallback, _1, _2, &segmentator, &viz_thread, &detector, &cluster_selector));
+
+  if (!priv_nh.hasParam("no_reconfigure_gui"))
+    system("rosrun rqt_reconfigure rqt_reconfigure /bachelors_final_project 2>&1 &");
 
   //Start visualization
   viz_thread.start();
 
-  ROS_INFO("Escuchando");
   ros::AsyncSpinner spinner(1);
   spinner.start();
-  //ros::WallDuration(1.0).sleep();
+  ROS_INFO("Escuchando");
   while (ros::ok())
   {
-    //ros::spinOnce();                // Handle ROS events
-    segmentator.execute();        // Do Heavy processing
+    segmentator.execute();
 
     if (segmentator.noNewProcessedData()) continue;
 

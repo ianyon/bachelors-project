@@ -44,6 +44,8 @@ public:
 
   void transformToRobotFrame(CloudPtr *side);
 
+  void setParams(double standoff);
+
   tf::TransformBroadcaster tf_broadcaster;
 
   bool draw_bounding_box_;

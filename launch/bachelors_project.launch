@@ -41,7 +41,8 @@
 
   <!-- MoveIt -->
   <!--<param name="/move_group/max_range" value="2.5" />-->
-  <include file="$(find bachelors_final_project)/launch/my_move_group.launch">    
+  <arg name="move_group" default="true"/>
+  <include file="$(find bachelors_final_project)/launch/my_move_group.launch"  if="$(arg move_group)">    
     <arg name="info" value="true"/>
   </include>
   <!-- To improve performance -->
