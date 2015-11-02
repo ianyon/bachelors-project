@@ -71,8 +71,14 @@ bool detection::GraspPointDetector::doProcessing()
 
 
   /**    SAMPLING GRASP POSITIONS    **/
+  sampler.configure(obj_bounding_box_);
   // Find all the samples positions
-  sampler.sampleGraspingPoses(obj_bounding_box_);
+  // We call grasp filter to make a pre-filtering step, to avoid generate clearly unfeasible grasps samples
+  if (grasp_filter_.generateSideGrasps(obj_bounding_box_, sampler.getSideGraspHeight()))
+    sampler.sampleSideGrasps(obj_bounding_box_);
+  if (grasp_filter_.generateTopGrasps(obj_bounding_box_, sampler.getTopGraspHeight()))
+    sampler.sampleTopGrasps(obj_bounding_box_, grasp_filter_.generateTopGraspsMayorAxis(),
+                            grasp_filter_.generateTopGraspsMinorAxis());
   draw_sampled_grasps_ = true;
   bounding_box_lock.unlock();
 
@@ -100,6 +106,7 @@ bool detection::GraspPointDetector::doProcessing()
   }
   catch (ComputeFailedException ex)
   {
+    ROS_WARN("%s", ex.what());
     return false;
   }
   return true;
@@ -113,5 +120,10 @@ void detection::GraspPointDetector::transformToRobotFrame(CloudPtr *cloud)
   (*cloud)->header.frame_id = FOOTPRINT_FRAME;
 }
 
+
+void detection::GraspPointDetector::setParams(double standoff)
+{
+  grasp_filter_.setParams(standoff);
+}
 
 } // namespace bachelors_final_project

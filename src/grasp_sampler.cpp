@@ -18,26 +18,15 @@ detection::GraspSampler::GraspSampler()
   top_grasp_samples = 50;
 }
 
-/**
- * Sample grasping poses in the object frame
- */
-void detection::GraspSampler::sampleGraspingPoses(BoundingBoxPtr &bounding_box)
+void detection::GraspSampler::configure(BoundingBoxPtr &bounding_box)
 {
-  computeGraspsHeight(bounding_box->getHeight());
-
-  side_grasps_->clear();
-  sampleSideGrasps(bounding_box, side_grasps_);
-  side_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
-  side_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
-
-  top_grasps_->clear();
-  sampleTopGrasps(bounding_box, top_grasps_);
-  top_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
-  top_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
+  computeGrapsHeight(bounding_box->getHeight());
 }
 
-void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, CloudPtr &side_grasps)
+void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box)
 {
+  ROS_INFO("Sampling side grasps.");
+  side_grasps_->clear();
   // We'll sample the points in the origin and then translate and rotate them
   double a = bounding_box->getMayorAxisSize2D() / 2;
   double b = bounding_box->getMinorAxisSize2D() / 2;
@@ -53,12 +42,19 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box, Clo
     if (!ellipse_ops_.getNewEllipsePoint(getSideGraspHeight(), &ellipse_point))
       break;
 
-    side_grasps->push_back(ellipse_point);
+    side_grasps_->push_back(ellipse_point);
   }
+
+  side_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
+  side_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
 }
 
-void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, CloudPtr &top_grasps)
+void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, bool generate_mayor_axis,
+                                              bool generate_minor_axis)
 {
+  ROS_INFO("Sampling top grasps: %s %s axis", generate_mayor_axis ? "mayor" : "",
+           generate_minor_axis ? "and minor" : "");
+  top_grasps_->clear();
   int minor_axis_samples, mayor_axis_samples;
   numberOfSamples(bounding_box, minor_axis_samples, mayor_axis_samples);
 
@@ -67,10 +63,15 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, Clou
 
   pcl::PointXY bounding_box_min = bounding_box->getMin2D();
   double mayor_axis_step = bounding_box->getMayorAxisSize2D() / mayor_axis_samples;
-  sampleAxis(top_grasps, height, bounding_box_min.x, mayor_axis_samples, mayor_axis_step, true);
+  if (generate_mayor_axis)
+    sampleAxis(top_grasps_, height, bounding_box_min.x, mayor_axis_samples, mayor_axis_step, true);
 
   double minor_axis_step = bounding_box->getMinorAxisSize2D() / minor_axis_samples;
-  sampleAxis(top_grasps, height, bounding_box_min.y, minor_axis_samples, minor_axis_step, false);
+  if (generate_minor_axis)
+    sampleAxis(top_grasps_, height, bounding_box_min.y, minor_axis_samples, minor_axis_step, false);
+
+  top_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
+  top_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
 }
 
 /**
@@ -98,15 +99,4 @@ void detection::GraspSampler::sampleAxis(CloudPtr &top_grasps, float height, flo
   }
 }
 
-/**
- * Grasp height returned is relative to the objects bounding box center.
- * Side grasps: The desired height is 2 cm above the table height
- * Top grasps: The desired height is the objects height
- */
-void detection::GraspSampler::computeGraspsHeight(double obj_height)
-{
-  side_grasps_height_ = (float) (0.04 - (obj_height / 2));
-  top_grasps_height_ = (float) (obj_height / 2);
-}
-
-}
+} // namespace bachelors_final_project

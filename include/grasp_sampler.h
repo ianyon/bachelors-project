@@ -19,15 +19,11 @@ class GraspSampler
 public:
   GraspSampler();
 
-  void sampleGraspingPoses(BoundingBoxPtr &bounding_box);
+  void sampleSideGrasps(BoundingBoxPtr &);
 
-  void sampleSideGrasps(BoundingBoxPtr &, CloudPtr &);
-
-  void sampleTopGrasps(BoundingBoxPtr &, CloudPtr &);
+  void sampleTopGrasps(BoundingBoxPtr &, bool generate_mayor_axis, bool generate_minor_axis);
 
   void sampleAxis(CloudPtr &, float, float, int, double, bool);
-
-  void computeGraspsHeight(double obj_height);
 
   inline const CloudPtr getSideGrasps() const
   { return side_grasps_; }
@@ -35,11 +31,28 @@ public:
   inline const CloudPtr getTopGrasps() const
   { return top_grasps_; }
 
-  inline float getTopGraspHeight()
-  { return top_grasps_height_; } //return -fmax(obj_height - 0.03, obj_height / 2);
+  /**
+   * Grasp height returned is relative to the objects bounding box center.
+   * Side grasps: The desired height is 2 cm above the table height
+   * Top grasps: The desired height is the objects height */
+  inline void computeGrapsHeight(double obj_height)
+  {
+    top_grasps_height_ = (float) (obj_height / 2);
+    side_grasps_height_ = (float) (0.04 - (obj_height / 2));
+  }
 
   inline float getSideGraspHeight()
-  { return side_grasps_height_; }
+  {
+    return side_grasps_height_;
+  }
+
+
+  inline float getTopGraspHeight()
+  {
+    return top_grasps_height_;
+  }
+
+  void configure(BoundingBoxPtr &bounding_box);
 
 private:
   void numberOfSamples(const BoundingBoxPtr &bounding_box, int &minor_axis_samples, int &mayor_axis_samples);
