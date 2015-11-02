@@ -8,6 +8,8 @@
 #include <string>
 #include <ros/node_handle.h>
 
+#include <actionlib/client/simple_action_client.h>
+
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
@@ -15,6 +17,7 @@
 
 #include <moveit_msgs/AllowedCollisionMatrix.h>
 #include <moveit_msgs/GetPlanningScene.h>
+#include <moveit_msgs/PickupAction.h>
 
 #include "definitions.h"
 #include "containers.h"
@@ -50,19 +53,38 @@ class GraspFilter
   static const std::string SUPPORT_TABLE;
   static const std::string WRIST_LINK;
   static const std::string GRIPPER_JOINT;
+  static const std::string LBKPIECE_PLANNER;
+  static const std::string RRTCONNECT_PLANNER;
   std::string OBJ_FRAME;
+  const std::string PLANNER_NAME_;
 
   //std::string kinect_frame_id_;
 
   geometry_msgs::Pose obj_pose_;
 
   // How far from the grasp center should the wrist be: 3 cm
-  static const double STANDOFF;
+  double standoff;
 
   // Pregrasp distance 10 cm
   static const float PREGRASP_DISTANCE;
 
+  bool generate_top_grasps_mayor_axis_, generate_top_grasps_minor_axis_;
+
   Eigen::Vector3d side_grasp_center_, top_grasp_center_;
+
+  typedef actionlib::SimpleActionClient<moveit_msgs::PickupAction> PickupAction;
+  typedef boost::scoped_ptr<PickupAction> PickupActionPtr;
+  PickupActionPtr pick_action_client_;
+
+  ros::NodeHandle nh_;
+
+  void waitForAction(const PickupActionPtr &action, const ros::Duration &wait_for_server, const std::string &name);
+
+  bool pick(moveit::planning_interface::MoveGroup &group, const std::string &object,
+            const std::vector<moveit_msgs::Grasp> &grasps);
+
+  void constructGoal(moveit::planning_interface::MoveGroup &group, moveit_msgs::PickupGoal &goal_out,
+                     const std::string &object);
 
 public:
   GraspFilter(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
@@ -78,8 +100,6 @@ public:
 
   void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
 
-  void visualizePlan(moveit::planning_interface::MoveGroup::Plan pose_plan);
-
   bool processSample(Point &sample, bool generate_side_grasps);
 
   std::vector<moveit_msgs::Grasp> generateTopGrasps(double x, double y, double z);
@@ -93,6 +113,16 @@ public:
   CloudPtr getSideGrasps();
 
   CloudPtr getTopGrasps();
+
+  void setParams(double standoff);
+
+  bool generateSideGrasps(BoundingBoxPtr &obj_bounding_box, float height);
+
+  bool generateTopGrasps(BoundingBoxPtr &obj_bounding_box, float height);
+
+  bool generateTopGraspsMinorAxis();
+
+  bool generateTopGraspsMayorAxis();
 };
 
 } // namespace detection

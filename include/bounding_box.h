@@ -127,7 +127,7 @@ public:
 
   Point computePosition2DRobotFrame(tf::TransformListener &tf_listener);
 
-  Eigen::Quaternionf createRotationQuaternion(Eigen::Matrix3f eigen_vectors);
+  Eigen::Quaternionf createRotationQuaternion2D(Eigen::Matrix3f eigen_vectors);
 
   void visualizeData();
 

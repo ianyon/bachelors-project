@@ -56,6 +56,13 @@ void detection::BoundingBox::buildPlanar(CloudPtr &world_coords_planar_obj)
   // Third component is orthogonal to principal axes
   eigen_vectors_.col(2) = eigen_vectors_.col(0).cross(eigen_vectors_.col(1));
 
+  // We check that all the eigen vectors point Z upwards
+  if (eigen_vectors_(0, 0) < 0)
+  {
+    eigen_vectors_.col(0)*=-1.0;
+    eigen_vectors_.col(2)*=-1.0;
+  }
+
   // Move the points of the object to it's own coordinates centered in the centroid
   pcl::transformPointCloud(*world_coords_planar_obj, *planar_obj, getKinectToCentroidTransform());
 
@@ -67,7 +74,7 @@ void detection::BoundingBox::buildPlanar(CloudPtr &world_coords_planar_obj)
   createKinectCenteredMembers();
 
   // Final transform: back to kinect coordinates
-  rotation_kinect_frame_ = createRotationQuaternion(eigen_vectors_);
+  rotation_kinect_frame_ = createRotationQuaternion2D(eigen_vectors_);
   position_base_kinect_frame_ = eigen_vectors_ * planar_shift_ + centroid_2D_kinect_frame_.head<3>();
 }
 
@@ -77,10 +84,11 @@ void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, 
   pcl::transformPointCloud(*world_coords_obj, *obj3D, Eigen::Affine3f(getInverseRotationQuaternion()));
   Point min_3d_point, max_3d_point;
   getMinMax3D(*obj3D, min_3d_point, max_3d_point);
-  float height_3D = (float) fabs(max_3d_point.z - min_3d_point.z);
+  float height_3D = max_3d_point.z - min_3d_point.z;
   // Set the size with height
-  size_3D_ = Eigen::Vector3f(size_2D_[0], size_2D_[1], height_3D);
-  position_3D_kinect_frame_ = position_base_kinect_frame_ - eigen_vectors_ * Eigen::Vector3f(getHeight() / 2, 0, 0);
+  size_3D_ = Eigen::Vector3f(size_2D_[0], size_2D_[1], (float) fabs(height_3D));
+
+  position_3D_kinect_frame_ = position_base_kinect_frame_ + eigen_vectors_ * Eigen::Vector3f(height_3D / 2, 0, 0);
 
   broadcastFrameUpdate(broadcaster, position_3D_kinect_frame_);
 }
@@ -90,13 +98,13 @@ void detection::BoundingBox::broadcast2DFrameUpdate(tf::TransformBroadcaster bro
   broadcastFrameUpdate(broadcaster, position_base_kinect_frame_);
 }
 
-Eigen::Quaternionf detection::BoundingBox::createRotationQuaternion(Eigen::Matrix3f eigen_vectors)
+Eigen::Quaternionf detection::BoundingBox::createRotationQuaternion2D(Eigen::Matrix3f eigen_vectors)
 {
   Eigen::Quaternionf eigen_q(eigen_vectors);
   tf::Quaternion quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w());
   // Rotate the coordinate system to keep Z axis pointing upwards.
-  quaternion *= tf::createQuaternionFromRPY(0.0, pcl::deg2rad(-90.0), 0.0);
-  return Eigen::Quaternionf(quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z());
+  quaternion *= tf::createQuaternionFromRPY(0.0, pcl::deg2rad(90.0), 0.0);
+  return Eigen::Quaternionf(quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z()).normalized();
 }
 
 void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position)
@@ -188,11 +196,7 @@ Eigen::Affine3f detection::BoundingBox::getKinectToCentroidTransform()
 
 Eigen::Quaternionf detection::BoundingBox::getInverseRotationQuaternion()
 {
-  Eigen::Quaternionf eigen_q(eigen_vectors_.transpose());
-  tf::Quaternion quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w());
-  // Rotate the coordinate system to keep Z axis pointing upwards.
-  quaternion = tf::createQuaternionFromRPY(0.0, pcl::deg2rad(90.0), 0.0) * quaternion;
-  return Eigen::Quaternionf(quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z());
+  return rotation_kinect_frame_.conjugate();
 }
 
 
