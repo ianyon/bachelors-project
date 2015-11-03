@@ -1,0 +1,25 @@
+<launch>
+  <!-- MoveIt -->
+  <!--<param name="/move_group/max_range" value="2.5" />-->
+  <arg name="move_group" default="true"/>
+  <include file="$(find bachelors_final_project)/launch/my_move_group.launch"  if="$(arg move_group)">    
+    <arg name="info" value="true"/>
+  </include>
+  <!-- To improve performance -->
+  <rosparam param="/move_group/max_range">5.0</rosparam> <!-- Default 5.0 -->
+  <!-- If we set a better resolution, some voxels are not cleared inside a collision object and 
+       we can't plan any graps because the attached object is in collision with those voxels in the 
+       post-grasp retreat movement -->
+  <rosparam param="/move_group/octomap_resolution">0.025</rosparam> <!-- Default 0.025 -->
+  <!-- Launches planning_context
+       Load SRDF, Joint limits, kinematics
+       Launches moveit_controller_manager = pr2 -->
+  <!-- MoveIt -->  
+
+  <!-- Rviz -->  
+  <arg name="rviz" default="true"/>
+  <include file="$(find bachelors_final_project)/launch/my_rviz.launch" if="$(arg rviz)">
+    <arg name="moveit_rviz" value="false" />
+  </include>
+  <!-- Rviz -->    
+</launch>
