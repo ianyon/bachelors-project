@@ -52,6 +52,10 @@ pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud,
 Point fourToPoint(Eigen::Vector4f &vector);
 Point threeToPoint(Eigen::Vector3f &vector);
 
+int selectChoice(std::string message);
+
+float selectChoiceFloat(std::string message);
+
 void theThing();
 
 } // namespace bachelors_final_project

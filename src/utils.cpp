@@ -180,6 +180,22 @@ Point threeToPoint(Eigen::Vector3f &vector)
   return Point(vector[0], vector[1], vector[2]);
 }
 
+int selectChoice(std::string message)
+{
+  ROS_INFO("%s", message.c_str());
+  int a;
+  std::cin >> a;
+  return a;
+}
+
+float selectChoiceFloat(std::string message)
+{
+  ROS_INFO("%s", message.c_str());
+  float a;
+  std::cin >> a;
+  return a;
+}
+
 void pick(moveit::planning_interface::MoveGroup &group)
 {
   std::vector<moveit_msgs::Grasp> grasps;
@@ -356,14 +372,14 @@ void theThing()
   // wait a bit for ros things to initialize
   ros::WallDuration(1.0).sleep();
 
-  //pick(group);
+  pick(group);
   ROS_INFO("PICK");
 
   ros::WallDuration(1.0).sleep();
 
   //place(group);
   ROS_INFO("PLACE");
-  ros::waitForShutdown();
+  selectChoice("press key");
 }
 
 

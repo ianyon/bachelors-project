@@ -46,7 +46,7 @@ class GraspFilter
 
   typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
 
-  moveit::planning_interface::MoveGroup group_;
+  moveit::planning_interface::MoveGroup r_arm_group_;
 
   //planning_scene::PlanningScene planning_scene;
   static const std::string GRASPABLE_OBJECT;
@@ -62,7 +62,14 @@ class GraspFilter
 
   geometry_msgs::Pose obj_pose_;
 
-  // How far from the grasp center should the wrist be: 3 cm
+  /* How far from the grasp center should the wrist be. r_gripper_tool_frame Is the center of the finger tips.
+   * ie: The center of the grasping point
+   * rosrun tf tf_echo r_wrist_roll_link r_gripper_tool_frame
+   *  At time 985.014
+   *  - Translation: [0.180, 0.000, 0.000]
+   *  - Rotation: in Quaternion [0.000, 0.000, 0.000, 1.000]
+   *              in RPY [0.000, -0.000, 0.000]
+   */
   double standoff;
 
   // Pregrasp distance 10 cm
@@ -87,6 +94,9 @@ class GraspFilter
                      const std::string &object);
 
 public:
+
+  moveit::planning_interface::MoveGroup gripper_group_;
+
   GraspFilter(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
 
   void configure(float side_grasp_height, float top_graps_height,
@@ -102,27 +112,40 @@ public:
 
   bool processSample(Point &sample, bool generate_side_grasps);
 
+  trajectory_msgs::JointTrajectory generateGraspPosture(float value);
+
+  void moveAllGripperJoints(float v);
+
+  void openGripper();
+
+  void closeGripper();
+
   std::vector<moveit_msgs::Grasp> generateTopGrasps(double x, double y, double z);
 
   std::vector<moveit_msgs::Grasp> generateSideGrasps(double x, double y, double z);
 
   moveit_msgs::Grasp tfTransformToGrasp(tf::Transform t);
 
-  void publishGraspsAsMarkerarray(std::vector<moveit_msgs::Grasp> grasps);
-
-  CloudPtr getSideGrasps();
-
-  CloudPtr getTopGrasps();
-
-  void setParams(double standoff);
+  void publishGrasps(std::vector<moveit_msgs::Grasp> grasps);
 
   bool generateSideGrasps(BoundingBoxPtr &obj_bounding_box, float height);
 
   bool generateTopGrasps(BoundingBoxPtr &obj_bounding_box, float height);
 
-  bool generateTopGraspsMinorAxis();
+  inline bool generateTopGraspsMinorAxis()
+  { return generate_top_grasps_minor_axis_; }
 
-  bool generateTopGraspsMayorAxis();
+  inline bool generateTopGraspsMayorAxis()
+  { return generate_top_grasps_mayor_axis_; }
+
+  inline CloudPtr getSideGrasps()
+  { return feasible_side_grasps_; }
+
+  inline CloudPtr getTopGrasps()
+  { return feasible_top_grasps_; }
+
+  inline void setParams(double standoff_)
+  { standoff = standoff_; }
 };
 
 } // namespace detection
