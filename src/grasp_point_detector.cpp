@@ -14,6 +14,7 @@ namespace bachelors_final_project
  */
 detection::GraspPointDetector::GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener) :
     grasp_filter_(handle, tf_listener),
+    grasp_ranker_(tf_listener),
     obj_bounding_box_(new BoundingBox("object_base_frame")),
     table_bounding_box_(new BoundingBox("table_base_frame")),
     world_obj_(new Cloud),
@@ -104,6 +105,11 @@ bool detection::GraspPointDetector::doProcessing()
     ROS_WARN("%s", ex.what());
     return false;
   }
+
+  /**    GRASP RANKING    **/
+  grasp_ranker_.configure(obj_bounding_box_, grasp_filter_.getEndEffectorLink());
+  grasp_ranker_.rankGraspingPoses(grasp_filter_.getSideGrasps(), grasp_filter_.getTopGrasps());
+
   return true;
 }
 

@@ -37,7 +37,6 @@ namespace bachelors_final_project
 
 const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
-const std::string detection::GraspFilter::GRIPPER_JOINT = "r_gripper_joint";
 const float detection::GraspFilter::PREGRASP_DISTANCE = 0.1;
 const std::string detection::GraspFilter::LBKPIECE_PLANNER = "LBKPIECEkConfigDefault";
 const std::string detection::GraspFilter::RRTCONNECT_PLANNER = "RRTConnectkConfigDefault";
@@ -46,18 +45,13 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
     nh_(nh),
     r_arm_group_("right_arm"),
     gripper_group_("right_gripper"),
-    display_pub(nh.advertise<DisplayTrajectory>("/move_group/display_planned_path", 1, true)),
     collision_obj_pub(nh.advertise<CollisionObject>("/collision_object", 10)),
     attached_obj_pub(nh.advertise<AttachedCollisionObject>("/attached_collision_object", 10)),
-    grasps_marker_(nh.advertise<visualization_msgs::MarkerArray>("grasps_marker", 10)),
     pose_pub_(nh.advertise<geometry_msgs::PoseStamped>("sampled_poses", 10)),
-    planning_scene_diff_pub(nh.advertise<PlanningScene>("/planning_scene", 1)),
-    client_get_scene(nh.serviceClient<GetPlanningScene>("/get_planning_scene")),
+    actual_pose_pub_(nh.advertise<geometry_msgs::PoseStamped>("actual_sampled_pose", 10)),
     tf_listener_(tf_listener),
     pick_action_client_(new PickupAction(move_group::PICKUP_ACTION, false)),
-    PLANNER_NAME_(RRTCONNECT_PLANNER),
-    feasible_top_grasps_(new Cloud),
-    feasible_side_grasps_(new Cloud)
+    PLANNER_NAME_(RRTCONNECT_PLANNER)
 {
   r_arm_group_.setPlanningTime(10.0);
   r_arm_group_.setPlannerId(PLANNER_NAME_);
@@ -125,8 +119,6 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
   obj_pose_ = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
   side_grasp_center_ = Eigen::Vector3d(0, 0, side_grasp_height);
   top_grasp_center_ = Eigen::Vector3d(0, 0, top_graps_height);
-
-  //updateAllowedCollisionMatrix();
 }
 
 void detection::GraspFilter::addSupportTable(Point &pose_pt, Eigen::Vector3f &size)
@@ -159,58 +151,6 @@ void detection::GraspFilter::addCollisionObject(Eigen::Vector3f &size, const std
   ros::WallDuration(1.0).sleep();
 }
 
-/*
-void detection::GraspFilter::updateAllowedCollisionMatrix()
-{
-  GetPlanningScene scene_srv;
-  scene_srv.request.components.components = scene_srv.request.components.ALLOWED_COLLISION_MATRIX;
-
-  if (!client_get_scene.call(scene_srv))
-  {
-    ROS_WARN("Failed to call service /get_planning_scene");
-    return;
-  }
-
-  AllowedCollisionMatrix currentACM = getCollisionMatrix(scene_srv, false);
-  currentACM.entry_names.push_back(GRASPABLE_OBJECT);
-  AllowedCollisionEntry entry;
-  entry.enabled.resize(currentACM.entry_names.size());
-
-  // Add new row to allowed collision matrix
-  //TODO: Make objects allowed to collision only with gripper
-  for (int i = 0; i < entry.enabled.size(); i++)
-    entry.enabled[i] = true;
-
-  currentACM.entry_values.push_back(entry);
-
-  // Extend the last column of the matrix
-  for (int i = 0; i < currentACM.entry_values.size(); i++)
-    currentACM.entry_values[i].enabled.push_back(true);
-
-  PlanningScene newSceneDiff;
-  newSceneDiff.is_diff = true;
-  newSceneDiff.allowed_collision_matrix = currentACM;
-  planning_scene_diff_pub.publish(newSceneDiff);
-
-  // To check that the matrix was properly updated
-  if (!client_get_scene.call(scene_srv))
-    ROS_WARN("Failed to call service /get_planning_scene");
-  else
-    getCollisionMatrix(scene_srv, true);
-}
-
-AllowedCollisionMatrix detection::GraspFilter::getCollisionMatrix(GetPlanningScene scene_srv,
-                                                                  bool after)
-{
-  ROS_INFO("Modified scene!");
-  AllowedCollisionMatrix currentACM = scene_srv.response.scene.allowed_collision_matrix;
-  std::string case_ = after ? "after " : "before ";
-  ROS_WARN("Size of acm_entry %s {names:%lu, values:%lu, entry:%lu}", case_.c_str(), currentACM.entry_names.size(),
-           currentACM.entry_values.size(), currentACM.entry_values[0].enabled.size());
-  return currentACM;
-}
-*/
-
 void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps)
 {
   side_grasps_ = side_grasps;
@@ -219,29 +159,38 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   if (side_grasps_->size() > 0)
   {
     ROS_INFO("Filtering %lu side grasps", side_grasps_->size());
-    feasible_side_grasps_->clear();
+    feasible_side_grasps_.clear();
     BOOST_FOREACH(Point &point, side_grasps_->points)
           {
-            if (processSample(point, true))
-              feasible_side_grasps_->push_back(point);
+            Grasp grasp;
+            if (processSample(point, true, grasp))
+              feasible_side_grasps_.push_back(grasp);
           }
-    ROS_INFO("%lu feasible SIDE grasps", feasible_side_grasps_->size());
+    ROS_INFO("%lu feasible SIDE grasps", feasible_side_grasps_.size());
   }
 
   if (top_grasps->size() > 0)
   {
     ROS_INFO("Filtering %lu top grasps", top_grasps_->size());
-    feasible_top_grasps_->clear();
+    feasible_top_grasps_.clear();
     BOOST_FOREACH(Point &point, top_grasps_->points)
           {
-            if (processSample(point, false))
-              feasible_top_grasps_->push_back(point);
+            Grasp grasp;
+            if (processSample(point, false, grasp))
+              feasible_top_grasps_.push_back(grasp);
           }
-    ROS_INFO("%lu feasible TOP grasps", feasible_top_grasps_->size());
+    ROS_INFO("%lu feasible TOP grasps", feasible_top_grasps_.size());
   }
+
+  // Publish result
+  std::vector<Grasp> feasible_ones = feasible_side_grasps_;
+  feasible_ones.reserve( feasible_side_grasps_.size() + feasible_top_grasps_.size() ); // preallocate memory
+  feasible_ones.insert( feasible_ones.end(), feasible_side_grasps_.begin(), feasible_side_grasps_.end() );
+  feasible_ones.insert( feasible_ones.end(), feasible_top_grasps_.begin(), feasible_top_grasps_.end() );
+  publishGrasps(feasible_ones);
 }
 
-bool detection::GraspFilter::processSample(Point &sample, bool generate_side_grasps)
+bool detection::GraspFilter::processSample(Point &sample, bool generate_side_grasps, Grasp &grasp)
 {
 
   if (ros::param::has("/bachelors_final_project/reconfigure"))
@@ -259,10 +208,14 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
   ROS_DEBUG("Trying to pick");
   // Needed to specify that attached object is allowed to touch table
   r_arm_group_.setSupportSurfaceName(SUPPORT_TABLE);
+
   if (generate_side_grasps)
-    success = pick(r_arm_group_, GRASPABLE_OBJECT, generateSideGrasps(sample.x, sample.y, sample.z));
+    grasp = generateSideGrasps(sample.x, sample.y, sample.z);
   else
-    success = pick(r_arm_group_, GRASPABLE_OBJECT, generateTopGrasps(sample.x, sample.y, sample.z));
+    grasp = generateTopGrasps(sample.x, sample.y, sample.z);
+
+  success = pick(r_arm_group_, GRASPABLE_OBJECT, grasp);
+
 
   ROS_DEBUG_COND(success, "Pick planning was successful.");
 
@@ -270,7 +223,7 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
 }
 
 bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, const string &object,
-                                  const std::vector<Grasp> &grasps)
+                                  Grasp &grasp)
 {
   if (!pick_action_client_)
   {
@@ -285,7 +238,7 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
 
   PickupGoal goal;
   constructGoal(group, goal, object);
-  goal.possible_grasps = grasps;
+  goal.possible_grasps.push_back(grasp);
   pick_action_client_->cancelAllGoals();
   pick_action_client_->sendGoal(goal);
   if (!pick_action_client_->waitForResult(ros::Duration(2.0)))
@@ -345,10 +298,8 @@ void detection::GraspFilter::constructGoal(moveit::planning_interface::MoveGroup
     goal_out.path_constraints = group.getPathConstraints();
 }
 
-std::vector<Grasp> detection::GraspFilter::generateTopGrasps(double x, double y, double z)
+Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z)
 {
-  std::vector<Grasp> grasps;
-
   // How far from the grasp center should the wrist be. X is pointing toward the grasping point
   tf::Transform standoff_trans;
   standoff_trans.setOrigin(tf::Vector3(x, y, z).normalize() * standoff);
@@ -363,43 +314,37 @@ std::vector<Grasp> detection::GraspFilter::generateTopGrasps(double x, double y,
     eigen_q.setFromTwoVectors(Eigen::Vector3d(0.0, 1.0, 0.0), Eigen::Vector3d(-x, -y, -z));
     eigen_q *= eigen_aux;
   }
-  else
-  {
-    // Get the rotation from the standard direction (no rotation), to the oposite grasp point
+  else // Get the rotation from the standard direction (no rotation), to the oposite grasp point
     eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), Eigen::Vector3d(-x, -y, -z));
-  }
 
   standoff_trans.setRotation(tf::Quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w()));
 
   tf::Transform transform(tf::createIdentityQuaternion(), tf::Vector3(x, y, z));
-  grasps.push_back(tfTransformToGrasp(transform * standoff_trans));
+  Grasp grasp = tfTransformToGrasp(transform * standoff_trans);
 
-  publishGrasps(grasps);
-  return grasps;
+  actual_pose_pub_.publish(grasp.grasp_pose);
+  return grasp;
 }
 
 /**
  * x, y, z: center of grasp point (the point that should be between the finger tips of the gripper)
  */
-std::vector<Grasp> detection::GraspFilter::generateSideGrasps(double x, double y, double z)
+Grasp detection::GraspFilter::generateSideGrasps(double x, double y, double z)
 {
   // How far from the grasp center should the wrist be. X is pointing toward the grasping point
   tf::Transform standoff_trans;
   standoff_trans.setOrigin(tf::Vector3(x, y, 0).normalize() * standoff);
   Eigen::Quaterniond eigen_q;
   // Get the rotation from the standard direction (no rotation), to the oposite grasp point in the plane
-  eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0),
-                            Eigen::Vector3d(-x, -y, 0.0));
-  //-(top_grasp_center_[2] + side_grasp_center_[2])));
+  eigen_q.setFromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), Eigen::Vector3d(-x, -y, 0.0));
   standoff_trans.setRotation(tf::Quaternion(eigen_q.x(), eigen_q.y(), eigen_q.z(), eigen_q.w()).normalize());
 
   /* Computation: xy-planes of 'r_wrist_roll_link' and 'base_link' are parallel */
   tf::Transform transform(tf::createIdentityQuaternion(), tf::Vector3(x, y, z));
-  std::vector<Grasp> grasps;
-  grasps.push_back(tfTransformToGrasp(transform * standoff_trans));
+  Grasp grasp = tfTransformToGrasp(transform * standoff_trans);
 
-  publishGrasps(grasps);
-  return grasps;
+  actual_pose_pub_.publish(grasp.grasp_pose);
+  return grasp;
 }
 
 

@@ -17,6 +17,17 @@ static const std::string KINECT_TOPIC = "/head_mount_kinect/depth/points";
 static const float TF_TIMEOUT = 2.0;
 static const ros::Duration TF_DURATION(TF_TIMEOUT);
 
+static const std::string TOOL_FRAME = "r_gripper_tool_frame";
+
+/* Distance between r_wrist_roll_joint and r_gripper_tool_frame (Finger tip center)
+ * rosrun tf tf_echo r_wrist_roll_link r_gripper_tool_frame
+ *  At time 985.014
+ *  - Translation: [0.180, 0.000, 0.000]
+ *  - Rotation: in Quaternion [0.000, 0.000, 0.000, 1.000]
+ *              in RPY [0.000, -0.000, 0.000]
+ */
+static const float WRIST_TO_TOOL_DISTANCE = 0.18;
+
 enum FailedLevel { NORMALS, PLANE, OVER_TABLE, CLUSTERS };
 
 typedef pcl::PointXYZ Point;

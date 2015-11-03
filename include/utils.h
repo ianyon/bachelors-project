@@ -33,6 +33,9 @@ Eigen::Vector3d castVector3d(Eigen::Vector3f v);
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
+                    Eigen::Vector3f &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
+
 bool transformPose(const std::string &init_frame, const std::string &final_frame,
                    geometry_msgs::PoseStamped &pose_in, geometry_msgs::PoseStamped &pose_out,
                    uint64_t micro_sec_time, tf::TransformListener &tf_listener);

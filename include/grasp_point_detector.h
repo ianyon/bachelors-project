@@ -12,6 +12,7 @@
 #include "bounding_box.h"
 #include "grasp_sampler.h"
 #include "grasp_filter.h"
+#include "grasp_ranker.h"
 #include <bachelors_final_project/ParametersConfig.h>
 
 namespace bachelors_final_project
@@ -59,6 +60,7 @@ public:
 
   GraspSampler sampler;
   GraspFilter grasp_filter_;
+  GraspRanker grasp_ranker_;
 
   BoundingBoxPtr obj_bounding_box_,table_bounding_box_;
 

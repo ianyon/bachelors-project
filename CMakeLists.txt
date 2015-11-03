@@ -84,11 +84,11 @@ set(sources src/example.cpp
         src/ellipse_operations.cpp
         src/grasp_filter.cpp
         src/grasp_filter_utils.cpp
+        src/grasp_ranker.cpp
 
         src/visualization/visualization_thread.cpp
         src/visualization/base_visualizer.cpp
         src/visualization/segmentation_visualizer.cpp
-
         src/visualization/detection_visualizer.cpp
 
         src/utils.cpp

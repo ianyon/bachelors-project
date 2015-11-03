@@ -69,6 +69,17 @@ Eigen::Vector3d castVector3d(Eigen::Vector3f v)
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
+  Eigen::Vector3f point_out_eigen;
+  bool result = transformPoint(init_frame, final_frame, point_in, point_out_eigen, micro_sec_time, tf_listener);
+
+    point_out = newPoint(point_out_eigen);
+
+  return result;
+}
+
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
+                    Eigen::Vector3f &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
+{
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
   try
