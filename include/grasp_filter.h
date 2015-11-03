@@ -93,6 +93,8 @@ class GraspFilter
   void constructGoal(moveit::planning_interface::MoveGroup &group, moveit_msgs::PickupGoal &goal_out,
                      const std::string &object);
 
+  void pickMovement(moveit_msgs::PickupGoal &goal);
+
 public:
 
   moveit::planning_interface::MoveGroup gripper_group_;

@@ -257,9 +257,9 @@
       <pose>1.5746 0 0 0 -0 0</pose>
     </model>
     <state world_name='table_with_objects closer'>
-      <sim_time>92 991500000</sim_time>
-      <real_time>24 568121933</real_time>
-      <wall_time>1446507228 912846204</wall_time>
+      <sim_time>0 0</sim_time>
+      <real_time>0 0</real_time>
+      <wall_time>0 0</wall_time>
       <model name='beer'>
         <pose>0.725308 0.010031 0.614993 -8.2e-05 0.000167 0.947346</pose>
         <link name='link'>

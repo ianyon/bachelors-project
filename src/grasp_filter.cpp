@@ -37,7 +37,6 @@ namespace bachelors_final_project
 
 const std::string detection::GraspFilter::GRASPABLE_OBJECT = "graspable object";
 const std::string detection::GraspFilter::SUPPORT_TABLE = "table";
-const std::string detection::GraspFilter::WRIST_LINK = "r_wrist_roll_link";
 const std::string detection::GraspFilter::GRIPPER_JOINT = "r_gripper_joint";
 const float detection::GraspFilter::PREGRASP_DISTANCE = 0.1;
 const std::string detection::GraspFilter::LBKPIECE_PLANNER = "LBKPIECEkConfigDefault";
@@ -265,7 +264,7 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
   else
     success = pick(r_arm_group_, GRASPABLE_OBJECT, generateTopGrasps(sample.x, sample.y, sample.z));
 
-  ROS_DEBUG_COND(success, "\n\n\n\nPick planning was successful.\n\n\n\n");
+  ROS_DEBUG_COND(success, "Pick planning was successful.");
 
   return success;
 }
@@ -287,8 +286,6 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
   PickupGoal goal;
   constructGoal(group, goal, object);
   goal.possible_grasps = grasps;
-  //actionlib::SimpleClientGoalState state = pick_action_client_->getState();
-  //if (state == actionlib::SimpleClientGoalState::PENDING || state == actionlib::SimpleClientGoalState::ACTIVE)
   pick_action_client_->cancelAllGoals();
   pick_action_client_->sendGoal(goal);
   if (!pick_action_client_->waitForResult(ros::Duration(2.0)))
@@ -299,47 +296,53 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
                        "Fail: " << pick_action_client_->getState().toString() << ": " <<
                        pick_action_client_->getState().getText());
 
-  if (plan_succeeded)
-  {
-    if (selectChoice("Press 1 and enter to pick or 2 to continue...") != 1)
-      return plan_succeeded;
-    ROS_INFO("TRYING REAL PICK ACTION");
-
-    //TODO review openGripper();
-
-    goal.planning_options.plan_only = false;
-    pick_action_client_->sendGoal(goal);
-    if (!pick_action_client_->waitForResult(ros::Duration(10.0)))
-      ROS_WARN_STREAM("Pickup action returned early");
-
-    bool move_succeeded = pick_action_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED;
-    ROS_WARN_STREAM_COND(!move_succeeded,
-                         "Fail: " << pick_action_client_->getState().toString() << ": " <<
-                         pick_action_client_->getState().getText());
-    selectChoice("Pick Movement tried. Press any key to re-segment...");
-    throw ComputeFailedException("Need to re-segment the scene.");
-  }
+  if (plan_succeeded && (selectChoice("Press 1 and enter to pick or 2 to continue...") == 1))
+    pickMovement(goal);
 
   return plan_succeeded;
+}
+
+void detection::GraspFilter::pickMovement(PickupGoal &goal)
+{
+  ROS_INFO("TRYING REAL PICK ACTION");
+  goal.planning_options.plan_only = (unsigned char) false;
+  pick_action_client_->sendGoal(goal);
+  if (!pick_action_client_->waitForResult(ros::Duration(10.0)))
+    ROS_WARN_STREAM("Pickup action returned early");
+
+  actionlib::SimpleClientGoalState state = pick_action_client_->getState();
+
+  while (state.state_ == actionlib::SimpleClientGoalState::ABORTED)
+  {
+    ROS_WARN("Fail: %s: %s.", state.toString().c_str(), state.getText().c_str());
+    if (selectChoice("Press 1 to retry, any key to re-segment...") == 1)
+    {
+      pick_action_client_->sendGoal(goal);
+      if (!pick_action_client_->waitForResult(ros::Duration(10.0)))
+        ROS_WARN_STREAM("Pickup action returned early");
+      state = pick_action_client_->getState();
+    }
+    else throw ComputeFailedException("Need to re-segment the scene.");
+  }
+
+  if (state.state_ == actionlib::SimpleClientGoalState::SUCCEEDED)
+    ROS_FATAL("\n\n¡¡OBJECT PICKED!!\n\n");
 }
 
 void detection::GraspFilter::constructGoal(moveit::planning_interface::MoveGroup &group, PickupGoal &goal_out,
                                            const std::string &object)
 {
-  PickupGoal goal;
-  goal.target_name = object;
-  goal.group_name = group.getName();
-  goal.end_effector = group.getEndEffector();
-  goal.allowed_planning_time = group.getPlanningTime();
-  goal.support_surface_name = SUPPORT_TABLE;
-  goal.planner_id = PLANNER_NAME_;
-  goal.planning_options.plan_only = true;
-  goal.planning_options.replan_attempts = 3;
+  goal_out.target_name = object;
+  goal_out.group_name = group.getName();
+  goal_out.end_effector = group.getEndEffector();
+  goal_out.allowed_planning_time = group.getPlanningTime();
+  goal_out.support_surface_name = SUPPORT_TABLE;
+  goal_out.planner_id = PLANNER_NAME_;
+  goal_out.planning_options.plan_only = true;
+  goal_out.planning_options.replan_attempts = 3;
 
   if (group.getPathConstraints().name != std::string())
-    goal.path_constraints = group.getPathConstraints();
-
-  goal_out = goal;
+    goal_out.path_constraints = group.getPathConstraints();
 }
 
 std::vector<Grasp> detection::GraspFilter::generateTopGrasps(double x, double y, double z)
@@ -407,22 +410,19 @@ Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
   Grasp grasp;
   grasp.id = boost::lexical_cast<std::string>(i++);
 
-  tf::Vector3 &origin = t.getOrigin();
-  tf::Quaternion rotation = t.getRotation().normalize();
-
   // The pose of the grasping point
   geometry_msgs::PoseStamped pose;
   pose.header.frame_id = OBJ_FRAME;
-  pose.header.stamp = ros::Time::now();
-  pose.pose.position.x = origin.m_floats[0];
-  pose.pose.position.y = origin.m_floats[1];
-  pose.pose.position.z = origin.m_floats[2];
-  tf::quaternionTFToMsg(rotation, pose.pose.orientation);
+  pose.header.stamp = ros::Time(0);
+  pose.pose.position.x = t.getOrigin().m_floats[0];
+  pose.pose.position.y = t.getOrigin().m_floats[1];
+  pose.pose.position.z = t.getOrigin().m_floats[2];
+  tf::quaternionTFToMsg(t.getRotation().normalize(), pose.pose.orientation);
   grasp.grasp_pose = pose;
 
   // Approach in x direction towards the object center
   grasp.pre_grasp_approach.direction.header.frame_id = r_arm_group_.getEndEffectorLink().c_str();
-  grasp.pre_grasp_approach.direction.header.stamp = ros::Time::now();
+  grasp.pre_grasp_approach.direction.header.stamp = ros::Time(0);
   grasp.pre_grasp_approach.direction.vector.x = 1.0;
   grasp.pre_grasp_approach.min_distance = 0.1;
   //grasp.pre_grasp_approach.min_distance = 0.05;
@@ -431,7 +431,7 @@ Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
 
   // Walk away in z direction (footprint frame)
   grasp.post_grasp_retreat.direction.header.frame_id = FOOTPRINT_FRAME;
-  grasp.post_grasp_retreat.direction.header.stamp = ros::Time::now();
+  grasp.post_grasp_retreat.direction.header.stamp = ros::Time(0);
   grasp.post_grasp_retreat.direction.vector.z = 1.0;
   grasp.post_grasp_retreat.min_distance = 0.1;
   //grasp.post_grasp_retreat.min_distance = 0.05;
@@ -476,7 +476,8 @@ bool detection::GraspFilter::generateTopGrasps(BoundingBoxPtr &obj_bounding_box,
 void detection::GraspFilter::moveAllGripperJoints(float v)
 {
   robot_state::RobotStatePtr kinematic_state = gripper_group_.getCurrentState();
-  const robot_state::JointModelGroup *joint_model_group = kinematic_state->getJointModelGroup(gripper_group_.getName());
+  const robot_state::JointModelGroup *joint_model_group = kinematic_state->getJointModelGroup(
+      gripper_group_.getName());
 
   std::vector<double> joint_values;
   kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
@@ -521,22 +522,22 @@ trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(fl
   trajectory_msgs::JointTrajectory posture;
 
   robot_state::RobotStatePtr kinematic_state = gripper_group_.getCurrentState();
-  const robot_state::JointModelGroup *joint_model_group = kinematic_state->getJointModelGroup(gripper_group_.getName());
+  const robot_state::JointModelGroup *joint_model_group = kinematic_state->getJointModelGroup(
+      gripper_group_.getName());
 
   std::vector<double> joint_values;
   kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
   const std::vector<std::string> &actuated_joint_names = gripper_group_.getActiveJoints();
-  ROS_ERROR("size %lu",actuated_joint_names.size());
   BOOST_FOREACH(const std::string &name, actuated_joint_names)
         {
-          ROS_ERROR("%s",name.c_str());
           posture.joint_names.push_back(name);
         }
+  //r_gripper_motor_screw_joint
   const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
 
   posture.points.resize(1);
   posture.points[0].positions.resize(posture.joint_names.size(), value); // Hard limit 0.086?
-  //posture.points[0].time_from_start = ros::Duration(2.0);
+  posture.points[0].time_from_start = ros::Duration(3.0);
 
   return posture;
 }

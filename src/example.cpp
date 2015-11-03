@@ -71,7 +71,7 @@ int main(int argc, char **argv)
   else
     ROS_ERROR("Failed to call service /gazebo/unpause_physics");
 
-  tf::TransformListener tf_listener;
+  tf::TransformListener tf_listener(ros::Duration(60));
   viz::VisualizationThread viz_thread(tf_listener);
 
   // These objects cannot be copied because they contain a mutex
@@ -85,7 +85,6 @@ int main(int argc, char **argv)
 
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe(KINECT_TOPIC, 1, &CloudSegmentator::sensorCallback, &segmentator);
-
   ROS_INFO("Topic: %s", sub.getTopic().c_str());
 
   int cluster_selector = 3;
@@ -98,7 +97,7 @@ int main(int argc, char **argv)
   if (!priv_nh.hasParam("no_reconfigure_gui"))
     system("rosrun rqt_reconfigure rqt_reconfigure /bachelors_final_project 2>&1 &");
 
-  //Start visualization
+  //Start visualization (if there are visualizers)
   viz_thread.start();
 
   ros::AsyncSpinner spinner(1);
