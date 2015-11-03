@@ -24,6 +24,7 @@ namespace bachelors_final_project
 
 detection::BoundingBox::BoundingBox(std::string obj_frame) :
     planar_obj(new Cloud),
+    obj_2D_kinect_frame(new Cloud),
     OBJ_FRAME(obj_frame)
 {
 }
@@ -31,7 +32,6 @@ detection::BoundingBox::BoundingBox(std::string obj_frame) :
 void detection::BoundingBox::computeAndPublish(CloudPtr &obj_kinect_frame, pcl::ModelCoefficientsPtr table_plane_,
                                                tf::TransformBroadcaster tf_broadcaster)
 {
-  CloudPtr obj_2D_kinect_frame(new Cloud);
   // Project to table to obtain object projection
   projectOnPlane(obj_kinect_frame, table_plane_, obj_2D_kinect_frame);
   // obj_2D_kinect_frame lies in plane YZ with a = blue (z) - b = green (y)
@@ -41,14 +41,15 @@ void detection::BoundingBox::computeAndPublish(CloudPtr &obj_kinect_frame, pcl::
   build3DAndPublishFrame(obj_kinect_frame, tf_broadcaster);
 }
 
-void detection::BoundingBox::buildPlanar(CloudPtr &world_coords_planar_obj)
+void detection::BoundingBox::buildPlanar(CloudPtr &planar_obj_kinect_frame)
 {
-  kinect_frame_ = world_coords_planar_obj->header.frame_id;
+  kinect_frame_ = planar_obj_kinect_frame->header.frame_id;
+  stamp_ = planar_obj_kinect_frame->header.stamp;
 
   // Compute object centroid
-  pcl::compute3DCentroid(*world_coords_planar_obj, centroid_2D_kinect_frame_);
+  pcl::compute3DCentroid(*planar_obj_kinect_frame, centroid_2D_kinect_frame_);
   Eigen::Matrix3f sensor_covariance;
-  computeCovarianceMatrixNormalized(*world_coords_planar_obj, centroid_2D_kinect_frame_, sensor_covariance);
+  computeCovarianceMatrixNormalized(*planar_obj_kinect_frame, centroid_2D_kinect_frame_, sensor_covariance);
 
   // Compute eigen vectors (principal directions)
   eigen_solver.compute(sensor_covariance);
@@ -59,36 +60,39 @@ void detection::BoundingBox::buildPlanar(CloudPtr &world_coords_planar_obj)
   // We check that all the eigen vectors point Z upwards
   if (eigen_vectors_(0, 0) < 0)
   {
-    eigen_vectors_.col(0)*=-1.0;
-    eigen_vectors_.col(2)*=-1.0;
+    eigen_vectors_.col(0) *= -1.0;
+    eigen_vectors_.col(2) *= -1.0;
   }
 
   // Move the points of the object to it's own coordinates centered in the centroid
-  pcl::transformPointCloud(*world_coords_planar_obj, *planar_obj, getKinectToCentroidTransform());
+  pcl::transformPointCloud(*planar_obj_kinect_frame, *planar_obj, getKinectToCentroidTransform());
 
   getMinMax3D(*planar_obj, min_pt_planar_centroid_, max_pt_planar_centroid_);
   planar_shift_ = 0.5f * (max_pt_planar_centroid_.getVector3fMap() + min_pt_planar_centroid_.getVector3fMap());
 
   createObjCenteredMembers();
   create2DSize();
-  createKinectCenteredMembers();
 
   // Final transform: back to kinect coordinates
   rotation_kinect_frame_ = createRotationQuaternion2D(eigen_vectors_);
-  position_base_kinect_frame_ = eigen_vectors_ * planar_shift_ + centroid_2D_kinect_frame_.head<3>();
+  position_base_kinect_frame_ = getCentroidToKinectTransform()*planar_shift_;
 }
 
 void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, tf::TransformBroadcaster broadcaster)
 {
-  CloudPtr obj3D(new Cloud);
-  pcl::transformPointCloud(*world_coords_obj, *obj3D, Eigen::Affine3f(getInverseRotationQuaternion()));
+  Cloud obj3D;
+  pcl::transformPointCloud(*world_coords_obj, obj3D, Eigen::Affine3f(getInverseRotationQuaternion()));
+  Cloud obj2D;
+  pcl::transformPointCloud(*obj_2D_kinect_frame, obj2D, Eigen::Affine3f(getInverseRotationQuaternion()));
   Point min_3d_point, max_3d_point;
-  getMinMax3D(*obj3D, min_3d_point, max_3d_point);
-  float height_3D = max_3d_point.z - min_3d_point.z;
+  // The size is the maximum heigth of the object minus the height of the table
+  getMinMax3D(obj3D, min_3d_point, max_3d_point);
+  float height_3D = max_3d_point.z - obj2D.points[0].z;
   // Set the size with height
   size_3D_ = Eigen::Vector3f(size_2D_[0], size_2D_[1], (float) fabs(height_3D));
 
-  position_3D_kinect_frame_ = position_base_kinect_frame_ + eigen_vectors_ * Eigen::Vector3f(height_3D / 2, 0, 0);
+  position_3D_kinect_frame_ =
+      position_base_kinect_frame_ + rotation_kinect_frame_ * Eigen::Vector3f(0.0, 0.0, height_3D / 2);
 
   broadcastFrameUpdate(broadcaster, position_3D_kinect_frame_);
 }
@@ -114,8 +118,7 @@ void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broad
   {
     transform.setOrigin(tf::Vector3(position[0], position[1], position[2]));
     transform.setRotation(getRotationQuaternionTF());
-    ros::Time tf_time(planar_obj->header.stamp / 1000000.0);
-    //broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), kinect_frame_, OBJ_FRAME));
+    ros::Time tf_time(stamp_ / 1000000.0);
     broadcaster.sendTransform(tf::StampedTransform(transform, tf_time, kinect_frame_, OBJ_FRAME));
   }
 }
@@ -127,8 +130,7 @@ geometry_msgs::Pose detection::BoundingBox::computePose3DRobotFrame(tf::Transfor
   pose_bounding_box_frame.pose.orientation.w = 1.0;
 
   geometry_msgs::PoseStamped pose_robot_frame;
-  if (!transformPose(OBJ_FRAME, FOOTPRINT_FRAME, pose_bounding_box_frame, pose_robot_frame, planar_obj->header.stamp,
-                     tf_listener))
+  if (!transformPose(OBJ_FRAME, FOOTPRINT_FRAME, pose_bounding_box_frame, pose_robot_frame, stamp_, tf_listener))
     throw ComputeFailedException("Transform Failed");
 
   return pose_robot_frame.pose;
@@ -153,8 +155,7 @@ void detection::BoundingBox::create2DSize()
 void detection::BoundingBox::createObjCenteredMembers()
 {
   // Correct coordinates centering the object in the center of the bounding box
-  Eigen::Affine3f t = Eigen::Affine3f::Identity();
-  t = translateCentroidToBoundingBox(t);
+  Eigen::Affine3f t = translateCentroidToBoundingBox();
   min_pt_planar_ = pcl::transformPoint(min_pt_planar_centroid_, t);
   max_pt_planar_ = pcl::transformPoint(max_pt_planar_centroid_, t);
 
@@ -163,15 +164,10 @@ void detection::BoundingBox::createObjCenteredMembers()
   pcl::transformPointCloud(*planar_obj, *planar_obj, t);
 }
 
-void detection::BoundingBox::createKinectCenteredMembers()
+Eigen::Affine3f detection::BoundingBox::translateCentroidToBoundingBox()
 {
-  //min_pt_planar_world_ = pcl::transformPoint(min_pt_planar_, getObjToKinectBaseTransform());
-  //max_pt_planar_world_ = pcl::transformPoint(max_pt_planar_, getObjToKinectBaseTransform());
-}
-
-Eigen::Affine3f detection::BoundingBox::translateCentroidToBoundingBox(Eigen::Affine3f transform)
-{
-  return transform.translate(-planar_shift_);
+  Eigen::Affine3f t = Eigen::Affine3f::Identity();
+  return t.translate(-planar_shift_);
 }
 
 Eigen::Vector3f detection::BoundingBox::getSizeWithExternHeight(float height)
@@ -194,27 +190,26 @@ Eigen::Affine3f detection::BoundingBox::getKinectToCentroidTransform()
   return transform.translate(-centroid_2D_kinect_frame_.head<3>());
 }
 
+Eigen::Affine3f detection::BoundingBox::getCentroidToKinectTransform()
+{
+  return getKinectToCentroidTransform().inverse(Eigen::Affine);
+}
+
 Eigen::Quaternionf detection::BoundingBox::getInverseRotationQuaternion()
 {
   return rotation_kinect_frame_.conjugate();
 }
 
-
-/**
- * Invert transformation
- */
-Eigen::Affine3f detection::BoundingBox::getObjToKinectBaseTransform()
+Eigen::Affine3f detection::BoundingBox::getObjBaseToKinectTransform()
 {
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  transform.translate(centroid_2D_kinect_frame_.head<3>()).rotate(getRotationQuaternion()).translate(planar_shift_);
-  return transform;
+  return transform.translate(position_base_kinect_frame_).rotate(getRotationQuaternion());
 }
 
 Eigen::Affine3f detection::BoundingBox::getObjToKinectTransform()
 {
   Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  transform.translate(position_3D_kinect_frame_).rotate(getRotationQuaternion());
-  return transform;
+  return transform.translate(position_3D_kinect_frame_).rotate(getRotationQuaternion());
 }
 
 void things(pcl::visualization::PCLVisualizer &viz, bachelors_final_project::detection::BoundingBox *box)

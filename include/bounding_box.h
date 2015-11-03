@@ -32,6 +32,8 @@ class BoundingBox
 
   Eigen::Affine3f getKinectToCentroidTransform();
 
+  Eigen::Affine3f getCentroidToKinectTransform();
+
 public:
   BoundingBox(std::string obj_frame);
 
@@ -113,11 +115,9 @@ public:
   inline CloudPtr &getPlanarObj()
   { return planar_obj; }
 
-  Eigen::Affine3f translateCentroidToBoundingBox(Eigen::Affine3f transform);
+  Eigen::Affine3f translateCentroidToBoundingBox();
 
   void createObjCenteredMembers();
-
-  void createKinectCenteredMembers();
 
   void create2DSize();
 
@@ -132,6 +132,7 @@ public:
   void visualizeData();
 
   std::string kinect_frame_;
+  uint64_t stamp_;
   Eigen::Vector4f centroid_2D_kinect_frame_;
   Eigen::Matrix3f eigen_vectors_;
   Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_base_kinect_frame_;
@@ -139,7 +140,7 @@ public:
   // Planar size. Index 0 is 'z' and index 1 is 'y'
   Eigen::Vector2f size_2D_;
   Eigen::Vector3f size_3D_;
-  CloudPtr planar_obj;
+  CloudPtr planar_obj, obj_2D_kinect_frame;
   const std::string OBJ_FRAME;
 
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver;
@@ -152,7 +153,7 @@ public:
 
   void build3DAndPublishFrame(CloudPtr &world_coords_obj, tf::TransformBroadcaster broadcaster);
 
-  Eigen::Affine3f getObjToKinectBaseTransform();
+  Eigen::Affine3f getObjBaseToKinectTransform();
 
   Eigen::Affine3f getObjToKinectTransform();
 };

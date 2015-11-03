@@ -31,18 +31,12 @@ public:
   void detect(const CloudPtr &input_object);
 
   inline CloudPtr getSampledSideGrasps()
-  {
-    return sampler.getSideGrasps();
-  }
+  { return sampler.getSideGrasps(); }
 
   inline CloudPtr getSampledTopGrasps()
-  {
-    return sampler.getTopGrasps();
-  }
+  { return sampler.getTopGrasps(); }
 
   void setTable(const CloudPtr &table_cloud, const pcl::ModelCoefficientsPtr table_plane);
-
-  void transformToRobotFrame(CloudPtr *side);
 
   void setParams(double standoff);
 

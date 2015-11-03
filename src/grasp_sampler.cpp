@@ -46,7 +46,7 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box)
   }
 
   side_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
-  side_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
+  side_grasps_->header.stamp = bounding_box->stamp_;
 }
 
 void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, bool generate_mayor_axis,
@@ -71,7 +71,7 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, bool
     sampleAxis(top_grasps_, height, bounding_box_min.y, minor_axis_samples, minor_axis_step, false);
 
   top_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
-  top_grasps_->header.stamp = bounding_box->planar_obj->header.stamp;
+  top_grasps_->header.stamp = bounding_box->stamp_;
 }
 
 /**

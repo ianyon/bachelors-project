@@ -1,9 +1,6 @@
 #include "grasp_point_detector.h"
 
-#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/project_inliers.h>
-#include <bounding_box.h>
-#include <tf/transform_broadcaster.h>
 
 #include "utils.h"
 
@@ -84,8 +81,6 @@ bool detection::GraspPointDetector::doProcessing()
 
   CloudPtr side_samples = sampler.getSideGrasps();
   CloudPtr top_samples = sampler.getTopGrasps();
-  //transformToRobotFrame(&side_samples);
-  //transformToRobotFrame(&top_samples);
   Cloud samples = *side_samples + *top_samples;
   pub_samples_.publish(samples);
   ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
@@ -111,15 +106,6 @@ bool detection::GraspPointDetector::doProcessing()
   }
   return true;
 }
-
-void detection::GraspPointDetector::transformToRobotFrame(CloudPtr *cloud)
-{
-  transformPointCloud(obj_bounding_box_->OBJ_FRAME, FOOTPRINT_FRAME, *cloud, *cloud, world_obj_->header.stamp,
-                      tf_listener_);
-  (*cloud)->header.stamp = world_obj_->header.stamp;
-  (*cloud)->header.frame_id = FOOTPRINT_FRAME;
-}
-
 
 void detection::GraspPointDetector::setParams(double standoff)
 {

@@ -59,7 +59,7 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
 {
   if (obj().draw_bounding_box_)
   {
-    detection::BoundingBox box = *(obj().obj_bounding_box_);
+    detection::BoundingBox &box = *(obj().obj_bounding_box_);
 
     // Draw world coordinate system
     removeCoordinateSystem();
@@ -67,18 +67,28 @@ void visualization::DetectionVisualizer::visualizeBoundingBox()
     addCoordinateSystem(0.25, box.getObjToKinectTransform());
 
     CloudPtr &obj_kinect_frame = obj().world_obj_;
-    visualizeCloud(OBJ_KINECT_FRAME, obj_kinect_frame, 180, 180, 180);
+    visualizeCloud(OBJ_KINECT_FRAME, obj_kinect_frame, 0, 255, 0);
     visualizeCloud(OBJ_2D, obj().planar_obj_, 120, 120, 120);
     CloudPtr obj_frame(new Cloud);
-    transformPointCloud(obj_kinect_frame->header.frame_id, obj().obj_bounding_box_->OBJ_FRAME, obj_kinect_frame, obj_frame,
+    transformPointCloud(obj_kinect_frame->header.frame_id, box.OBJ_FRAME, obj_kinect_frame, obj_frame,
                         obj_kinect_frame->header.stamp, tf_listener_);
-    visualizeCloud(OBJ_3D, obj_frame, 180, 180, 180);
-    //visualizeCloud(WORLD_PLANAR_OBJ, obj().world_planar_obj_, 180, 180, 180);
+    visualizeCloud(OBJ_3D, obj_frame, 0, 0, 255);
+    visualizeCloud(WORLD_PLANAR_OBJ, box.obj_2D_kinect_frame, 0, 0, 255);
 
     // Draw the box in world coords
     visualizeBox(box, WORLD_BOUNDING_BOX, box.position_3D_kinect_frame_, box.getRotationQuaternion());
     // Draw the box in the origin (obj coords)
     visualizeBox(box, BOUNDING_BOX);
+
+    CloudPtr a(new Cloud);
+    a->push_back(newPoint(box.position_base_kinect_frame_));
+    a->push_back(newPoint(box.position_3D_kinect_frame_));
+    visualizeCloud("a", a, 0, 0, 255);
+    CloudPtr b(new Cloud);
+    b->push_back(newPoint(box.centroid_2D_kinect_frame_.head<3>()));
+    b->push_back(newPoint(box.planar_shift_));
+    //b->push_back(newPoint(box.));
+    visualizeCloud("b", b, 255, 0, 0);
 
     //showEigenVectors(box);
 
