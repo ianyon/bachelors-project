@@ -28,9 +28,14 @@ struct VisualizerParams
 namespace detection
 {
 
-struct RankedGrasps
+struct RankedGrasp
 {
-  std::map<Point, int> side_grasps, top_grasps;
+  RankedGrasp(moveit_msgs::Grasp _grasp, int _score) :
+      grasp(_grasp), score(_score)
+  { }
+
+  moveit_msgs::Grasp grasp;
+  int score;
 };
 
 } // namespace detection

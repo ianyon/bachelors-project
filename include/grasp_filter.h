@@ -139,6 +139,9 @@ public:
 
   inline std::string getEndEffectorLink()
   { return r_arm_group_.getEndEffectorLink(); }
+
+  inline std::string getShoulderLink()
+  { return "r_shoulder_pan_link"; }
 };
 
 } // namespace detection

@@ -62,7 +62,7 @@ void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width
 
 Eigen::Vector3d castVector3d(Eigen::Vector3f v)
 {
-  Eigen::Vector3d v1(v[0],v[1],v[2]);
+  Eigen::Vector3d v1(v[0], v[1], v[2]);
   return v1;
 }
 
@@ -72,7 +72,7 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
   Eigen::Vector3f point_out_eigen;
   bool result = transformPoint(init_frame, final_frame, point_in, point_out_eigen, micro_sec_time, tf_listener);
 
-    point_out = newPoint(point_out_eigen);
+  point_out = newPoint(point_out_eigen);
 
   return result;
 }
@@ -89,13 +89,14 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
 
     tf::StampedTransform stamped_tf;
     tf_listener.lookupTransform(final_frame, init_frame, tf_time, stamped_tf);
-    tf::Vector3 tf_point_in(point_in[0],point_in[1],point_in[2]);
+    tf::Vector3 tf_point_in(point_in[0], point_in[1], point_in[2]);
     tf::Vector3 point_final_frame = stamped_tf * tf_point_in;
 
     ROS_DEBUG("TF %s to %s [%g,%g,%g]", init_frame.c_str(), final_frame.c_str(),
               point_final_frame.x(), point_final_frame.y(), point_final_frame.z());
 
-    point_out = Point((float) point_final_frame.x(), (float) point_final_frame.y(), (float) point_final_frame.z());
+    point_out = Eigen::Vector3f((float) point_final_frame.x(), (float) point_final_frame.y(),
+                                (float) point_final_frame.z());
   }
   catch (tf::TransformException ex)
   {
@@ -107,8 +108,8 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
 }
 
 bool transformPose(const std::string &init_frame, const std::string &final_frame,
-                    geometry_msgs::PoseStamped &pose_in, geometry_msgs::PoseStamped &pose_out,
-                    uint64_t micro_sec_time, tf::TransformListener &tf_listener)
+                   geometry_msgs::PoseStamped &pose_in, geometry_msgs::PoseStamped &pose_out,
+                   uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
@@ -120,7 +121,7 @@ bool transformPose(const std::string &init_frame, const std::string &final_frame
     if (not tf_listener.waitForTransform(final_frame, init_frame, tf_time, TF_DURATION))
       throw tf::TransformException(str(format("Timeout [%gs]") % TF_TIMEOUT));
 
-    tf_listener.transformPose(final_frame,tf_time, pose_in,init_frame, pose_out);
+    tf_listener.transformPose(final_frame, tf_time, pose_in, init_frame, pose_out);
     ROS_DEBUG("TF %s to %s", init_frame.c_str(), final_frame.c_str());
   }
   catch (tf::TransformException ex)

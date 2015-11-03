@@ -107,7 +107,7 @@ bool detection::GraspPointDetector::doProcessing()
   }
 
   /**    GRASP RANKING    **/
-  grasp_ranker_.configure(obj_bounding_box_, grasp_filter_.getEndEffectorLink());
+  grasp_ranker_.configure(obj_bounding_box_, grasp_filter_.getEndEffectorLink(), grasp_filter_.getShoulderLink());
   grasp_ranker_.rankGraspingPoses(grasp_filter_.getSideGrasps(), grasp_filter_.getTopGrasps());
 
   return true;
