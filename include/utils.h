@@ -20,21 +20,21 @@ void callable(pcl::visualization::PCLVisualizer &viz);
 
 pcl::PointXYZRGB newPointXYZRGB(Point p, uint8_t r, uint8_t g, uint8_t b);
 
-Eigen::Vector3f newVector3f(Point p);
-Point newPoint(Eigen::Vector3f v);
+Vec3f newVector3f(Point p);
+Point newPoint(Vec3f v);
 
 //! Compute the time since "begin"
 double durationMillis(clock_t &);
 
 void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width, int height);
 
-Eigen::Vector3d castVector3d(Eigen::Vector3f v);
+Eigen::Vector3d castVector3d(Vec3f v);
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Vec3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
-                    Eigen::Vector3f &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Vec3f &point_in,
+                    Vec3f &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);
 
 bool transformPose(const std::string &init_frame, const std::string &final_frame,
                    geometry_msgs::PoseStamped &pose_in, geometry_msgs::PoseStamped &pose_out,
@@ -52,8 +52,8 @@ void projectOnPlane(const CloudPtr &cloud, const pcl::ModelCoefficientsPtr &tabl
 pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud,
                                         const pcl::ModelCoefficientsPtr &table);
 
-Point fourToPoint(Eigen::Vector4f &vector);
-Point threeToPoint(Eigen::Vector3f &vector);
+Point fourToPoint(Vec4f &vector);
+Point threeToPoint(Vec3f &vector);
 
 int selectChoice(std::string message);
 

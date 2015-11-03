@@ -10,7 +10,7 @@
 namespace bachelors_final_project
 {
 
-geometry_msgs::Pose detection::newPose(Eigen::Vector3f pose)
+geometry_msgs::Pose detection::newPose(Vec3f pose)
 {
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;

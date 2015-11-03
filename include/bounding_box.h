@@ -71,7 +71,7 @@ public:
   inline double getHeight()
   { return size_3D_[2]; }
 
-  inline Eigen::Vector3f getSize3D() const
+  inline Vec3f getSize3D() const
   { return size_3D_; }
 
   inline Eigen::Vector2f getSize2D() const
@@ -123,7 +123,7 @@ public:
 
   Eigen::Quaternionf getInverseRotationQuaternion();
 
-  Eigen::Vector3f getSizeWithExternHeight(float height);
+  Vec3f getSizeWithExternHeight(float height);
 
   Point computePosition2DRobotFrame(tf::TransformListener &tf_listener);
 
@@ -133,13 +133,13 @@ public:
 
   std::string kinect_frame_;
   uint64_t stamp_;
-  Eigen::Vector4f centroid_2D_kinect_frame_;
+  Vec4f centroid_2D_kinect_frame_;
   Eigen::Matrix3f eigen_vectors_;
-  Eigen::Vector3f planar_shift_, position_3D_kinect_frame_, position_base_kinect_frame_;
+  Vec3f planar_shift_, position_3D_kinect_frame_, position_base_kinect_frame_;
 
   // Planar size. Index 0 is 'z' and index 1 is 'y'
   Eigen::Vector2f size_2D_;
-  Eigen::Vector3f size_3D_;
+  Vec3f size_3D_;
   CloudPtr planar_obj, obj_2D_kinect_frame;
   const std::string OBJ_FRAME;
 
@@ -147,7 +147,7 @@ public:
 
   geometry_msgs::Pose computePose3DRobotFrame(tf::TransformListener &tf_listener);
 
-  void broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position);
+  void broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Vec3f &position);
 
   void broadcast2DFrameUpdate(tf::TransformBroadcaster broadcaster);
 

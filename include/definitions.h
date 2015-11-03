@@ -40,6 +40,9 @@ typedef pcl::PointCloud <pcl::PointXYZ>::ConstPtr CloudConstPtr;
 typedef pcl::PointCloud <pcl::Normal> CloudNormal;
 typedef pcl::PointCloud <pcl::Normal>::Ptr CloudNormalPtr;
 
+typedef Eigen::Vector3f Vec3f;
+typedef Eigen::Vector4f Vec4f;
+
 } // namespace bachelors_final_project
 
 #endif //BACHELORS_FINAL_PROJECT_DEFINITIONS_H

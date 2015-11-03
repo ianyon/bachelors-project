@@ -109,7 +109,7 @@ void visualization::DetectionVisualizer::showEigenVectors(const detection::Bound
  * Draw a bounding box centered at (0,0,0) and translate and rotate it accordingly
  */
 void visualization::DetectionVisualizer::visualizeBox(const detection::BoundingBox &box, const string id,
-                                                      const Eigen::Vector3f &translation,
+                                                      const Vec3f &translation,
                                                       const Eigen::Quaternionf &rotation)
 {
   removeShape(id);

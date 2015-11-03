@@ -6,6 +6,8 @@
 
 #include <ros/ros.h>
 
+#include <geometry_msgs/PoseArray.h>
+
 #include <pcl/common/angles.h>
 
 #include <moveit_msgs/DisplayTrajectory.h>
@@ -15,7 +17,6 @@
 #include <moveit/move_group_pick_place_capability/capability_names.h>
 
 #include <moveit/collision_detection/collision_common.h>
-
 #include <moveit/collision_detection/collision_matrix.h>
 
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
@@ -47,7 +48,7 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
     gripper_group_("right_gripper"),
     collision_obj_pub(nh.advertise<CollisionObject>("/collision_object", 10)),
     attached_obj_pub(nh.advertise<AttachedCollisionObject>("/attached_collision_object", 10)),
-    pose_pub_(nh.advertise<geometry_msgs::PoseStamped>("sampled_poses", 10)),
+    pose_pub_(nh.advertise<geometry_msgs::PoseArray>("sampled_poses", 10)),
     actual_pose_pub_(nh.advertise<geometry_msgs::PoseStamped>("actual_sampled_pose", 10)),
     tf_listener_(tf_listener),
     pick_action_client_(new PickupAction(move_group::PICKUP_ACTION, false)),
@@ -107,13 +108,13 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
   OBJ_FRAME = obj_bounding_box->OBJ_FRAME;
 
   Point table_position = table_bounding_box->computePosition2DRobotFrame(tf_listener_);
-  Eigen::Vector3f table_size = table_bounding_box->getSizeWithExternHeight(table_position.z);
+  Vec3f table_size = table_bounding_box->getSizeWithExternHeight(table_position.z);
 
   // Add the table to supress collisions of the object with it
   addSupportTable(table_position, table_size);
 
   // Add a box to supress collisions with the object
-  Eigen::Vector3f obj_size = obj_bounding_box->getSize3D();
+  Vec3f obj_size = obj_bounding_box->getSize3D();
   addCollisionObject(obj_size, OBJ_FRAME);
 
   obj_pose_ = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
@@ -121,7 +122,7 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
   top_grasp_center_ = Eigen::Vector3d(0, 0, top_graps_height);
 }
 
-void detection::GraspFilter::addSupportTable(Point &pose_pt, Eigen::Vector3f &size)
+void detection::GraspFilter::addSupportTable(Point &pose_pt, Vec3f &size)
 {
   CollisionObject co = getCollisionObjUpdated(collision_obj_pub, SUPPORT_TABLE, false, attached_obj_pub,
                                               FOOTPRINT_FRAME);
@@ -131,13 +132,13 @@ void detection::GraspFilter::addSupportTable(Point &pose_pt, Eigen::Vector3f &si
   // A pose for the plane (specified relative to frame_id).
   // We need to divide z by two because we want the table to ocuppy all the space below the real table
   // 0.2796  is the border of the robot
-  Eigen::Vector3f pose(fmax(pose_pt.x, 0.2796 + size[0] / 2), pose_pt.y, pose_pt.z * 0.5);
+  Vec3f pose(fmax(pose_pt.x, 0.2796 + size[0] / 2), pose_pt.y, pose_pt.z * 0.5);
   co.primitive_poses.push_back(newPose(pose));
 
   collision_obj_pub.publish(co);
 }
 
-void detection::GraspFilter::addCollisionObject(Eigen::Vector3f &size, const std::string &frame)
+void detection::GraspFilter::addCollisionObject(Vec3f &size, const std::string &frame)
 {
   CollisionObject co = getCollisionObjUpdated(collision_obj_pub, GRASPABLE_OBJECT, true, attached_obj_pub,
                                               frame);
@@ -249,8 +250,8 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
                        "Fail: " << pick_action_client_->getState().toString() << ": " <<
                        pick_action_client_->getState().getText());
 
-  if (plan_succeeded && (selectChoice("Press 1 and enter to pick or 2 to continue...") == 1))
-    pickMovement(goal);
+/*  if (plan_succeeded && (selectChoice("Press 1 and enter to pick or 2 to continue...") == 1))
+    pickMovement(goal);*/
 
   return plan_succeeded;
 }
@@ -398,10 +399,14 @@ Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
 
 void detection::GraspFilter::publishGrasps(std::vector<Grasp> grasps)
 {
+  geometry_msgs::PoseArray pose_array;
   BOOST_FOREACH(Grasp &grasp, grasps)
         {
-          pose_pub_.publish(grasp.grasp_pose);
+          pose_array.poses.push_back(grasp.grasp_pose.pose);
+          pose_array.header.frame_id = OBJ_FRAME;
+          pose_array.header.stamp = ros::Time(0);
         }
+  pose_pub_.publish(pose_array);
 }
 
 bool detection::GraspFilter::generateSideGrasps(BoundingBoxPtr &obj_bounding_box, float grasp_height)

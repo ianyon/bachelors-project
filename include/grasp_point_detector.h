@@ -56,7 +56,7 @@ public:
 
   CloudPtr planar_obj_;
 
-  RankedGrasps ranked_grasps;
+  //RankedGrasps ranked_grasps;
 
   GraspSampler sampler;
   GraspFilter grasp_filter_;

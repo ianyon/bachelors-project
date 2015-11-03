@@ -29,7 +29,7 @@ void callable(pcl::visualization::PCLVisualizer &viz)
   viz.addCoordinateSystem(1.0);
 }
 
-Point newPoint(Eigen::Vector3f v)
+Point newPoint(Vec3f v)
 {
   return Point(v[0], v[1], v[2]);
 }
@@ -44,9 +44,9 @@ pcl::PointXYZRGB newPointXYZRGB(Point p, uint8_t r, uint8_t g, uint8_t b)
 }
 
 
-Eigen::Vector3f newVector3f(Point p)
+Vec3f newVector3f(Point p)
 {
-  return Eigen::Vector3f(p.x, p.y, p.z);
+  return Vec3f(p.x, p.y, p.z);
 }
 
 void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width, int height)
@@ -60,16 +60,16 @@ void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width
   cloud_out->header = coppied_cloud->header;
 }
 
-Eigen::Vector3d castVector3d(Eigen::Vector3f v)
+Eigen::Vector3d castVector3d(Vec3f v)
 {
   Eigen::Vector3d v1(v[0], v[1], v[2]);
   return v1;
 }
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Vec3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
-  Eigen::Vector3f point_out_eigen;
+  Vec3f point_out_eigen;
   bool result = transformPoint(init_frame, final_frame, point_in, point_out_eigen, micro_sec_time, tf_listener);
 
   point_out = newPoint(point_out_eigen);
@@ -77,8 +77,8 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
   return result;
 }
 
-bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Eigen::Vector3f &point_in,
-                    Eigen::Vector3f &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
+bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Vec3f &point_in,
+                    Vec3f &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener)
 {
   // Constructor requires seconds
   ros::Time tf_time(micro_sec_time / 1000000.0);
@@ -95,7 +95,7 @@ bool transformPoint(const std::string &init_frame, const std::string &final_fram
     ROS_DEBUG("TF %s to %s [%g,%g,%g]", init_frame.c_str(), final_frame.c_str(),
               point_final_frame.x(), point_final_frame.y(), point_final_frame.z());
 
-    point_out = Eigen::Vector3f((float) point_final_frame.x(), (float) point_final_frame.y(),
+    point_out = Vec3f((float) point_final_frame.x(), (float) point_final_frame.y(),
                                 (float) point_final_frame.z());
   }
   catch (tf::TransformException ex)
@@ -182,12 +182,12 @@ pcl::ProjectInliers<Point> getProjector(const CloudPtr &sensor_cloud, const pcl:
   return project_inliers;
 }
 
-Point fourToPoint(Eigen::Vector4f &vector)
+Point fourToPoint(Vec4f &vector)
 {
   return Point(vector[0], vector[1], vector[2]);
 }
 
-Point threeToPoint(Eigen::Vector3f &vector)
+Point threeToPoint(Vec3f &vector)
 {
   return Point(vector[0], vector[1], vector[2]);
 }

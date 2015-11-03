@@ -183,7 +183,7 @@ bool segmentation::CloudSegmentator::fitPlaneFromNormals(const CloudPtr &input, 
 void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<Point, Normal> &seg)
 {
   //tf::Vector3 normal_base_frame(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
-  Eigen::Vector3f normal_base_frame(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
+  Vec3f normal_base_frame(cfg.planeXParam, cfg.planeYParam, cfg.planeZParam);
   if (transformPoint(FOOTPRINT_FRAME, sensor_cloud_->header.frame_id, normal_base_frame, plane_normal_kinect_frame_,
                      0/*sensor_cloud_->header.stamp*/, tf_listener_))
   {
@@ -193,7 +193,7 @@ void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<Poi
     tf::Vector3 plane_normal_kinect_frame(plane_normal_kinect_frame_.x, plane_normal_kinect_frame_.y,
                                           plane_normal_kinect_frame_.z);
 
-    Eigen::Vector3f axis(plane_normal_kinect_frame_.x, plane_normal_kinect_frame_.y,
+    Vec3f axis(plane_normal_kinect_frame_.x, plane_normal_kinect_frame_.y,
                          plane_normal_kinect_frame_.z);
     // Set the axis along which we need to search for a model perpendicular to.
     seg.setAxis(axis);
@@ -209,7 +209,7 @@ void segmentation::CloudSegmentator::setPlaneAxis(SACSegmentationFromNormals<Poi
   {
     transformPointCloud(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, cropped_cloud_, cropped_cloud_base_frame,
                         sensor_cloud_->header.stamp, tf_listener_);
-    Eigen::Vector3f plane_normal_kinect_frame = newVector3f(plane_normal_kinect_frame_);
+    Vec3f plane_normal_kinect_frame = newVector3f(plane_normal_kinect_frame_);
     transformPoint(sensor_cloud_->header.frame_id, FOOTPRINT_FRAME, plane_normal_kinect_frame,
                    normal_base_frame_reconstructed_, sensor_cloud_->header.stamp, tf_listener_);
     ROS_ERROR("RECONSTRUCTED %g %g %g", normal_base_frame_reconstructed_.x, normal_base_frame_reconstructed_.y,

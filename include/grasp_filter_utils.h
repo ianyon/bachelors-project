@@ -24,7 +24,7 @@ moveit_msgs::CollisionObject getCollisionObjUpdated(ros::Publisher pub, const st
 
 shape_msgs::SolidPrimitive constructPrimitive(float sizeX, float sizeY, float sizeZ);
 
-geometry_msgs::Pose newPose(Eigen::Vector3f pose);
+geometry_msgs::Pose newPose(Vec3f pose);
 
 geometry_msgs::Pose newPose(Point pose);
 

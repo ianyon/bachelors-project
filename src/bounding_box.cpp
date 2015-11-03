@@ -89,10 +89,10 @@ void detection::BoundingBox::build3DAndPublishFrame(CloudPtr &world_coords_obj, 
   getMinMax3D(obj3D, min_3d_point, max_3d_point);
   float height_3D = max_3d_point.z - obj2D.points[0].z;
   // Set the size with height
-  size_3D_ = Eigen::Vector3f(size_2D_[0], size_2D_[1], (float) fabs(height_3D));
+  size_3D_ = Vec3f(size_2D_[0], size_2D_[1], (float) fabs(height_3D));
 
   position_3D_kinect_frame_ =
-      position_base_kinect_frame_ + rotation_kinect_frame_ * Eigen::Vector3f(0.0, 0.0, height_3D / 2);
+      position_base_kinect_frame_ + rotation_kinect_frame_ * Vec3f(0.0, 0.0, height_3D / 2);
 
   broadcastFrameUpdate(broadcaster, position_3D_kinect_frame_);
 }
@@ -111,7 +111,7 @@ Eigen::Quaternionf detection::BoundingBox::createRotationQuaternion2D(Eigen::Mat
   return Eigen::Quaternionf(quaternion.w(), quaternion.x(), quaternion.y(), quaternion.z()).normalized();
 }
 
-void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Eigen::Vector3f &position)
+void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broadcaster, Vec3f &position)
 {
   tf::Transform transform;
   if (ros::ok())
@@ -146,7 +146,7 @@ Point detection::BoundingBox::computePosition2DRobotFrame(tf::TransformListener 
 
 void detection::BoundingBox::create2DSize()
 {
-  Eigen::Vector3f size;
+  Vec3f size;
   size = max_pt_planar_.getVector3fMap() + (-min_pt_planar_.getVector3fMap());
   // z is mayor axis so we make it the first component
   size_2D_ = Eigen::Vector2f(size[2], size[1]);
@@ -160,7 +160,7 @@ void detection::BoundingBox::createObjCenteredMembers()
   max_pt_planar_ = pcl::transformPoint(max_pt_planar_centroid_, t);
 
   // Rotate to be according the object frame reference system
-  t = Eigen::AngleAxisf(pcl::deg2rad(90.0), Eigen::Vector3f(0.0, 1.0, 0.0)) * t;
+  t = Eigen::AngleAxisf(pcl::deg2rad(90.0), Vec3f(0.0, 1.0, 0.0)) * t;
   pcl::transformPointCloud(*planar_obj, *planar_obj, t);
 }
 
@@ -170,9 +170,9 @@ Eigen::Affine3f detection::BoundingBox::translateCentroidToBoundingBox()
   return t.translate(-planar_shift_);
 }
 
-Eigen::Vector3f detection::BoundingBox::getSizeWithExternHeight(float height)
+Vec3f detection::BoundingBox::getSizeWithExternHeight(float height)
 {
-  return Eigen::Vector3f(size_2D_[0], size_2D_[1], height);
+  return Vec3f(size_2D_[0], size_2D_[1], height);
 }
 
 /**
@@ -214,7 +214,7 @@ Eigen::Affine3f detection::BoundingBox::getObjToKinectTransform()
 
 void things(pcl::visualization::PCLVisualizer &viz, bachelors_final_project::detection::BoundingBox *box)
 {
-  viz.addCube(Eigen::Vector3f(0, 0, 0), Eigen::Quaternionf::Identity(),
+  viz.addCube(Vec3f(0, 0, 0), Eigen::Quaternionf::Identity(),
               box->getSize3D()[0],
               box->getSize3D()[1],
               box->getSize3D()[2],

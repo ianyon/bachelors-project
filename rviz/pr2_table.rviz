@@ -1114,18 +1114,32 @@ Visualization Manager:
       Reference Frame: object_base_frame
       Value: true
     - Alpha: 1
-      Axes Length: 0.025
-      Axes Radius: 0.001
+      Axes Length: 0.015
+      Axes Radius: 0.00075
       Class: rviz/Pose
       Color: 255; 25; 0
       Enabled: true
       Head Length: 0.3
       Head Radius: 0.1
-      Name: Pose
+      Name: Sampled Poses
       Shaft Length: 1
       Shaft Radius: 0.005
       Shape: Axes
       Topic: /sampled_poses
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.035
+      Axes Radius: 0.002
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Actual sampled Pose
+      Shaft Length: 1
+      Shaft Radius: 0.05
+      Shape: Axes
+      Topic: /actual_sampled_pose
       Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -1185,15 +1199,15 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.358524
-        Y: -0.0495215
+        X: 0.403799
+        Y: -0.0291117
         Z: 0.599999
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.669801
+      Pitch: 0.674801
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 6.26679
+      Yaw: 6.09679
     Saved: ~
 Window Geometry:
   Displays:
@@ -1209,5 +1223,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 680
-  X: 673
-  Y: 24
+  X: 681
+  Y: 52

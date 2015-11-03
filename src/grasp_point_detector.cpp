@@ -105,10 +105,16 @@ bool detection::GraspPointDetector::doProcessing()
     ROS_WARN("%s", ex.what());
     return false;
   }
+  if(!grasp_filter_.feasibleGrasps())
+    return false;
 
   /**    GRASP RANKING    **/
+  begin = clock();
   grasp_ranker_.configure(obj_bounding_box_, grasp_filter_.getEndEffectorLink(), grasp_filter_.getShoulderLink());
   grasp_ranker_.rankGraspingPoses(grasp_filter_.getSideGrasps(), grasp_filter_.getTopGrasps());
+  moveit_msgs::Grasp grasp_winner = grasp_ranker_.getSelectedGrasp();
+  ROS_INFO("[%g ms] Grasping ranking", durationMillis(begin));
+
 
   return true;
 }

@@ -72,7 +72,7 @@ bool visualization::BaseVisualizer::visualizeArrowFromCloudCentroid(std::string 
     return false;
   }
 
-  Eigen::Vector4f centroid;
+  Vec4f centroid;
   pcl::compute3DCentroid(*cloud, centroid);
   middle->getVector4fMap() = centroid;
   visualizeArrowTranslated(id, point, *middle, viewport);

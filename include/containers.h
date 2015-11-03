@@ -6,9 +6,8 @@
 #define BACHELORS_FINAL_PROJECT_CONTAINERS_H
 
 #include <vector>
-#include <map>
 
-#include <boost/shared_ptr.hpp>
+#include <moveit_msgs/Grasp.h>
 
 #include "definitions.h"
 
@@ -27,18 +26,10 @@ struct VisualizerParams
 
 namespace detection
 {
-
-struct RankedGrasp
-{
-  RankedGrasp(moveit_msgs::Grasp _grasp, int _score) :
-      grasp(_grasp), score(_score)
-  { }
-
-  moveit_msgs::Grasp grasp;
-  int score;
-};
-
+typedef std::pair<moveit_msgs::Grasp, int> RankedGrasp;
+typedef std::vector<RankedGrasp> RankedGrasps;
 } // namespace detection
+
 } // namespace bachelors_final_project
 
 #endif //BACHELORS_FINAL_PROJECT_CONTAINERS_H

@@ -94,11 +94,12 @@ public:
   void configure(float side_grasp_height, float top_graps_height,
                  BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);
 
-  void addSupportTable(Point &pose, Eigen::Vector3f &size);
+  void addSupportTable(Point &pose, Vec3f &size);
 
-  void addCollisionObject(Eigen::Vector3f &size, const std::string &frame);
+  void addCollisionObject(Vec3f &size, const std::string &frame);
 
   void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
+
 
   bool processSample(Point &sample, bool generate_side_grasps, moveit_msgs::Grasp &grasp);
 
@@ -142,6 +143,9 @@ public:
 
   inline std::string getShoulderLink()
   { return "r_shoulder_pan_link"; }
+
+  inline bool feasibleGrasps()
+  { return getSideGrasps().size()!=0 || getTopGrasps().size()!=0; }
 };
 
 } // namespace detection

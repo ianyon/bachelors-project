@@ -42,7 +42,7 @@ public:
   detection::GraspPointDetector &obj();
 
   void visualizeBox(const detection::BoundingBox &box, const std::string id,
-                    const Eigen::Vector3f &translation = Eigen::Vector3f(0, 0, 0),
+                    const Vec3f &translation = Vec3f(0, 0, 0),
                     const Eigen::Quaternionf &rotation = Eigen::Quaternionf::Identity());
 
   void showEigenVectors(const detection::BoundingBox &box);
