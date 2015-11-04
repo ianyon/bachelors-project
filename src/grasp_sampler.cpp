@@ -2,9 +2,9 @@
 
 #include <pcl/common/transforms.h>
 #include <pcl/common/common.h>
-#include <utils.h>
 
-#include "bounding_box.h"
+#include "utils.h"
+#include "grasp_point_detector.h"
 
 using std::vector;
 
@@ -25,7 +25,7 @@ void detection::GraspSampler::configure(BoundingBoxPtr &bounding_box)
 
 void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box)
 {
-  ROS_INFO("Sampling side grasps.");
+  ROS_INFO_NAMED(DETECTION(), "Sampling side grasps.");
   side_grasps_->clear();
   // We'll sample the points in the origin and then translate and rotate them
   double a = bounding_box->getMayorAxisSize2D() / 2;
@@ -52,7 +52,7 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box)
 void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, bool generate_mayor_axis,
                                               bool generate_minor_axis)
 {
-  ROS_INFO("Sampling top grasps: %s %s axis", generate_mayor_axis ? "mayor" : "",
+  ROS_INFO_NAMED(DETECTION(), "Sampling top grasps: %s %s axis", generate_mayor_axis ? "mayor" : "",
            generate_minor_axis ? "and minor" : "");
   top_grasps_->clear();
   int minor_axis_samples, mayor_axis_samples;

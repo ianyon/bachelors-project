@@ -25,6 +25,10 @@ namespace bachelors_final_project
 {
 namespace segmentation
 {
+inline std::string const &SEGMENTATION() {
+    static std::string ret = "Segmentation";
+    return ret;
+}
 
 class CloudSegmentator
 {

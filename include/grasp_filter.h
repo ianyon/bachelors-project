@@ -29,9 +29,6 @@ namespace detection
 
 class GraspFilter
 {
-  moveit_msgs::AllowedCollisionMatrix getCollisionMatrix(moveit_msgs::GetPlanningScene scene_srv,
-                                                         bool after);
-
   ros::Publisher collision_obj_pub, attached_obj_pub, actual_pose_pub_, pose_pub_;
 
   tf::TransformListener &tf_listener_;
@@ -39,14 +36,8 @@ class GraspFilter
   CloudPtr side_grasps_, top_grasps_;
   std::vector<moveit_msgs::Grasp> feasible_side_grasps_, feasible_top_grasps_;
 
-  typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
+  moveit::planning_interface::MoveGroup &r_arm_group_;
 
-  moveit::planning_interface::MoveGroup r_arm_group_;
-
-  static const std::string GRASPABLE_OBJECT;
-  static const std::string SUPPORT_TABLE;
-  static const std::string LBKPIECE_PLANNER;
-  static const std::string RRTCONNECT_PLANNER;
   std::string OBJ_FRAME;
   const std::string PLANNER_NAME_;
 
@@ -67,29 +58,21 @@ class GraspFilter
 
   bool generate_top_grasps_mayor_axis_, generate_top_grasps_minor_axis_;
 
-  Eigen::Vector3d side_grasp_center_, top_grasp_center_;
+  Vec3d side_grasp_center_, top_grasp_center_;
 
-  typedef actionlib::SimpleActionClient<moveit_msgs::PickupAction> PickupAction;
-  typedef boost::scoped_ptr<PickupAction> PickupActionPtr;
-  PickupActionPtr pick_action_client_;
+  PickupActionPtr &pick_action_client_;
 
   ros::NodeHandle nh_;
 
-  void waitForAction(const PickupActionPtr &action, const ros::Duration &wait_for_server, const std::string &name);
+  moveit::planning_interface::MoveGroup gripper_group_;
 
   bool pick(moveit::planning_interface::MoveGroup &group, const std::string &object,
             moveit_msgs::Grasp &grasp);
 
-  void constructGoal(moveit::planning_interface::MoveGroup &group, moveit_msgs::PickupGoal &goal_out,
-                     const std::string &object);
-
-  void pickMovement(moveit_msgs::PickupGoal &goal);
-
 public:
-
-  moveit::planning_interface::MoveGroup gripper_group_;
-
-  GraspFilter(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
+  GraspFilter(ros::NodeHandle &handle, tf::TransformListener &tf_listener,
+              moveit::planning_interface::MoveGroup &r_arm_group,
+              PickupActionPtr &pick_action_client, const std::string &planner_name);
 
   void configure(float side_grasp_height, float top_graps_height,
                  BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box);

@@ -28,7 +28,7 @@ double durationMillis(clock_t &);
 
 void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width, int height);
 
-Eigen::Vector3d castVector3d(Vec3f v);
+Vec3d castVector3d(Vec3f v);
 
 bool transformPoint(const std::string &init_frame, const std::string &final_frame, const Vec3f &point_in,
                     Point &point_out, uint64_t micro_sec_time, tf::TransformListener &tf_listener);

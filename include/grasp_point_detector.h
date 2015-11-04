@@ -19,13 +19,42 @@ namespace bachelors_final_project
 {
 namespace detection
 {
+static const std::string VARUC = "Detection";
+
+inline std::string const &DETECTION()
+{
+  static std::string ret = "Detection";
+  return ret;
+}
+
+inline std::string const &GRASPABLE_OBJECT()
+{
+  static std::string ret = "graspable object";
+  return ret;
+}
+
+inline std::string const &SUPPORT_TABLE()
+{
+  static std::string ret = "table";
+  return ret;
+}
+
+inline std::string const &LBKPIECE_PLANNER()
+{
+  static std::string ret = "LBKPIECEkConfigDefault";
+  return ret;
+}
+
+inline std::string const &RRTCONNECT_PLANNER()
+{
+  static std::string ret = "RRTConnectkConfigDefault";
+  return ret;
+}
 
 class GraspPointDetector
 {
 public:
   GraspPointDetector(ros::NodeHandle &handle, tf::TransformListener &tf_listener);
-
-  void updateConfig(bachelors_final_project::ParametersConfig &config);
 
   bool doProcessing();
 
@@ -41,34 +70,37 @@ public:
 
   void setParams(double standoff);
 
+  bool pick(moveit::planning_interface::MoveGroup &group, const std::string &object,
+            moveit_msgs::Grasp &grasp, bool plan_only);
+
+  void waitForAction(const PickupActionPtr &action, const ros::Duration &wait_for_server, const std::string &name);
+
   tf::TransformBroadcaster tf_broadcaster;
 
-  bool draw_bounding_box_;
-  bool draw_sampled_grasps_;
+  bool draw_bounding_box_, draw_sampled_grasps_;
 
   boost::mutex update_bounding_box_mutex_;
 
-  std::string kinect_frame_id_;
+  ros::NodeHandle &nh_;
 
-  CloudPtr world_obj_;
+  CloudPtr world_obj_, planar_obj_, table_cloud_;
 
   ros::Publisher pub_cluster_, pub_samples_;
 
-  CloudPtr planar_obj_;
-
-  //RankedGrasps ranked_grasps;
-
   GraspSampler sampler;
-  GraspFilter grasp_filter_;
+  boost::shared_ptr<GraspFilter> grasp_filter_;
   GraspRanker grasp_ranker_;
 
-  BoundingBoxPtr obj_bounding_box_,table_bounding_box_;
+  const std::string PLANNER_NAME_;
 
-  bachelors_final_project::ParametersConfig cfg;
-  CloudPtr table_cloud_;
+  BoundingBoxPtr obj_bounding_box_, table_bounding_box_;
+
   pcl::ModelCoefficientsPtr table_plane_;
 
   tf::TransformListener &tf_listener_;
+  moveit::planning_interface::MoveGroup r_arm_group_;
+
+  PickupActionPtr pick_action_client_;
 };
 
 } // namespace detection

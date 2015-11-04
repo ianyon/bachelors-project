@@ -5,10 +5,15 @@
 #ifndef BACHELORS_FINAL_PROJECT_DEFINITIONS_H
 #define BACHELORS_FINAL_PROJECT_DEFINITIONS_H
 
-#include <pcl/point_types.h>
-
-#include <pcl/point_cloud.h>
 #include <ros/ros.h>
+
+#include <actionlib/client/simple_action_client.h>
+#include <moveit_msgs/PickupAction.h>
+#include <moveit/move_group_interface/move_group.h>
+
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+
 namespace bachelors_final_project
 {
 static const std::string WORLD_FRAME = "/odom_combined";
@@ -42,6 +47,14 @@ typedef pcl::PointCloud <pcl::Normal>::Ptr CloudNormalPtr;
 
 typedef Eigen::Vector3f Vec3f;
 typedef Eigen::Vector4f Vec4f;
+typedef Eigen::Vector3d Vec3d;
+
+namespace detection
+{
+typedef actionlib::SimpleActionClient<moveit_msgs::PickupAction> PickupAction;
+typedef boost::scoped_ptr<PickupAction> PickupActionPtr;
+typedef boost::shared_ptr<moveit::planning_interface::MoveGroup> MoveGroupPtr;
+} // namespace detection
 
 } // namespace bachelors_final_project
 

@@ -63,20 +63,18 @@ void detection::GraspRanker::rankGraspingPoses(const std::vector<moveit_msgs::Gr
 {
   if (side_grasps.size() != 0)
   {
-    ROS_INFO("Ranking %lu side grasps", side_grasps.size());
+    ROS_INFO_NAMED(DETECTION(), "Ranking %lu side grasps", side_grasps.size());
     side_grasps_rank_.clear();
     rankGrasps(side_grasps, side_grasps_rank_);
     printRankedGrasps(side_grasps_rank_, "Side grasps rank");
   }
   if (top_grasps.size() != 0)
   {
-    ROS_INFO("Ranking %lu top grasps", top_grasps.size());
+    ROS_INFO_NAMED(DETECTION(), "Ranking %lu top grasps", top_grasps.size());
     top_grasps_rank_.clear();
     rankGrasps(top_grasps, top_grasps_rank_);
     printRankedGrasps(top_grasps_rank_, "Top grasps rank");
   }
-
-
 }
 
 void detection::GraspRanker::printRankedGrasps(RankedGrasps &ranked_grasps, std::string title)
@@ -86,7 +84,7 @@ void detection::GraspRanker::printRankedGrasps(RankedGrasps &ranked_grasps, std:
   BOOST_FOREACH(RankedGrasp &ranked_grasp, ranked_grasps)
           ss << "'" << ((moveit_msgs::Grasp) ranked_grasp.first).id.c_str() << "':" << ranked_grasp.second << ", ";
 
-  ROS_INFO("%s}", ss.str().c_str());
+  ROS_INFO_NAMED(DETECTION(), "%s}", ss.str().c_str());
 }
 
 /**
@@ -174,6 +172,9 @@ void detection::GraspRanker::computeScoreAndRanking(RankedGrasps &ranked_grasps,
 
 moveit_msgs::Grasp detection::GraspRanker::getSelectedGrasp()
 {
+  if (side_grasps_rank_.size() == 0) return top_grasps_rank_[0].first;
+  if (top_grasps_rank_.size() == 0) return side_grasps_rank_[0].first;
+
   RankedGrasp &side_winner = side_grasps_rank_[0];
   RankedGrasp &top_winner = top_grasps_rank_[0];
   double percentage_diff =

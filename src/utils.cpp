@@ -60,9 +60,9 @@ void setProperties(const CloudPtr &coppied_cloud, CloudPtr &cloud_out, int width
   cloud_out->header = coppied_cloud->header;
 }
 
-Eigen::Vector3d castVector3d(Vec3f v)
+Vec3d castVector3d(Vec3f v)
 {
-  Eigen::Vector3d v1(v[0], v[1], v[2]);
+  Vec3d v1(v[0], v[1], v[2]);
   return v1;
 }
 
