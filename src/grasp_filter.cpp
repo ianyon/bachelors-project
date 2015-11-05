@@ -79,6 +79,9 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
   obj_pose_ = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
   side_grasp_center_ = Vec3d(0, 0, side_grasp_height);
   top_grasp_center_ = Vec3d(0, 0, top_graps_height);
+
+  feasible_side_grasps_.clear();
+  feasible_top_grasps_.clear();
 }
 
 void detection::GraspFilter::addSupportTable(Point &pose_pt, Vec3f &size)
@@ -119,7 +122,6 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   if (side_grasps_->size() > 0)
   {
     ROS_DEBUG_NAMED(DETECTION(), "Filtering %lu side grasps", side_grasps_->size());
-    feasible_side_grasps_.clear();
     BOOST_FOREACH(Point &point, side_grasps_->points)
           {
             Grasp grasp;
@@ -133,7 +135,6 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   if (top_grasps->size() > 0)
   {
     ROS_DEBUG_NAMED(DETECTION(), "Filtering %lu top grasps", top_grasps_->size());
-    feasible_top_grasps_.clear();
     BOOST_FOREACH(Point &point, top_grasps_->points)
           {
             Grasp grasp;
@@ -204,7 +205,7 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
   goal.possible_grasps.push_back(grasp);
   pick_action_client_->cancelAllGoals();
   pick_action_client_->sendGoal(goal);
-  if (!pick_action_client_->waitForResult(ros::Duration(2.0)))
+  if (!pick_action_client_->waitForResult(ros::Duration(0.5)))
     ROS_DEBUG_STREAM("Pickup action returned early");
 
   bool plan_succeeded = pick_action_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED;
@@ -328,20 +329,26 @@ void detection::GraspFilter::publishGrasps(std::vector<Grasp> grasps)
   pose_pub_.publish(pose_array);
 }
 
-bool detection::GraspFilter::generateSideGrasps(BoundingBoxPtr &obj_bounding_box, float grasp_height)
+bool detection::GraspFilter::generateSideSamples(BoundingBoxPtr &obj_bounding_box, float grasp_height)
 {
-  bool result = grasp_height / 2 <= obj_bounding_box->getHeight();
+  // grasp_height is in the lower half of the object. grasp_height > 0 if object is smaller than grasp height
+  bool result = grasp_height < 0;
+  float grasp_height_from_base = (float) (obj_bounding_box->getHeight() / 2) + grasp_height;
+  // Or it must be 2 cm lower than obj's height
+  result |= grasp_height_from_base  <= obj_bounding_box->getHeight() - 0.02;
   ROS_INFO_COND_NAMED(!result, DETECTION(), "No SIDE grasp generation. Unfeasible SIDE grasps in object ");
   return result;
 }
 
-bool detection::GraspFilter::generateTopGrasps(BoundingBoxPtr &obj_bounding_box, float height)
+bool detection::GraspFilter::generateTopSamples(BoundingBoxPtr &obj_bounding_box, float height,
+                                                bool &generate_mayor_axis, bool &generate_minor_axis)
 {
   // Only generate grasps along mayor axis if minor axis is thinner than gripper
-  generate_top_grasps_mayor_axis_ = obj_bounding_box->getMinorAxisSize2D() <= 0.09;
+  generate_mayor_axis = true || obj_bounding_box->getMinorAxisSize2D() <= 0.09;
   // Only generate grasps along mayor axis if minor axis is thinner than gripper
-  generate_top_grasps_minor_axis_ = obj_bounding_box->getMayorAxisSize2D() <= 0.09;
-  bool result = generate_top_grasps_mayor_axis_ || generate_top_grasps_minor_axis_;
+  generate_minor_axis = true || obj_bounding_box->getMayorAxisSize2D() <= 0.09;
+  //Not useful
+  bool result = generate_mayor_axis || generate_minor_axis;
   ROS_INFO_COND_NAMED(!result, DETECTION(), "No TOP grasp generation. Unfeasible TOP grasps in object");
   return result;
 }
@@ -403,7 +410,7 @@ trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(fl
 
   posture.points.resize(1);
   posture.points[0].positions.resize(posture.joint_names.size(), value); // Hard limit 0.086?
-  posture.points[0].time_from_start = ros::Duration(3.0);
+  posture.points[0].time_from_start = ros::Duration(5.0);
 
   return posture;
 }

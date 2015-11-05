@@ -63,6 +63,8 @@ public:
                               std::vector<size_t> &angle_difference_index);
 
   moveit_msgs::Grasp getSelectedGrasp();
+
+  void normalize();
 };
 
 } // namespace detection

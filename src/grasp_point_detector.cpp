@@ -76,23 +76,14 @@ bool detection::GraspPointDetector::doProcessing()
   sampler.configure(obj_bounding_box_);
   // Find all the samples positions
   // We call grasp filter to make a pre-filtering step, to avoid generate clearly unfeasible grasps samples
-  if (grasp_filter_->generateSideGrasps(obj_bounding_box_, sampler.getSideGraspHeight()))
-    sampler.sampleSideGrasps(obj_bounding_box_);
-  if (grasp_filter_->generateTopGrasps(obj_bounding_box_, sampler.getTopGraspHeight()))
-    sampler.sampleTopGrasps(obj_bounding_box_, grasp_filter_->generateTopGraspsMayorAxis(),
-                            grasp_filter_->generateTopGraspsMinorAxis());
-  draw_sampled_grasps_ = true;
-  bounding_box_lock.unlock();
-
-  CloudPtr side_samples = sampler.getSideGrasps();
-  CloudPtr top_samples = sampler.getTopGrasps();
-  Cloud samples = *side_samples + *top_samples;
-  if (samples.size() == 0)
+  if(!sampler.generateSamples(obj_bounding_box_, &GraspFilter::generateSideSamples, &GraspFilter::generateTopSamples))
   {
-    ROS_ERROR("No grasp samples. The object can't be grasped");
+    bounding_box_lock.unlock();
     return false;
   }
-  pub_samples_.publish(samples);
+  draw_sampled_grasps_ = true;
+  bounding_box_lock.unlock();
+  pub_samples_.publish(sampler.getSamples());
   ROS_INFO("[%g ms] Grasping sampling", durationMillis(begin));
 
 
@@ -106,7 +97,7 @@ bool detection::GraspPointDetector::doProcessing()
     grasp_filter_->configure(sampler.getSideGraspHeight(), sampler.getTopGraspHeight(), obj_bounding_box_,
                              table_bounding_box_);
     // Remove infeasible ones
-    grasp_filter_->filterGraspingPoses(side_samples, top_samples);
+    grasp_filter_->filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
     ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));
   }
   catch (ComputeFailedException ex)

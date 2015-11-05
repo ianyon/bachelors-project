@@ -7,6 +7,7 @@
 #include <boost/range/counting_range.hpp>
 
 #include <geometry_msgs/Point.h>
+#include <grasp_point_detector.h>
 
 #include "definitions.h"
 #include "utils.h"
@@ -75,6 +76,26 @@ void detection::GraspRanker::rankGraspingPoses(const std::vector<moveit_msgs::Gr
     rankGrasps(top_grasps, top_grasps_rank_);
     printRankedGrasps(top_grasps_rank_, "Top grasps rank");
   }
+
+  // Normalize ranking
+  if (side_grasps.size() != 0 && top_grasps.size() != 0)
+  {
+    normalize();
+  }
+}
+
+void detection::GraspRanker::normalize()
+{
+  size_t sum = 3 * (side_grasps_rank_.size() - 1);
+  BOOST_FOREACH(RankedGrasp &ranked_grasp, side_grasps_rank_)
+        {
+          ranked_grasp.second /= sum;
+        }
+  sum = 3 * (top_grasps_rank_.size() - 1);
+  BOOST_FOREACH(RankedGrasp &ranked_grasp, top_grasps_rank_)
+        {
+          ranked_grasp.second /= sum;
+        }
 }
 
 void detection::GraspRanker::printRankedGrasps(RankedGrasps &ranked_grasps, std::string title)
@@ -128,7 +149,7 @@ void detection::GraspRanker::rankGrasps(const std::vector<moveit_msgs::Grasp> gr
             boost::bind(&indirectShoulderDistanceComparator, shoulder_position, grasps_real_position, _1, _2));
 
 
-  // Grasp orientation: Prefer is grasps with a smaller angle between the line towards the shoulder and
+  // Grasp orientation: Prefer grasps with a smaller angle between the line towards the shoulder and
   // the grasping direction
   std::vector<size_t> angle_difference_index = grasps_index;
   Eigen::Quaternionf obj_to_shoulder_orientation;
@@ -177,8 +198,7 @@ moveit_msgs::Grasp detection::GraspRanker::getSelectedGrasp()
 
   RankedGrasp &side_winner = side_grasps_rank_[0];
   RankedGrasp &top_winner = top_grasps_rank_[0];
-  double percentage_diff =
-      100 * fabs(side_winner.second - top_winner.second) / (side_winner.second + top_winner.second);
+  double percentage_diff = 100 * fabs(side_winner.second - top_winner.second);
   if (percentage_diff > 5.0)
   {
     if (side_winner.second < top_winner.second)

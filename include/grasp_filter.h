@@ -102,9 +102,10 @@ public:
 
   void publishGrasps(std::vector<moveit_msgs::Grasp> grasps);
 
-  bool generateSideGrasps(BoundingBoxPtr &obj_bounding_box, float height);
+  static bool generateSideSamples(BoundingBoxPtr &obj_bounding_box, float height);
 
-  bool generateTopGrasps(BoundingBoxPtr &obj_bounding_box, float height);
+  static bool generateTopSamples(BoundingBoxPtr &obj_bounding_box, float height,
+                          bool &generate_mayor_axis, bool &generate_minor_axis);
 
   inline bool generateTopGraspsMinorAxis()
   { return generate_top_grasps_minor_axis_; }

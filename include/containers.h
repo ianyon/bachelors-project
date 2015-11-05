@@ -26,7 +26,7 @@ struct VisualizerParams
 
 namespace detection
 {
-typedef std::pair<moveit_msgs::Grasp, int> RankedGrasp;
+typedef std::pair<moveit_msgs::Grasp, double> RankedGrasp;
 typedef std::vector<RankedGrasp> RankedGrasps;
 } // namespace detection
 

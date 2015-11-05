@@ -58,8 +58,8 @@ int main(int argc, char **argv)
   // Delete parameters to start in clean state
   //ros::param::del("/bachelors_final_project");
 
-  /*if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
-    ros::console::notifyLoggerLevelsChanged();*/
+  if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
+    ros::console::notifyLoggerLevelsChanged();
 
   // Initialize ROS
   ros::init(argc, argv, "bachelors_final_project");

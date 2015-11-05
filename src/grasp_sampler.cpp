@@ -10,6 +10,9 @@ using std::vector;
 
 namespace bachelors_final_project
 {
+
+const float detection::GraspSampler::SIDE_GRASP_HEIGHT_OBJ_BASE_FRAME_ = 0.05;
+
 detection::GraspSampler::GraspSampler()
 {
   side_grasps_.reset(new Cloud);
@@ -21,12 +24,46 @@ detection::GraspSampler::GraspSampler()
 void detection::GraspSampler::configure(BoundingBoxPtr &bounding_box)
 {
   computeGrapsHeight(bounding_box->getHeight());
+
+  side_grasps_->clear();
+  side_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
+  side_grasps_->header.stamp = bounding_box->stamp_;
+  top_grasps_->clear();
+  top_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
+  top_grasps_->header.stamp = bounding_box->stamp_;
+}
+
+Cloud detection::GraspSampler::getSamples()
+{
+  CloudPtr side_samples = getSideGrasps();
+  CloudPtr top_samples = getTopGrasps();
+  Cloud samples = *side_samples + *top_samples;
+  return samples;
+}
+
+bool detection::GraspSampler::generateSamples(BoundingBoxPtr &bounding_box,
+                                              boost::function<bool(BoundingBoxPtr &, float)> doSideSampling,
+                                              boost::function<bool(BoundingBoxPtr &, float, bool &,
+                                                                   bool &)> doTopSampling)
+{
+  if (doSideSampling(bounding_box, getSideGraspHeight()))
+    sampleSideGrasps(bounding_box);
+
+  bool generate_mayor_axis, generate_minor_axis;
+  if (doTopSampling(bounding_box, getTopGraspHeight(), generate_mayor_axis, generate_minor_axis))
+    sampleTopGrasps(bounding_box, generate_mayor_axis, generate_minor_axis);
+
+  if (getSideGrasps()->size() == 0 && getTopGrasps()->size() == 0)
+  {
+    ROS_ERROR("No grasp samples. The object can't be grasped");
+    return false;
+  }
+  return true;
 }
 
 void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box)
 {
   ROS_INFO_NAMED(DETECTION(), "Sampling side grasps.");
-  side_grasps_->clear();
   // We'll sample the points in the origin and then translate and rotate them
   double a = bounding_box->getMayorAxisSize2D() / 2;
   double b = bounding_box->getMinorAxisSize2D() / 2;
@@ -44,17 +81,13 @@ void detection::GraspSampler::sampleSideGrasps(BoundingBoxPtr &bounding_box)
 
     side_grasps_->push_back(ellipse_point);
   }
-
-  side_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
-  side_grasps_->header.stamp = bounding_box->stamp_;
 }
 
 void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, bool generate_mayor_axis,
                                               bool generate_minor_axis)
 {
   ROS_INFO_NAMED(DETECTION(), "Sampling top grasps: %s %s axis", generate_mayor_axis ? "mayor" : "",
-           generate_minor_axis ? "and minor" : "");
-  top_grasps_->clear();
+                 generate_minor_axis ? "and minor" : "");
   int minor_axis_samples, mayor_axis_samples;
   numberOfSamples(bounding_box, minor_axis_samples, mayor_axis_samples);
 
@@ -69,9 +102,6 @@ void detection::GraspSampler::sampleTopGrasps(BoundingBoxPtr &bounding_box, bool
   double minor_axis_step = bounding_box->getMinorAxisSize2D() / minor_axis_samples;
   if (generate_minor_axis)
     sampleAxis(top_grasps_, height, bounding_box_min.y, minor_axis_samples, minor_axis_step, false);
-
-  top_grasps_->header.frame_id = bounding_box->OBJ_FRAME;
-  top_grasps_->header.stamp = bounding_box->stamp_;
 }
 
 /**

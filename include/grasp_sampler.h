@@ -15,6 +15,7 @@ namespace detection
 class GraspSampler
 {
   float side_grasps_height_, top_grasps_height_;
+  static const float SIDE_GRASP_HEIGHT_OBJ_BASE_FRAME_;
 
 public:
   GraspSampler();
@@ -38,7 +39,7 @@ public:
   inline void computeGrapsHeight(double obj_height)
   {
     top_grasps_height_ = (float) (obj_height / 2);
-    side_grasps_height_ = (float) (0.04 - (obj_height / 2));
+    side_grasps_height_ = (float) (SIDE_GRASP_HEIGHT_OBJ_BASE_FRAME_ - (obj_height / 2));
   }
 
   inline float getSideGraspHeight()
@@ -53,6 +54,11 @@ public:
   }
 
   void configure(BoundingBoxPtr &bounding_box);
+
+  Cloud getSamples();
+
+  bool generateSamples(BoundingBoxPtr &bounding_box, boost::function<bool(BoundingBoxPtr & , float)> generateSideGrasps,
+                       boost::function<bool(BoundingBoxPtr & , float, bool & , bool & )> generateTopGrasps);
 
 private:
   void numberOfSamples(const BoundingBoxPtr &bounding_box, int &minor_axis_samples, int &mayor_axis_samples);
