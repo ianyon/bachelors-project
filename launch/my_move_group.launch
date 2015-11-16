@@ -20,7 +20,7 @@
     <arg name="pipeline" value="ompl" />
   </include>
 
-  <include ns="move_group" file="$(find pr2_moveit_config)/launch/trajectory_execution.launch.xml" if="$(arg allow_trajectory_execution)">
+  <include ns="move_group" file="$(find bachelors_final_project)/launch/my_trayectory_execution.launch.xml" if="$(arg allow_trajectory_execution)">
     <arg name="moveit_controller_manager" value="pr2" unless="$(arg fake_execution)"/>
     <arg name="moveit_controller_manager" value="fake" if="$(arg fake_execution)"/>
     <arg name="moveit_manage_controllers" value="true" />

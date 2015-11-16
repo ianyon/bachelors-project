@@ -46,7 +46,27 @@ void parameterCallback(ParametersConfig &cfg, uint32_t level,
 
   ROS_WARN("Done Reconfigure Request");
 }
+
+void openGUIIfAsked(visualization::VisualizationThread &viz_thread,
+                    segmentation::CloudSegmentator &segmentator,
+                    detection::GraspPointDetector &detector)
+{
+  ros::NodeHandle priv_nh("~");
+  bool segmentation_visualizer;
+  if (priv_nh.getParam("segmentation_visualizer", segmentation_visualizer) && segmentation_visualizer)
+    viz_thread.addSegmentationVisualizer(segmentator);
+
+  bool detection_visualizer;
+  if (priv_nh.getParam("detection_visualizer", detection_visualizer) && detection_visualizer)
+    viz_thread.addDetectionVisualizer(detector);
+
+  bool reconfigure_gui;
+  if (priv_nh.getParam("reconfigure_gui", reconfigure_gui) && reconfigure_gui)
+    system("rosrun rqt_reconfigure rqt_reconfigure /bachelors_final_project 2>&1 &");
+}
+
 } // namespace bachelors_final_project
+
 
 int main(int argc, char **argv)
 {
@@ -58,12 +78,12 @@ int main(int argc, char **argv)
   // Delete parameters to start in clean state
   //ros::param::del("/bachelors_final_project");
 
-  if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
-    ros::console::notifyLoggerLevelsChanged();
+  /*if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
+    ros::console::notifyLoggerLevelsChanged();*/
 
   // Initialize ROS
   ros::init(argc, argv, "bachelors_final_project");
-  ros::NodeHandle nh, priv_nh("~");
+  ros::NodeHandle nh;
 
   ros::ServiceClient client = nh.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics");
   std_srvs::Empty srv;
@@ -78,11 +98,6 @@ int main(int argc, char **argv)
   CloudSegmentator segmentator(nh, tf_listener);
   gpd::GraspPointDetector detector(nh, tf_listener);
 
-  if (!priv_nh.hasParam("no_segmentation_visualizer"))
-    viz_thread.addSegmentationVisualizer(segmentator);
-  if (!priv_nh.hasParam("no_detection_visualizer"))
-    viz_thread.addDetectionVisualizer(detector);
-
   // Create a ROS subscriber for the input point cloud
   ros::Subscriber sub = nh.subscribe(KINECT_TOPIC, 1, &CloudSegmentator::sensorCallback, &segmentator);
   ROS_INFO("Topic: %s", sub.getTopic().c_str());
@@ -94,8 +109,7 @@ int main(int argc, char **argv)
   // Bind callback function to update values
   server.setCallback(boost::bind(&parameterCallback, _1, _2, &segmentator, &viz_thread, &detector, &cluster_selector));
 
-  if (!priv_nh.hasParam("no_reconfigure_gui"))
-    system("rosrun rqt_reconfigure rqt_reconfigure /bachelors_final_project 2>&1 &");
+  openGUIIfAsked(viz_thread, segmentator, detector);
 
   //Start visualization (if there are visualizers)
   viz_thread.start();

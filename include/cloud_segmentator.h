@@ -112,7 +112,12 @@ public:
   bool clusters_updated_;
 
   boost::mutex update_normals_mutex_;
-  ros::Publisher pub_planar_, pub_objects_;
+  ros::Publisher pub_planar_, pub_over_table_,pub_noisy_;
+
+  typedef boost::mt19937 RNGType;
+  RNGType rng;
+  boost::variate_generator<boost::mt19937&,boost::normal_distribution<> > nor_dis;
+  boost::variate_generator<boost::mt19937&,boost::normal_distribution<> > nor_dis_low;
 
   CloudPtr sensor_cloud_;
   CloudPtr cropped_cloud_;

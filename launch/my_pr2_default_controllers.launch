@@ -30,8 +30,11 @@
     <node name="gripper_action_node"
           pkg="pr2_gripper_action" type="pr2_gripper_action">
       <!-- needed for stall detection in simulation with joint "jitter" -->
-      <param name="stall_velocity_threshold" value="0.02" type="double"/>
-      <param name="stall_timeout" value="0.5" type="double"/>
+      <param name="stall_velocity_threshold" value="0.001" type="double"/>
+      <!-- <param name="stall_velocity_threshold" value="0.02" type="double"/> -->
+      <param name="stall_timeout" value="0.5" type="double"/> 
+      <!-- The distance from the desired position at which the result is considered successful. -->
+      <param name="goal_threshold" value="0.0075" type="double"/> <!-- default: 0.01 -->
     </node>
   </group>
   <group ns="l_gripper_controller">

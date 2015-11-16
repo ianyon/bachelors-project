@@ -97,6 +97,7 @@ bool detection::GraspPointDetector::doProcessing()
     grasp_filter_->configure(sampler.getSideGraspHeight(), sampler.getTopGraspHeight(), obj_bounding_box_,
                              table_bounding_box_);
     // Remove infeasible ones
+    sampler.getTopGrasps()->clear(); //TODO: REMOVE THIS!!!
     grasp_filter_->filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
     ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));
   }
@@ -130,6 +131,7 @@ bool detection::GraspPointDetector::doProcessing()
   moveit::planning_interface::MoveGroup::Plan plan;
   bool success = r_arm_group_.plan(plan);
   if (success) r_arm_group_.move();
+  else ROS_INFO("Unable to return no initial position. No plan found");
 
   return result;
 }
@@ -160,7 +162,7 @@ bool detection::GraspPointDetector::pick(moveit::planning_interface::MoveGroup &
   {
     pick_action_client_->cancelAllGoals();
     pick_action_client_->sendGoal(goal);
-    if (!pick_action_client_->waitForResult(ros::Duration(2.0)))
+    if (!pick_action_client_->waitForResult(ros::Duration(5.0)))
       ROS_DEBUG_STREAM("Pickup action returned early");
 
     bool plan_succeeded = pick_action_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED;
@@ -171,7 +173,7 @@ bool detection::GraspPointDetector::pick(moveit::planning_interface::MoveGroup &
   {
     try
     {
-      pickMovement(pick_action_client_, goal, ros::Duration(10.0));
+      pickMovement(pick_action_client_, goal, ros::Duration(25.0));
     }
     catch (ComputeFailedException ex)
     {

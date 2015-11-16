@@ -30,30 +30,28 @@ void detection::constructGoal(moveit::planning_interface::MoveGroup &group, Pick
 
 void detection::pickMovement(PickupActionPtr &pick_action_client, PickupGoal &goal, ros::Duration timeout)
 {
-  ROS_INFO("TRYING REAL PICK ACTION");
+  ROS_FATAL_NAMED(DETECTION(), "\n\n¡¡TRYING REAL PICK ACTION!!\n\n");
   goal.planning_options.plan_only = (unsigned char) false;
-
-  pick_action_client->sendGoal(goal);
-  if (!pick_action_client->waitForResult(timeout))
-    ROS_INFO_STREAM_NAMED(DETECTION(), "Pickup action returned early");
-  actionlib::SimpleClientGoalState state = pick_action_client->getState();
-
-
-  while (state.state_ == actionlib::SimpleClientGoalState::ABORTED &&
-         selectChoice("Press 1 to retry, any key to finish movement...") == 1)
+  do
   {
     pick_action_client->sendGoal(goal);
     if (!pick_action_client->waitForResult(timeout))
       ROS_INFO_STREAM_NAMED(DETECTION(), "Pickup action returned early");
-    state = pick_action_client->getState();
+    actionlib::SimpleClientGoalState state = pick_action_client->getState();
 
-    if (state.state_ == actionlib::SimpleClientGoalState::ABORTED)
-      ROS_INFO_NAMED(DETECTION(), "Fail: %s: %s.", state.toString().c_str(), state.getText().c_str());
+    ROS_FATAL_NAMED(DETECTION(), "REAL PICK ACTION %s: %s.", state.toString().c_str(), state.getText().c_str());
+  } while (selectChoice("Press 1 to retry, any key to finish movement...") == 1);
+
+  switch (pick_action_client->getState().state_)
+  {
+    case actionlib::SimpleClientGoalState::ABORTED:
+      throw ComputeFailedException("MOVEMENT ABORTED. FINISHED EXECUTION");
+    case actionlib::SimpleClientGoalState::SUCCEEDED:
+      ROS_FATAL_NAMED(DETECTION(), "\n\n¡¡OBJECT REAL PICK ACTION FINISHED!!\n\n");
+      break;
+    default:
+      ROS_FATAL_NAMED(DETECTION(), "\n\nWEIRD THINGS HAPPENNED IN PICK ACTION\n\n");
   }
-
-  if (state.state_ == actionlib::SimpleClientGoalState::ABORTED) throw ComputeFailedException("Movement finished.");
-
-  ROS_FATAL_NAMED(DETECTION(), "\n\n¡¡OBJECT PICKED!!\n\n");
 }
 
 } // namespace bachelors_final_project

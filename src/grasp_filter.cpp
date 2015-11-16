@@ -221,6 +221,11 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
 
 Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z)
 {
+
+  //TODO   // distance from center point of object to end effector
+  //TODO grasp_depth_ = 0.06;// in negative or 0 this makes the grasps on the other side of the object! (like from below)
+
+
   // How far from the grasp center should the wrist be. X is pointing toward the grasping point
   tf::Transform standoff_trans;
   standoff_trans.setOrigin(tf::Vector3(x, y, z).normalize() * standoff);
@@ -252,6 +257,11 @@ Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z)
  */
 Grasp detection::GraspFilter::generateSideGrasps(double x, double y, double z)
 {
+
+  //TODO   // distance from center point of object to end effector
+  //TODO grasp_depth_ = 0.06;// in negative or 0 this makes the grasps on the other side of the object! (like from below)
+
+
   // How far from the grasp center should the wrist be. X is pointing toward the grasping point
   tf::Transform standoff_trans;
   standoff_trans.setOrigin(tf::Vector3(x, y, 0).normalize() * standoff);
@@ -408,9 +418,13 @@ trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(fl
   //r_gripper_motor_screw_joint
   const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
 
+  //posture.joint_names.resize(1, "r_gripper_motor_screw_joint");
   posture.points.resize(1);
   posture.points[0].positions.resize(posture.joint_names.size(), value); // Hard limit 0.086?
-  posture.points[0].time_from_start = ros::Duration(5.0);
+  posture.points[0].time_from_start = ros::Duration(15.0);
+
+  // Only valid in grasp posture
+  posture.points[0].effort.resize(posture.joint_names.size(), -1.0);  // Close gently
 
   return posture;
 }

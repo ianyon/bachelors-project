@@ -1,10 +1,10 @@
 #include "cloud_segmentator.h"
+
 #include <pcl_ros/transforms.h>
 
 #include <dynamic_reconfigure/server.h>
 
 #include <pcl/common/angles.h>
-
 #include <pcl/filters/convolution_3d.h>
 
 #include "utils.h"
@@ -27,7 +27,8 @@ segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh, tf::Transfo
     clusters_updated_(false),
     last_seen_seq_(0),
     pub_planar_(nh.advertise<Cloud>("table", 1)),
-    pub_objects_(nh.advertise<Cloud>("objects_over_table", 1)),
+    pub_over_table_(nh.advertise<Cloud>("objects_over_table", 1)),
+    pub_noisy_(nh.advertise<Cloud>("noisy", 1)),
     // Initialize pointers to point clouds
     sensor_cloud_(new Cloud),
     cropped_cloud_(new Cloud),
@@ -38,7 +39,9 @@ segmentation::CloudSegmentator::CloudSegmentator(ros::NodeHandle nh, tf::Transfo
     cropped_cloud_base_frame(new Cloud),
     indices_over_table_(new PointIndices),
     tf_listener_(tf_listener),
-    projected_table_cloud_(new Cloud)
+    projected_table_cloud_(new Cloud),
+    nor_dis(rng, boost::normal_distribution<>(0.0, 0.0015)),
+    nor_dis_low(rng, boost::normal_distribution<>(0.0, 0.001))
 {
   sac_segmentation_.setModelType(SACMODEL_NORMAL_PARALLEL_PLANE);
   sac_segmentation_.setMethodType(SAC_RANSAC);
@@ -310,6 +313,16 @@ void segmentation::CloudSegmentator::execute()
 bool segmentation::CloudSegmentator::doProcessing(const CloudPtr &input)
 {
   ROS_DEBUG_NAMED(SEGMENTATION(), "Processing segmentation!");
+
+  /* ENABLE THIS TO ADD NOISE TO THE KINECT POINTCLOUD
+   * for (size_t i = 0; i < input->size(); i++)
+  {
+    input->points[i].z += nor_dis();
+    input->points[i].x += nor_dis_low();
+    input->points[i].y += nor_dis_low();
+  }
+  pub_noisy_.publish(input);*/
+
   boost::mutex::scoped_lock updateLock(update_normals_mutex_);
   cropOrganizedPointCloud(input, cropped_cloud_);
   bool new_normals = computeNormalsEfficiently(cropped_cloud_, cloud_normals_);
@@ -346,7 +359,7 @@ bool segmentation::CloudSegmentator::doProcessing(const CloudPtr &input)
   if (!extractCloudOverTheTable(cropped_cloud_, table_convex_hull, indices_over_table_))
     return clearSegmentation(OVER_TABLE);
   pointCloudFromIndices(cropped_cloud_, indices_over_table_, cloud_over_table_);
-  pub_objects_.publish(cloud_over_table_);
+  pub_over_table_.publish(cloud_over_table_);
   cloud_over_table_updated_ = true;
 
   // Clustering objects over the table
