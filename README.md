@@ -14,6 +14,10 @@ wget https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.sh --no-check-certifi
 sudo chmod +x cmake-3.4.0-Linux-x86_64.sh
 sudo mkdir /opt/cmake
 sudo sh cmake-3.4.0-Linux-x86_64.sh --prefix=/opt/cmake
+# Replace old cmake with simbolic link and make a backup
+cd /usr/bin/
+sudo mv cmake ~/cmake.bak
+sudo ln -s /opt/cmake/bin/cmake cmake
 
 mkdir ~/catkin_ws
 cd ~/catkin_ws
