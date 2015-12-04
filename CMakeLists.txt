@@ -34,9 +34,9 @@ add_definitions(-Wno-deprecated)
 #endif(CCACHE_FOUND)
 
 ## Compiler options
-set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
-set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++") #-Wall -O0
+#set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
+#set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
+#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++") #-Wall -O0
 
 #set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 #set (CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS}")
@@ -97,8 +97,25 @@ set(sources src/example.cpp
 
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 
+add_executable(test_data src/test_publisher.cpp)
+add_executable(test_ransac src/ransac.cpp)
+add_executable(test_ransac_normals src/ransac_normals.cpp)
+
 #Ensures that configuration files are generated before main target
 add_dependencies(example ${PROJECT_NAME}_gencfg)
+
+target_link_libraries(test_data
+        ${catkin_LIBRARIES}
+        libvtkCommon.so
+        libvtkFiltering.so )
+target_link_libraries(ransac
+        ${catkin_LIBRARIES}
+        libvtkCommon.so
+        libvtkFiltering.so )
+target_link_libraries(ransac_normals
+        ${catkin_LIBRARIES}
+        libvtkCommon.so
+        libvtkFiltering.so )
 
 target_link_libraries(example
         ${catkin_LIBRARIES}
@@ -107,7 +124,7 @@ target_link_libraries(example
 cotire(example)
 add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
 
-execute_process(COMMAND rosservice call /gazebo/pause_physics)
+#execute_process(COMMAND rosservice call /gazebo/pause_physics)
 #add_custom_target(stop_physics
 #    COMMAND rosservice call /gazebo/pause_physics)
 #add_dependencies(example stop_physics)
