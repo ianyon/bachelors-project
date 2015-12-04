@@ -98,8 +98,8 @@ set(sources src/example.cpp
 add_executable(example ${sources} ${all_headers} ${all_cfgs})
 
 add_executable(test_data src/test_publisher.cpp)
-add_executable(test_ransac src/ransac.cpp)
-add_executable(test_ransac_normals src/ransac_normals.cpp)
+add_executable(ransac src/ransac.cpp)
+add_executable(ransac_normals src/ransac_normals.cpp)
 
 #Ensures that configuration files are generated before main target
 add_dependencies(example ${PROJECT_NAME}_gencfg)
