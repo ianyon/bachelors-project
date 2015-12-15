@@ -8,12 +8,10 @@
 
 using namespace moveit_msgs;
 
-namespace bachelors_final_project
-{
+namespace bachelors_final_project {
 
 void detection::constructGoal(moveit::planning_interface::MoveGroup &group, PickupGoal &goal_out,
-                              const std::string &object, const std::string &planner_name, bool plan_only)
-{
+                              const std::string &object, const std::string &planner_name, bool plan_only) {
   goal_out.target_name = object;
   goal_out.group_name = group.getName();
   goal_out.end_effector = group.getEndEffector();
@@ -21,29 +19,30 @@ void detection::constructGoal(moveit::planning_interface::MoveGroup &group, Pick
   goal_out.support_surface_name = SUPPORT_TABLE();
   goal_out.planner_id = planner_name;
   goal_out.planning_options.plan_only = (unsigned char) plan_only;
-  goal_out.planning_options.replan_attempts = 3;
+  goal_out.planning_options.replan_attempts = 1;
 
   if (group.getPathConstraints().name != std::string())
     goal_out.path_constraints = group.getPathConstraints();
 }
 
 
-void detection::pickMovement(PickupActionPtr &pick_action_client, PickupGoal &goal, ros::Duration timeout)
-{
+void detection::pickMovement(PickupActionPtr &pick_action_client, PickupGoal &goal, ros::Duration timeout) {
   ROS_FATAL_NAMED(DETECTION(), "\n\n¡¡TRYING REAL PICK ACTION!!\n\n");
   goal.planning_options.plan_only = (unsigned char) false;
-  do
-  {
+
+  // Try 5 times
+  for (int i = 0; i < 5; ++i) {
     pick_action_client->sendGoal(goal);
     if (!pick_action_client->waitForResult(timeout))
-      ROS_INFO_STREAM_NAMED(DETECTION(), "Pickup action returned early");
+      ROS_INFO_STREAM_NAMED(DETECTION(), "Pick action movement returned early");
     actionlib::SimpleClientGoalState state = pick_action_client->getState();
 
-    ROS_FATAL_NAMED(DETECTION(), "REAL PICK ACTION %s: %s.", state.toString().c_str(), state.getText().c_str());
-  } while (selectChoice("Press 1 to retry, any key to finish movement...") == 1);
+    if (state == actionlib::SimpleClientGoalState::SUCCEEDED) break;
+    ROS_FATAL_COND_NAMED(i<4, DETECTION(), "PICK ACTION MOVEMENT %s: %s. Trying again...", state.toString().c_str(), state.getText().c_str());
 
-  switch (pick_action_client->getState().state_)
-  {
+  }
+
+  switch (pick_action_client->getState().state_) {
     case actionlib::SimpleClientGoalState::ABORTED:
       throw ComputeFailedException("MOVEMENT ABORTED. FINISHED EXECUTION");
     case actionlib::SimpleClientGoalState::SUCCEEDED:

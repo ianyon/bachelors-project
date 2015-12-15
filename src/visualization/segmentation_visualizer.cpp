@@ -75,11 +75,24 @@ void visualization::SegmentationVisualizer::visualizeNormalsCloud(int viewport)
   // Check if cloud was updated (If not present program fails due to try to visualize zero size normals)
   if (obj().point_clouds_updated_)
   {
-    if (visualizeCloud(CROPPED_CLOUD, obj().cropped_cloud_, 255, 0, 0, viewport))
+    // Remove NaN from pointcloud and normals
+    pcl::PointIndices::Ptr indices(new pcl::PointIndices());
+    // Sometimes the cloud is not dense. In that case removeNaNFromPointCloud'll break the organization
+    ROS_ERROR_COND(!obj().cropped_cloud_->is_dense, "Cropped cloud isn't dense. Organization will be lost");
+    CloudPtr sensor_cloud;
+    CloudNormalPtr cloud_normals;
+    pcl::removeNaNFromPointCloud(*obj().cropped_cloud_, *sensor_cloud, indices->indices);
+
+    pcl::ExtractIndices<Normal> extract_normals_;
+    extract_normals_.setInputCloud(obj().cloud_normals_);
+    extract_normals_.setIndices(indices);
+    extract_normals_.filter(*cloud_normals);
+
+    if (visualizeCloud(CROPPED_CLOUD, sensor_cloud, 255, 0, 0, viewport))
     {
       removePointCloud(NORMALS_CLOUD);
       // Convert to cm
-      addPointCloudNormals<Point, Normal>(obj().cropped_cloud_, obj().cloud_normals_,
+      addPointCloudNormals<Point, Normal>(sensor_cloud, cloud_normals,
                                           normals_count_, normals_size_ / 100, NORMALS_CLOUD, viewport);
     }
     if (false)

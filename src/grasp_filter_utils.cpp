@@ -48,7 +48,7 @@ moveit_msgs::CollisionObject detection::getCollisionObjUpdated(ros::Publisher pu
 {
   moveit_msgs::CollisionObject co;
   co.id = id;
-  co.header.stamp = ros::Time(0);
+  co.header.stamp = ros::Time::now();
   co.header.frame_id = frame;
   // First remove it
   co.operation = moveit_msgs::CollisionObject::REMOVE;

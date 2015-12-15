@@ -19,7 +19,7 @@ namespace bachelors_final_project
 static const std::string WORLD_FRAME = "/odom_combined";
 static const std::string FOOTPRINT_FRAME = "/base_footprint";
 static const std::string KINECT_TOPIC = "/head_mount_kinect/depth/points";
-static const float TF_TIMEOUT = 2.0;
+static const float TF_TIMEOUT = 5.0;
 static const ros::Duration TF_DURATION(TF_TIMEOUT);
 
 static const std::string TOOL_FRAME = "r_gripper_tool_frame";

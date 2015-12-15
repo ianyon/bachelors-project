@@ -11,7 +11,7 @@ using std::vector;
 namespace bachelors_final_project
 {
 // 0.05 is possible but there is high probability of r_forearm_link collision with table due to controller precision
-const float detection::GraspSampler::SIDE_GRASP_HEIGHT_OBJ_BASE_FRAME_ = 0.06;
+const float detection::GraspSampler::SIDE_GRASP_HEIGHT_OBJ_BASE_FRAME_ = 0.07;
 
 detection::GraspSampler::GraspSampler()
 {

@@ -90,7 +90,7 @@ void segmentation::CloudSegmentator::cropOrganizedPointCloud(const CloudPtr &clo
 
   cropped_cloud->is_dense = cloud_in->is_dense;
 
-  ROS_DEBUG_NAMED(SEGMENTATION(), "[%g ms] PointCloud cropping [%lu to %lu]", durationMillis(begin),
+  ROS_INFO_NAMED(SEGMENTATION(), "[%g ms] PointCloud cropping [%lu to %lu]", durationMillis(begin),
                   cloud_in->points.size(), cropped_cloud->points.size());
 }
 
@@ -129,12 +129,12 @@ bool segmentation::CloudSegmentator::computeNormalsEfficiently(const CloudPtr &s
   normal_estimation_.compute(*cloud_normals);
 
   // Remove NaN from pointcloud and normals
-  PointIndices::Ptr indices(new PointIndices());
+  //PointIndices::Ptr indices(new PointIndices());
   // Sometimes the cloud is not dense. In that case removeNaNFromPointCloud'll break the organization
-  ROS_ERROR_COND_NAMED(!sensor_cloud->is_dense, SEGMENTATION(), "Cropped cloud isn't dense. Organization will be lost");
-  removeNaNFromPointCloud(*sensor_cloud, *sensor_cloud, indices->indices);
-  normalPointCloudFromIndices(cloud_normals, indices, cloud_normals);
-  ROS_DEBUG_NAMED(SEGMENTATION(), "[%g ms] Integral image normals", durationMillis(begin));
+  //ROS_ERROR_COND_NAMED(!sensor_cloud->is_dense, SEGMENTATION(), "Cropped cloud isn't dense. Organization will be lost");
+  //removeNaNFromPointCloud(*sensor_cloud, *sensor_cloud, indices->indices);
+  //normalPointCloudFromIndices(cloud_normals, indices, cloud_normals);
+  ROS_INFO_NAMED(SEGMENTATION(), "[%g ms] Integral image normals", durationMillis(begin));
 
   return cloud_normals_->size() != 0;
 }
@@ -179,7 +179,7 @@ bool segmentation::CloudSegmentator::fitPlaneFromNormals(const CloudPtr &input, 
 
   bool enough_inliers = inliers->indices.size() > 100; // Sometimes there are few inliers and that's bad
   ROS_WARN_COND_NAMED(!enough_inliers, SEGMENTATION(), "No inliers in plane");
-  ROS_DEBUG_COND_NAMED(enough_inliers, SEGMENTATION(), "[%g ms] Plane segmentation (%lu): [%g %g %g %g]",
+  ROS_INFO_COND_NAMED(enough_inliers, SEGMENTATION(), "[%g ms] Plane segmentation (%lu): [%g %g %g %g]",
                        durationMillis(begin), inliers->indices.size(),
                        coefficients->values[0], coefficients->values[1], coefficients->values[2],
                        coefficients->values[3]);
@@ -216,7 +216,7 @@ void segmentation::CloudSegmentator::computeTableConvexHull(const CloudPtr &proj
   convex_hull_.setInputCloud(projected_table_cloud);
   convex_hull_.reconstruct(*table_convex_hull);
   table_convex_hull->push_back(table_convex_hull->at(0));
-  ROS_DEBUG_NAMED(SEGMENTATION(), "[%g ms] Convex hull [%lu points]", durationMillis(begin),
+  ROS_INFO_NAMED(SEGMENTATION(), "[%g ms] Convex hull [%lu points]", durationMillis(begin),
                   table_convex_hull->points.size());
 }
 
@@ -234,7 +234,7 @@ bool segmentation::CloudSegmentator::extractCloudOverTheTable(const CloudPtr &se
 
   bool empty = indices_over_table->indices.size() == 0;
   ROS_WARN_COND_NAMED(empty, SEGMENTATION(), "No points over the table. Took %g ms", durationMillis(begin));
-  ROS_DEBUG_COND_NAMED(!empty, SEGMENTATION(), "[%g ms] Extract cloud over the table [%lu points]",
+  ROS_INFO_COND_NAMED(!empty, SEGMENTATION(), "[%g ms] Extract cloud over the table [%lu points]",
                        durationMillis(begin),
                        indices_over_table->indices.size());
   return !empty;
@@ -264,7 +264,7 @@ bool segmentation::CloudSegmentator::clusterObjects(const CloudPtr &cloud_in,
   euclidean_clustering_.extract(cluster_indices);
 
   bool empty = cluster_indices.size() == 0;
-  ROS_DEBUG_COND_NAMED(empty, SEGMENTATION(), "[%g ms] Clustering Failed", durationMillis(begin));
+  ROS_INFO_COND_NAMED(empty, SEGMENTATION(), "[%g ms] Clustering Failed", durationMillis(begin));
 
   if (!empty) clusters_vector_.clear();
   std::stringstream ss;
@@ -277,7 +277,7 @@ bool segmentation::CloudSegmentator::clusterObjects(const CloudPtr &cloud_in,
           clusters_vector_.push_back(cloud_cluster);
           ss << cloud_cluster->size() << ", ";
         }
-  ROS_DEBUG_COND_NAMED(!empty, SEGMENTATION(), "[%g ms] Clustering [%lu]: [%s]", durationMillis(begin),
+  ROS_INFO_COND_NAMED(!empty, SEGMENTATION(), "[%g ms] Clustering [%lu]: [%s]", durationMillis(begin),
                        cluster_indices.size(),
                        ss.str().c_str());
   return !empty;
@@ -312,7 +312,7 @@ void segmentation::CloudSegmentator::execute()
 
 bool segmentation::CloudSegmentator::doProcessing(const CloudPtr &input)
 {
-  ROS_DEBUG_NAMED(SEGMENTATION(), "Processing segmentation!");
+  ROS_INFO_NAMED(SEGMENTATION(), "Processing segmentation!");
 
   /* ENABLE THIS TO ADD NOISE TO THE KINECT POINTCLOUD
    * for (size_t i = 0; i < input->size(); i++)
@@ -348,7 +348,7 @@ bool segmentation::CloudSegmentator::doProcessing(const CloudPtr &input)
 
   // Project plane points (inliers) in model plane
   projectOnPlane(cropped_cloud_, table_coefficients_, tableInliers, projected_table_cloud_);
-  ROS_DEBUG_NAMED(SEGMENTATION(), "Project on plane: %lu", projected_table_cloud_->size());
+  ROS_INFO_NAMED(SEGMENTATION(), "Project on plane: %lu", projected_table_cloud_->size());
   pub_planar_.publish(projected_table_cloud_);
 
   // Create a Convex Hull representation of the projected inliers

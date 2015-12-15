@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 2.8.12)
 project(bachelors_final_project)
 
 ## Supress warnings if using CMake 3 or higher
@@ -12,14 +12,15 @@ if(POLICY CMP0058)
     cmake_policy(SET CMP0058 OLD)
 endif()
 ##############################################
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "~/catkin_ws/devel/bachelors_project/")
 
 # Cotire Precompiled headers
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "~/catkin_ws/src/bachelors_final_project/cmake/Modules")#"${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "~/catkin_ws/src/bachelors_project/cmake/Modules")#"${CMAKE_SOURCE_DIR}/cmake/Modules/")
 include(cotire)
 
-if(EXISTS "/home/yoko/catkin_ws/devel")
-    set(CATKIN_DEVEL_PREFIX "/home/yoko/catkin_ws/devel")
-    set(CMAKE_INSTALL_PREFIX "/home/yoko/catkin_ws/install")
+if(EXISTS "/home/ianyon/catkin_ws/devel")
+    set(CATKIN_DEVEL_PREFIX "/home/ianyon/catkin_ws/devel")
+    set(CMAKE_INSTALL_PREFIX "/home/ianyon/catkin_ws/install")
 else()
     set(CATKIN_DEVEL_PREFIX "/home/ian/catkin_ws/devel")
     set(CMAKE_INSTALL_PREFIX "/home/ian/catkin_ws/install")
@@ -34,9 +35,9 @@ add_definitions(-Wno-deprecated)
 #endif(CCACHE_FOUND)
 
 ## Compiler options
-set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
-set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++") #-Wall -O0
+#set (CMAKE_CXX_COMPILER "/usr/lib/ccache/clang++")
+#set (CMAKE_C_COMPILER "/usr/lib/ccache/clang")
+#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++") #-Wall -O0
 
 #set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 #set (CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS}")
@@ -72,10 +73,10 @@ catkin_package(
             dynamic_reconfigure
 )
 message(STATUS "${CMAKE_SOURCE_DIR}")
-FILE (GLOB_RECURSE all_headers ${PROJECT_SOURCE_DIR}/bachelors_final_project/include/*.h)
+FILE (GLOB_RECURSE all_headers ${PROJECT_SOURCE_DIR}/bachelors_project/include/*.h)
 FILE (GLOB_RECURSE all_headers ${CMAKE_SOURCE_DIR}/include/*.h)
 FILE (GLOB_RECURSE all_cfgs ${CMAKE_SOURCE_DIR}/cfg/*.cfg)
-FILE (GLOB_RECURSE all_cfgs ${PROJECT_SOURCE_DIR}/bachelors_final_project/cfg/*.cfg)
+FILE (GLOB_RECURSE all_cfgs ${PROJECT_SOURCE_DIR}/bachelors_project/cfg/*.cfg)
 set(sources src/example.cpp
         src/cloud_segmentator.cpp
         src/grasp_point_detector.cpp
@@ -107,7 +108,7 @@ target_link_libraries(example
 cotire(example)
 add_dependencies(example_unity ${PROJECT_NAME}_gencfg)
 
-execute_process(COMMAND rosservice call /gazebo/pause_physics)
+#execute_process(COMMAND rosservice call /gazebo/pause_physics)
 #add_custom_target(stop_physics
 #    COMMAND rosservice call /gazebo/pause_physics)
 #add_dependencies(example stop_physics)

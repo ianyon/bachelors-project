@@ -3,6 +3,8 @@
 #include <pcl/filters/project_inliers.h>
 
 #include <moveit/move_group_pick_place_capability/capability_names.h>
+#include <moveit/planning_scene/planning_scene.h>
+#include <moveit/robot_model_loader/robot_model_loader.h>
 
 #include "utils.h"
 #include "definitions.h"
@@ -63,6 +65,7 @@ bool detection::GraspPointDetector::doProcessing()
 {
   ROS_INFO_ONCE("'Do Processing' called!");
   clock_t begin = clock();
+  grasp_filter_->closeGripper();
   geometry_msgs::PoseStamped initial_pose = r_arm_group_.getCurrentPose(r_arm_group_.getEndEffectorLink());
 
   /**    COMPUTE BOUNDINGBOX AND PUBLISH A TF FRAME    **/
@@ -97,7 +100,7 @@ bool detection::GraspPointDetector::doProcessing()
     grasp_filter_->configure(sampler.getSideGraspHeight(), sampler.getTopGraspHeight(), obj_bounding_box_,
                              table_bounding_box_);
     // Remove infeasible ones
-    sampler.getTopGrasps()->clear(); //TODO: REMOVE THIS!!!
+    //sampler.getTopGrasps()->clear(); //TODO: REMOVE THIS!!!
     grasp_filter_->filterGraspingPoses(sampler.getSideGrasps(), sampler.getTopGrasps());
     ROS_INFO("[%g ms] Grasping filtering", durationMillis(begin));
   }
@@ -121,17 +124,70 @@ bool detection::GraspPointDetector::doProcessing()
   if (selectChoice("Ready: 1=Pick, Any=Again") != 1) return false;
 
   /**    ACTUAL PICKING    **/
+  /* This should work out of the box, but it doesn't */
   begin = clock();
   r_arm_group_.setPlanningTime(25.0);
   r_arm_group_.setSupportSurfaceName(SUPPORT_TABLE());
   bool result = pick(r_arm_group_, GRASPABLE_OBJECT(), grasp_winner, false);
   ROS_INFO("[%g ms] Pick movement", durationMillis(begin));
 
-  r_arm_group_.setPoseTarget(initial_pose, r_arm_group_.getEndEffectorLink());
+  /***************************************************************/
+  /** BEGIN This is added to patch the wrong behaviour observed **/
+  // To avoid collisions with an object that shouldn't be on the planning scene
+  grasp_filter_->removeCollisionObject();
+  grasp_filter_->attachCollisionObject();
+  robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
+  robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
+  planning_scene::PlanningScene planning_scene(kinematic_model);
+  planning_scene.getAllowedCollisionMatrixNonConst().setEntry("<octomap>", true);
+  ros::WallDuration(2.0).sleep();
+
   moveit::planning_interface::MoveGroup::Plan plan;
   bool success = r_arm_group_.plan(plan);
+/*
+  ROS_INFO("Trying cartesian path");
+  r_arm_group_.setStartState(*r_arm_group_.getCurrentState());
+  std::vector<geometry_msgs::Pose> waypoints;
+  geometry_msgs::PoseStamped actual_pose = r_arm_group_.getCurrentPose(r_arm_group_.getEndEffectorLink());
+  geometry_msgs::Pose target_pose = actual_pose.pose;
+  target_pose.position.z += 0.2;
+  waypoints.push_back(target_pose);  // up
+  moveit_msgs::RobotTrajectory trajectory;
+  double fraction = r_arm_group_.computeCartesianPath(waypoints, 0.01, 0.0, trajectory);
+  if (fraction != -1.0) r_arm_group_.move();
+  else ROS_INFO("Unable to return no initial position. No plan found");
+
+  ros::WallDuration(2.0).sleep();
+  ROS_INFO("Cartesian finished. Press a key to continue");
+  std::cin;
+
+  ROS_INFO("Trying joints goal");
+  std::vector<double> group_variable_values;
+  r_arm_group_.getCurrentState()->copyJointGroupPositions(
+      r_arm_group_.getCurrentState()->getRobotModel()->getJointModelGroup(r_arm_group_.getName()),
+      group_variable_values);
+  group_variable_values[0] = 1.0;
+  r_arm_group_.setJointValueTarget(group_variable_values);
+  success = r_arm_group_.plan(plan);
   if (success) r_arm_group_.move();
   else ROS_INFO("Unable to return no initial position. No plan found");
+  ros::WallDuration(2.0).sleep();
+  ROS_INFO("Joint finished. Press a key to continue");
+  std::cin;*/
+
+  ROS_INFO("Trying Normal goal");
+  // Return to the initial pose with the gripper closed and hopefully the object grasped
+  r_arm_group_.clearPoseTargets();
+  r_arm_group_.setPoseTarget(initial_pose);
+  success = r_arm_group_.plan(plan);
+  if (success) r_arm_group_.move();
+  else ROS_INFO("Unable to return no initial position. No plan found");
+  planning_scene.getAllowedCollisionMatrixNonConst().setEntry("<octomap>", false);
+  /** END This is added to patch the wrong behaviour observed ****/
+  /***************************************************************/
+
+  ROS_INFO("Normal goal finished. Press a key to continue");
+  std::cin;
 
   return result;
 }
@@ -163,10 +219,10 @@ bool detection::GraspPointDetector::pick(moveit::planning_interface::MoveGroup &
     pick_action_client_->cancelAllGoals();
     pick_action_client_->sendGoal(goal);
     if (!pick_action_client_->waitForResult(ros::Duration(5.0)))
-      ROS_DEBUG_STREAM("Pickup action returned early");
+      ROS_INFO_STREAM("Pickup action returned early");
 
     bool plan_succeeded = pick_action_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED;
-    ROS_DEBUG_STREAM_COND(!plan_succeeded, "Fail: " << pick_action_client_->getState().toString() << ": " <<
+    ROS_INFO_STREAM_COND(!plan_succeeded, "Fail: " << pick_action_client_->getState().toString() << ": " <<
                                            pick_action_client_->getState().getText());
   }
   else
@@ -187,7 +243,7 @@ bool detection::GraspPointDetector::pick(moveit::planning_interface::MoveGroup &
 void detection::GraspPointDetector::waitForAction(const PickupActionPtr &action, const ros::Duration &wait_for_server,
                                                   const std::string &name)
 {
-  ROS_DEBUG_NAMED(DETECTION(), "Waiting for MoveGroup action server (%s)...", name.c_str());
+  ROS_INFO_NAMED(DETECTION(), "Waiting for MoveGroup action server (%s)...", name.c_str());
 
   // in case ROS time is published, wait for the time data to arrive
   ros::Time start_time = ros::Time::now();
@@ -219,7 +275,7 @@ void detection::GraspPointDetector::waitForAction(const PickupActionPtr &action,
   if (!action->isServerConnected())
     throw std::runtime_error("Unable to connect to action server within allotted time");
   else
-    ROS_DEBUG_NAMED(DETECTION(), "Connected to '%s'", name.c_str());
+    ROS_INFO_NAMED(DETECTION(), "Connected to '%s'", name.c_str());
 }
 
 } // namespace bachelors_final_project

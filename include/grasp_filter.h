@@ -43,6 +43,8 @@ class GraspFilter
 
   geometry_msgs::Pose obj_pose_;
 
+  Vec3f obj_size_;
+
   /* How far from the grasp center should the wrist be. r_gripper_tool_frame Is the center of the finger tips.
    * ie: The center of the grasping point
    * rosrun tf tf_echo r_wrist_roll_link r_gripper_tool_frame
@@ -80,6 +82,10 @@ public:
   void addSupportTable(Point &pose, Vec3f &size);
 
   void addCollisionObject(Vec3f &size, const std::string &frame);
+
+  void removeCollisionObject();
+
+  void attachCollisionObject();
 
   void filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps);
 

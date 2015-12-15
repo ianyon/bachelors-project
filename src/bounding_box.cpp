@@ -120,6 +120,7 @@ void detection::BoundingBox::broadcastFrameUpdate(tf::TransformBroadcaster broad
     transform.setRotation(getRotationQuaternionTF());
     ros::Time tf_time(stamp_ / 1000000.0);
     broadcaster.sendTransform(tf::StampedTransform(transform, tf_time, kinect_frame_, OBJ_FRAME));
+    ROS_INFO("Enviada Transformación con padre %s", kinect_frame_.c_str());
   }
 }
 

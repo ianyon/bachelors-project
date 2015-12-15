@@ -91,7 +91,7 @@ int main(int argc, char **argv)
   else
     ROS_ERROR("Failed to call service /gazebo/unpause_physics");
 
-  tf::TransformListener tf_listener(ros::Duration(60));
+  tf::TransformListener tf_listener(ros::Duration(120));
   viz::VisualizationThread viz_thread(tf_listener);
 
   // These objects cannot be copied because they contain a mutex
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
   openGUIIfAsked(viz_thread, segmentator, detector);
 
   //Start visualization (if there are visualizers)
-  viz_thread.start();
+  //viz_thread.start();
 
   ros::AsyncSpinner spinner(1);
   spinner.start();
@@ -124,6 +124,7 @@ int main(int argc, char **argv)
     if (segmentator.noNewProcessedData()) continue;
 
     std::sort(segmentator.getClusters().begin(), segmentator.getClusters().end(), cloudSizeComparator);
+
     int cluster_index = getNBiggerIndex(segmentator.getClusters().size(), cluster_selector);
     ROS_INFO("Using cluster with %lu points", segmentator.getCluster(cluster_index)->size());
     detector.setTable(segmentator.getTableCloud(), segmentator.getTable());

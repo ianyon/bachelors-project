@@ -35,8 +35,7 @@ using namespace moveit_msgs;
 using shape_msgs::SolidPrimitive;
 using shape_msgs::Plane;
 
-namespace bachelors_final_project
-{
+namespace bachelors_final_project {
 
 const float detection::GraspFilter::PREGRASP_DISTANCE = 0.1;
 
@@ -52,18 +51,16 @@ detection::GraspFilter::GraspFilter(ros::NodeHandle &nh, tf::TransformListener &
     actual_pose_pub_(nh.advertise<geometry_msgs::PoseStamped>("actual_sampled_pose", 10)),
     tf_listener_(tf_listener),
     pick_action_client_(pick_action_client),
-    PLANNER_NAME_(planner_name)
-{
+    PLANNER_NAME_(planner_name) {
   r_arm_group_.setPlanningTime(10.0);
   r_arm_group_.setPlannerId(PLANNER_NAME_);
-  ROS_DEBUG_NAMED(DETECTION(), "Frame de referencia: %s", r_arm_group_.getPlanningFrame().c_str());
-  ROS_DEBUG_NAMED(DETECTION(), "End Effector link: %s", r_arm_group_.getEndEffectorLink().c_str());
-  ROS_DEBUG_NAMED(DETECTION(), "End Effector: %s", r_arm_group_.getEndEffector().c_str());
+  ROS_INFO_NAMED(DETECTION(), "Frame de referencia: %s", r_arm_group_.getPlanningFrame().c_str());
+  ROS_INFO_NAMED(DETECTION(), "End Effector link: %s", r_arm_group_.getEndEffectorLink().c_str());
+  ROS_INFO_NAMED(DETECTION(), "End Effector: %s", r_arm_group_.getEndEffector().c_str());
 }
 
 void detection::GraspFilter::configure(float side_grasp_height, float top_graps_height,
-                                       BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box)
-{
+                                       BoundingBoxPtr &obj_bounding_box, BoundingBoxPtr &table_bounding_box) {
   OBJ_FRAME = obj_bounding_box->OBJ_FRAME;
 
   Point table_position = table_bounding_box->computePosition2DRobotFrame(tf_listener_);
@@ -73,8 +70,9 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
   addSupportTable(table_position, table_size);
 
   // Add a box to supress collisions with the object
-  Vec3f obj_size = obj_bounding_box->getSize3D();
-  addCollisionObject(obj_size, OBJ_FRAME);
+  obj_size_ = obj_bounding_box->getSize3D();
+  addCollisionObject(obj_size_, OBJ_FRAME);
+  addCollisionObject(obj_size_, OBJ_FRAME);
 
   obj_pose_ = obj_bounding_box->computePose3DRobotFrame(tf_listener_);
   side_grasp_center_ = Vec3d(0, 0, side_grasp_height);
@@ -84,8 +82,7 @@ void detection::GraspFilter::configure(float side_grasp_height, float top_graps_
   feasible_top_grasps_.clear();
 }
 
-void detection::GraspFilter::addSupportTable(Point &pose_pt, Vec3f &size)
-{
+void detection::GraspFilter::addSupportTable(Point &pose_pt, Vec3f &size) {
   CollisionObject co = getCollisionObjUpdated(collision_obj_pub, SUPPORT_TABLE(), false, attached_obj_pub,
                                               FOOTPRINT_FRAME);
 
@@ -100,8 +97,7 @@ void detection::GraspFilter::addSupportTable(Point &pose_pt, Vec3f &size)
   collision_obj_pub.publish(co);
 }
 
-void detection::GraspFilter::addCollisionObject(Vec3f &size, const std::string &frame)
-{
+void detection::GraspFilter::addCollisionObject(Vec3f &size, const std::string &frame) {
   CollisionObject co = getCollisionObjUpdated(collision_obj_pub, GRASPABLE_OBJECT(), true, attached_obj_pub,
                                               frame);
   /* Define a box to add to the world. */
@@ -114,34 +110,57 @@ void detection::GraspFilter::addCollisionObject(Vec3f &size, const std::string &
   ros::WallDuration(1.0).sleep();
 }
 
-void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps)
-{
+void detection::GraspFilter::attachCollisionObject() {
+  moveit_msgs::CollisionObject co;
+  co.id = GRASPABLE_OBJECT();
+  co.header.stamp = ros::Time::now();
+  co.header.frame_id = OBJ_FRAME;
+  co.operation = moveit_msgs::CollisionObject::ADD;
+  /* Define a box to add to the world. */
+  co.primitives.push_back(constructPrimitive(obj_size_[0], obj_size_[1], obj_size_[2]));
+  /* A pose for the box (specified relative to frame_id) */
+  geometry_msgs::Pose pose;
+  pose.orientation.w = 1.0;
+  co.primitive_poses.push_back(pose);
+  moveit_msgs::AttachedCollisionObject aco;
+  aco.object = co;
+  attached_obj_pub.publish(aco);
+  ros::WallDuration(1.0).sleep();
+}
+
+void detection::GraspFilter::removeCollisionObject() {
+  moveit_msgs::CollisionObject co;
+  co.id = GRASPABLE_OBJECT();
+  co.header.stamp = ros::Time::now();
+  co.header.frame_id = OBJ_FRAME;
+  co.operation = moveit_msgs::CollisionObject::REMOVE;
+  collision_obj_pub.publish(co);
+}
+
+
+void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr top_grasps) {
   side_grasps_ = side_grasps;
   top_grasps_ = top_grasps;
 
-  if (side_grasps_->size() > 0)
-  {
-    ROS_DEBUG_NAMED(DETECTION(), "Filtering %lu side grasps", side_grasps_->size());
-    BOOST_FOREACH(Point &point, side_grasps_->points)
-          {
+  if (side_grasps_->size() > 0) {
+    ROS_INFO_NAMED(DETECTION(), "Filtering %lu side grasps", side_grasps_->size());
+    BOOST_FOREACH(Point &point, side_grasps_->points) {
             Grasp grasp;
             if (processSample(point, true, grasp))
               feasible_side_grasps_.push_back(grasp);
           }
-    ROS_DEBUG_NAMED(DETECTION(), "%lu feasible SIDE grasps", feasible_side_grasps_.size());
+    ROS_INFO_NAMED(DETECTION(), "%lu feasible SIDE grasps", feasible_side_grasps_.size());
     ROS_INFO_COND_NAMED(feasible_side_grasps_.size() == 0, DETECTION(), "NO feasible SIDE grasps");
   }
 
-  if (top_grasps->size() > 0)
-  {
-    ROS_DEBUG_NAMED(DETECTION(), "Filtering %lu top grasps", top_grasps_->size());
-    BOOST_FOREACH(Point &point, top_grasps_->points)
-          {
+  if (top_grasps->size() > 0) {
+    ROS_INFO_NAMED(DETECTION(), "Filtering %lu top grasps", top_grasps_->size());
+    BOOST_FOREACH(Point &point, top_grasps_->points) {
             Grasp grasp;
             if (processSample(point, false, grasp))
               feasible_top_grasps_.push_back(grasp);
           }
-    ROS_DEBUG_NAMED(DETECTION(), "%lu feasible TOP grasps", feasible_top_grasps_.size());
+    ROS_INFO_NAMED(DETECTION(), "%lu feasible TOP grasps", feasible_top_grasps_.size());
     ROS_INFO_COND_NAMED(feasible_top_grasps_.size() == 0, DETECTION(), "NO feasible TOP grasps");
   }
 
@@ -154,22 +173,19 @@ void detection::GraspFilter::filterGraspingPoses(CloudPtr side_grasps, CloudPtr 
   publishGrasps(feasible_ones);
 }
 
-bool detection::GraspFilter::processSample(Point &sample, bool generate_side_grasps, Grasp &grasp)
-{
+bool detection::GraspFilter::processSample(Point &sample, bool generate_side_grasps, Grasp &grasp) {
 
-  if (ros::param::has("/bachelors_final_project/reconfigure"))
-  {
+  if (ros::param::has("/bachelors_final_project/reconfigure")) {
     bool reconfigure;
     ros::param::get("/bachelors_final_project/reconfigure", reconfigure);
-    if (reconfigure)
-    {
+    if (reconfigure) {
       ros::param::set("/bachelors_final_project/reconfigure", false);
       throw ComputeFailedException("Asked to change current object. Stopping grasp filtering");
     }
   }
 
   bool success;
-  ROS_DEBUG_NAMED(DETECTION(), "Trying to pick");
+  ROS_INFO_NAMED(DETECTION(), "Trying to pick");
   // Needed to specify that attached object is allowed to touch table
   r_arm_group_.setSupportSurfaceName(SUPPORT_TABLE());
 
@@ -181,21 +197,18 @@ bool detection::GraspFilter::processSample(Point &sample, bool generate_side_gra
   success = pick(r_arm_group_, GRASPABLE_OBJECT(), grasp);
 
 
-  ROS_DEBUG_COND_NAMED(success, DETECTION(), "Pick planning was successful.");
+  ROS_INFO_COND_NAMED(success, DETECTION(), "Pick planning was successful.");
 
   return success;
 }
 
 bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, const string &object,
-                                  Grasp &grasp)
-{
-  if (!pick_action_client_)
-  {
+                                  Grasp &grasp) {
+  if (!pick_action_client_) {
     ROS_ERROR_STREAM("Pick action client not found");
     return false;
   }
-  if (!pick_action_client_->isServerConnected())
-  {
+  if (!pick_action_client_->isServerConnected()) {
     ROS_ERROR_STREAM("Pick action server not connected");
     return false;
   }
@@ -203,15 +216,20 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
   PickupGoal goal;
   constructGoal(group, goal, object, PLANNER_NAME_, true);
   goal.possible_grasps.push_back(grasp);
-  pick_action_client_->cancelAllGoals();
-  pick_action_client_->sendGoal(goal);
-  if (!pick_action_client_->waitForResult(ros::Duration(0.5)))
-    ROS_DEBUG_STREAM("Pickup action returned early");
 
   bool plan_succeeded = pick_action_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED;
-  ROS_DEBUG_STREAM_COND(!plan_succeeded,
-                        "Fail: " << pick_action_client_->getState().toString() << ": " <<
-                        pick_action_client_->getState().getText());
+  if (plan_succeeded)
+    ROS_INFO("PAST PLAN SUCCEEDED BUT IS BEING ABORTED");
+
+  pick_action_client_->cancelAllGoals();
+  pick_action_client_->sendGoal(goal);
+  if (!pick_action_client_->waitForResult(ros::Duration(4.0)))
+    ROS_INFO_STREAM("Pickup action returned early");
+
+  plan_succeeded = pick_action_client_->getState() == actionlib::SimpleClientGoalState::SUCCEEDED;
+  ROS_INFO_STREAM_COND(!plan_succeeded,
+                       "Fail: " << pick_action_client_->getState().toString() << ": " <<
+                       pick_action_client_->getState().getText());
 
 /*  if (plan_succeeded && (selectChoice("Press 1 and enter to pick or 2 to continue...") == 1))
     pickMovement(pick_action_client_, goal);*/
@@ -219,8 +237,7 @@ bool detection::GraspFilter::pick(moveit::planning_interface::MoveGroup &group, 
   return plan_succeeded;
 }
 
-Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z)
-{
+Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z) {
 
   //TODO   // distance from center point of object to end effector
   //TODO grasp_depth_ = 0.06;// in negative or 0 this makes the grasps on the other side of the object! (like from below)
@@ -232,8 +249,7 @@ Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z)
   Eigen::Quaterniond eigen_q;
 
   // Special case for the short axis
-  if (x == 0.0 && y != 0.0)
-  {
+  if (x == 0.0 && y != 0.0) {
     Eigen::Quaterniond eigen_aux;
     // Get the rotation from the standard direction (no rotation), to the oposite grasp point
     eigen_aux.setFromTwoVectors(Vec3d(1.0, 0.0, 0.0), Vec3d(0.0, 1.0, 0.0));
@@ -255,8 +271,7 @@ Grasp detection::GraspFilter::generateTopGrasps(double x, double y, double z)
 /**
  * x, y, z: center of grasp point (the point that should be between the finger tips of the gripper)
  */
-Grasp detection::GraspFilter::generateSideGrasps(double x, double y, double z)
-{
+Grasp detection::GraspFilter::generateSideGrasps(double x, double y, double z) {
 
   //TODO   // distance from center point of object to end effector
   //TODO grasp_depth_ = 0.06;// in negative or 0 this makes the grasps on the other side of the object! (like from below)
@@ -279,8 +294,7 @@ Grasp detection::GraspFilter::generateSideGrasps(double x, double y, double z)
 }
 
 
-Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
-{
+Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t) {
   // Unique identifier for the grasp
   static int i = 0;
   Grasp grasp;
@@ -327,11 +341,9 @@ Grasp detection::GraspFilter::tfTransformToGrasp(tf::Transform t)
   return grasp;
 }
 
-void detection::GraspFilter::publishGrasps(std::vector<Grasp> grasps)
-{
+void detection::GraspFilter::publishGrasps(std::vector<Grasp> grasps) {
   geometry_msgs::PoseArray pose_array;
-  BOOST_FOREACH(Grasp &grasp, grasps)
-        {
+  BOOST_FOREACH(Grasp &grasp, grasps) {
           pose_array.poses.push_back(grasp.grasp_pose.pose);
           pose_array.header.frame_id = OBJ_FRAME;
           pose_array.header.stamp = ros::Time(0);
@@ -339,20 +351,18 @@ void detection::GraspFilter::publishGrasps(std::vector<Grasp> grasps)
   pose_pub_.publish(pose_array);
 }
 
-bool detection::GraspFilter::generateSideSamples(BoundingBoxPtr &obj_bounding_box, float grasp_height)
-{
+bool detection::GraspFilter::generateSideSamples(BoundingBoxPtr &obj_bounding_box, float grasp_height) {
   // grasp_height is in the lower half of the object. grasp_height > 0 if object is smaller than grasp height
   bool result = grasp_height < 0;
   float grasp_height_from_base = (float) (obj_bounding_box->getHeight() / 2) + grasp_height;
   // Or it must be 2 cm lower than obj's height
-  result |= grasp_height_from_base  <= obj_bounding_box->getHeight() - 0.02;
+  result |= grasp_height_from_base <= obj_bounding_box->getHeight() - 0.01;
   ROS_INFO_COND_NAMED(!result, DETECTION(), "No SIDE grasp generation. Unfeasible SIDE grasps in object ");
-  return result;
+  return true || result;
 }
 
 bool detection::GraspFilter::generateTopSamples(BoundingBoxPtr &obj_bounding_box, float height,
-                                                bool &generate_mayor_axis, bool &generate_minor_axis)
-{
+                                                bool &generate_mayor_axis, bool &generate_minor_axis) {
   // Only generate grasps along mayor axis if minor axis is thinner than gripper
   generate_mayor_axis = true || obj_bounding_box->getMinorAxisSize2D() <= 0.09;
   // Only generate grasps along mayor axis if minor axis is thinner than gripper
@@ -363,8 +373,7 @@ bool detection::GraspFilter::generateTopSamples(BoundingBoxPtr &obj_bounding_box
   return result;
 }
 
-void detection::GraspFilter::moveAllGripperJoints(float v)
-{
+void detection::GraspFilter::moveAllGripperJoints(float v) {
   robot_state::RobotStatePtr kinematic_state = gripper_group_.getCurrentState();
   const robot_state::JointModelGroup *joint_model_group = kinematic_state->getJointModelGroup(
       gripper_group_.getName());
@@ -372,8 +381,7 @@ void detection::GraspFilter::moveAllGripperJoints(float v)
   std::vector<double> joint_values;
   kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
 
-  BOOST_FOREACH(double &value, joint_values)
-        {
+  BOOST_FOREACH(double &value, joint_values) {
           value = v;
         }
 
@@ -390,18 +398,15 @@ void detection::GraspFilter::moveAllGripperJoints(float v)
   ros::WallDuration(2.0).sleep();
 }
 
-void detection::GraspFilter::openGripper()
-{
+void detection::GraspFilter::openGripper() {
   moveAllGripperJoints(1.0);
 }
 
-void detection::GraspFilter::closeGripper()
-{
+void detection::GraspFilter::closeGripper() {
   moveAllGripperJoints(0.0);
 }
 
-trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(float value)
-{
+trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(float value) {
   trajectory_msgs::JointTrajectory posture;
 
   robot_state::RobotStatePtr kinematic_state = gripper_group_.getCurrentState();
@@ -411,8 +416,7 @@ trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(fl
   std::vector<double> joint_values;
   kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
   const std::vector<std::string> &actuated_joint_names = gripper_group_.getActiveJoints();
-  BOOST_FOREACH(const std::string &name, actuated_joint_names)
-        {
+  BOOST_FOREACH(const std::string &name, actuated_joint_names) {
           posture.joint_names.push_back(name);
         }
   //r_gripper_motor_screw_joint
@@ -424,7 +428,7 @@ trajectory_msgs::JointTrajectory detection::GraspFilter::generateGraspPosture(fl
   posture.points[0].time_from_start = ros::Duration(15.0);
 
   // Only valid in grasp posture
-  posture.points[0].effort.resize(posture.joint_names.size(), -1.0);  // Close gently
+  posture.points[0].effort.resize(posture.joint_names.size(), 0.5);  // Close gently
 
   return posture;
 }
